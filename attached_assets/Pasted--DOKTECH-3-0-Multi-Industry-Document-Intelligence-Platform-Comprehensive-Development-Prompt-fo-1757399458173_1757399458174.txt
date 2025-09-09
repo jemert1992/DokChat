@@ -1,0 +1,432 @@
+# DOKTECH 3.0 - Multi-Industry Document Intelligence Platform
+## Comprehensive Development Prompt for Replit
+
+### Project Overview
+
+Build DOKTECH 3.0, a revolutionary multi-industry document intelligence platform that transforms how businesses across medical, legal, logistics, finance, and general business sectors handle document analysis. This platform will serve as the next evolution of the existing DOKTECH and NoteTaker systems, expanding from real estate-focused document processing to a comprehensive, industry-agnostic solution.
+
+### Core Vision
+
+DOKTECH 3.0 will be an enterprise-grade document intelligence platform that allows users to select their industry during onboarding and receive a customized experience tailored to their specific document analysis needs. The platform will leverage cutting-edge OCR technology, multiple AI models, and industry-specific processing pipelines to deliver unparalleled document understanding and automation.
+
+### Technology Stack
+
+**Backend Framework**: Flask with SQLAlchemy ORM
+**Database**: PostgreSQL (production-ready, scalable)
+**Frontend**: React.js with TypeScript
+**AI Integration**: 
+- OpenAI GPT-4o for primary document analysis
+- Google Cloud Vision API for OCR
+- Google Cloud Document AI for advanced document understanding
+- Custom industry-specific AI models
+
+**Additional Technologies**:
+- Redis for caching and session management
+- Celery for background task processing
+- Docker for containerization
+- AWS S3 for document storage
+- WebSocket for real-time updates
+
+### Industry-Specific Requirements
+
+Based on comprehensive research, each industry has unique document analysis needs:
+
+**Medical Industry**:
+- Document types: Patient records, consent forms, lab results, imaging reports, clinical guidelines
+- Challenges: HIPAA compliance, medical terminology understanding, fragmented information
+- Specific needs: PHI protection, medical entity extraction, clinical decision support
+
+**Legal Industry**:
+- Document types: Contracts, briefs, depositions, case law, regulatory filings
+- Challenges: Complex legal language, version control, confidentiality
+- Specific needs: Legal entity extraction, contract analysis, litigation support
+
+**Logistics Industry**:
+- Document types: Bills of lading, customs declarations, proof of delivery, invoices
+- Challenges: Multi-language documents, compliance verification, real-time processing
+- Specific needs: Shipment tracking, customs compliance, fraud detection
+
+**Finance Industry**:
+- Document types: Financial statements, loan applications, bank statements, audit reports
+- Challenges: Regulatory compliance, fraud detection, data accuracy
+- Specific needs: Financial entity extraction, risk assessment, automated reporting
+
+**General Business**:
+- Document types: Business plans, invoices, contracts, reports, correspondence
+- Challenges: Document standardization, workflow automation, information retrieval
+- Specific needs: Business process automation, data extraction, audit trails
+
+### Architecture Design
+
+**Microservices Architecture**:
+The platform will be built using a microservices approach with the following core services:
+
+1. **User Management Service**: Handles authentication, authorization, and user profiles
+2. **Document Processing Service**: Manages document upload, storage, and processing workflows
+3. **OCR Service**: Provides multiple OCR engines with fallback mechanisms
+4. **AI Analysis Service**: Coordinates multiple AI models for document understanding
+5. **Industry Configuration Service**: Manages industry-specific settings and workflows
+6. **Notification Service**: Handles real-time updates and notifications
+7. **Export Service**: Manages document export and reporting functionality
+
+**Database Schema**:
+
+```sql
+-- Core Tables
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    company VARCHAR(200),
+    industry VARCHAR(50) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE industry_configurations (
+    id SERIAL PRIMARY KEY,
+    industry VARCHAR(50) NOT NULL,
+    config_data JSONB NOT NULL,
+    document_types JSONB NOT NULL,
+    processing_rules JSONB NOT NULL,
+    ui_customizations JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    filename VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    industry VARCHAR(50) NOT NULL,
+    document_type VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'uploaded',
+    processing_progress INTEGER DEFAULT 0,
+    processing_stage VARCHAR(100),
+    processing_message TEXT,
+    ocr_confidence FLOAT,
+    ai_confidence FLOAT,
+    extracted_text TEXT,
+    extracted_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE document_analysis (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES documents(id),
+    analysis_type VARCHAR(100) NOT NULL,
+    analysis_data JSONB NOT NULL,
+    confidence_score FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE extracted_entities (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES documents(id),
+    entity_type VARCHAR(100) NOT NULL,
+    entity_value TEXT NOT NULL,
+    confidence_score FLOAT,
+    location_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Core Features Implementation
+
+**1. Industry Selection and Onboarding**
+
+Create a sophisticated onboarding flow that allows users to select their industry and automatically configures their workspace:
+
+```python
+# Industry Configuration Service
+class IndustryConfigurationService:
+    def __init__(self):
+        self.industry_configs = {
+            'medical': {
+                'document_types': ['patient_records', 'lab_results', 'imaging_reports'],
+                'required_fields': ['patient_id', 'date_of_service', 'provider'],
+                'compliance_rules': ['hipaa_compliance'],
+                'ui_theme': 'medical_blue',
+                'dashboard_widgets': ['patient_summary', 'compliance_status']
+            },
+            'legal': {
+                'document_types': ['contracts', 'briefs', 'depositions'],
+                'required_fields': ['case_number', 'client_name', 'date_filed'],
+                'compliance_rules': ['attorney_client_privilege'],
+                'ui_theme': 'legal_navy',
+                'dashboard_widgets': ['case_summary', 'deadline_tracker']
+            },
+            # ... other industries
+        }
+    
+    def configure_user_workspace(self, user_id, industry):
+        config = self.industry_configs.get(industry)
+        if config:
+            # Apply industry-specific configuration
+            self.apply_ui_customizations(user_id, config['ui_theme'])
+            self.setup_document_types(user_id, config['document_types'])
+            self.configure_compliance_rules(user_id, config['compliance_rules'])
+```
+
+**2. Advanced OCR Engine**
+
+Implement a multi-engine OCR system with industry-specific optimizations:
+
+```python
+class AdvancedOCREngine:
+    def __init__(self):
+        self.engines = {
+            'google_vision': GoogleVisionOCR(),
+            'document_ai': DocumentAIOCR(),
+            'tesseract': TesseractOCR()
+        }
+        
+    def process_document(self, document_path, industry, document_type):
+        # Select optimal OCR engine based on industry and document type
+        engine = self.select_optimal_engine(industry, document_type)
+        
+        # Process with primary engine
+        result = engine.extract_text(document_path)
+        
+        # Validate and enhance results
+        if result.confidence < 0.8:
+            # Use secondary engine for verification
+            secondary_result = self.engines['document_ai'].extract_text(document_path)
+            result = self.merge_results(result, secondary_result)
+        
+        return result
+    
+    def select_optimal_engine(self, industry, document_type):
+        # Industry-specific engine selection logic
+        if industry == 'medical' and document_type == 'handwritten_notes':
+            return self.engines['document_ai']
+        elif industry == 'legal' and document_type == 'contracts':
+            return self.engines['google_vision']
+        else:
+            return self.engines['google_vision']  # Default
+```
+
+**3. Multi-AI Analysis Pipeline**
+
+Create a sophisticated AI analysis pipeline that leverages multiple AI models:
+
+```python
+class MultiAIAnalysisPipeline:
+    def __init__(self):
+        self.openai_client = OpenAI()
+        self.industry_analyzers = {
+            'medical': MedicalDocumentAnalyzer(),
+            'legal': LegalDocumentAnalyzer(),
+            'logistics': LogisticsDocumentAnalyzer(),
+            'finance': FinanceDocumentAnalyzer(),
+            'general': GeneralDocumentAnalyzer()
+        }
+    
+    def analyze_document(self, document, extracted_text, industry):
+        # Primary analysis with OpenAI
+        primary_analysis = self.openai_analysis(extracted_text, industry)
+        
+        # Industry-specific analysis
+        industry_analyzer = self.industry_analyzers.get(industry)
+        industry_analysis = industry_analyzer.analyze(extracted_text)
+        
+        # Combine and validate results
+        combined_analysis = self.combine_analyses(primary_analysis, industry_analysis)
+        
+        return combined_analysis
+    
+    def openai_analysis(self, text, industry):
+        prompt = self.generate_industry_prompt(text, industry)
+        response = self.openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+```
+
+**4. Industry-Specific Document Types and Processing**
+
+Implement specialized processing for each industry:
+
+```python
+# Medical Document Analyzer
+class MedicalDocumentAnalyzer:
+    def analyze(self, text):
+        entities = self.extract_medical_entities(text)
+        compliance_check = self.check_hipaa_compliance(text)
+        clinical_insights = self.extract_clinical_insights(text)
+        
+        return {
+            'entities': entities,
+            'compliance': compliance_check,
+            'insights': clinical_insights,
+            'recommendations': self.generate_recommendations(entities, clinical_insights)
+        }
+    
+    def extract_medical_entities(self, text):
+        # Extract patient information, diagnoses, medications, procedures
+        return {
+            'patient_info': self.extract_patient_info(text),
+            'diagnoses': self.extract_diagnoses(text),
+            'medications': self.extract_medications(text),
+            'procedures': self.extract_procedures(text)
+        }
+
+# Legal Document Analyzer
+class LegalDocumentAnalyzer:
+    def analyze(self, text):
+        contract_terms = self.extract_contract_terms(text)
+        legal_entities = self.extract_legal_entities(text)
+        risk_assessment = self.assess_legal_risks(text)
+        
+        return {
+            'contract_terms': contract_terms,
+            'legal_entities': legal_entities,
+            'risk_assessment': risk_assessment,
+            'key_dates': self.extract_key_dates(text)
+        }
+```
+
+**5. Real-Time Processing and Progress Tracking**
+
+Implement WebSocket-based real-time updates:
+
+```python
+from flask_socketio import SocketIO, emit
+
+class DocumentProcessingService:
+    def __init__(self, socketio):
+        self.socketio = socketio
+        
+    def process_document_async(self, document_id, user_id):
+        # Start background processing
+        task = self.celery_app.send_task('process_document', args=[document_id])
+        
+        # Track progress and emit updates
+        while not task.ready():
+            progress = self.get_processing_progress(document_id)
+            self.socketio.emit('processing_update', {
+                'document_id': document_id,
+                'progress': progress
+            }, room=f'user_{user_id}')
+            time.sleep(1)
+```
+
+**6. Industry-Customized Frontend**
+
+Create a React-based frontend with industry-specific customizations:
+
+```jsx
+// Industry Dashboard Component
+const IndustryDashboard = ({ user, industry }) => {
+    const config = useIndustryConfig(industry);
+    
+    return (
+        <div className={`dashboard ${config.theme}`}>
+            <Header industry={industry} />
+            <div className="dashboard-grid">
+                {config.widgets.map(widget => (
+                    <DashboardWidget 
+                        key={widget} 
+                        type={widget} 
+                        industry={industry}
+                    />
+                ))}
+            </div>
+            <DocumentUploadZone 
+                acceptedTypes={config.documentTypes}
+                industry={industry}
+            />
+        </div>
+    );
+};
+
+// Industry-Specific Document Upload
+const DocumentUploadZone = ({ acceptedTypes, industry }) => {
+    const handleUpload = (files) => {
+        files.forEach(file => {
+            const documentType = detectDocumentType(file, industry);
+            uploadDocument(file, industry, documentType);
+        });
+    };
+    
+    return (
+        <Dropzone onDrop={handleUpload}>
+            <div className="upload-zone">
+                <h3>Upload {industry} Documents</h3>
+                <p>Accepted types: {acceptedTypes.join(', ')}</p>
+            </div>
+        </Dropzone>
+    );
+};
+```
+
+### Implementation Steps
+
+**Phase 1: Core Infrastructure (Week 1-2)**
+1. Set up Flask application with PostgreSQL database
+2. Implement user authentication and authorization
+3. Create industry configuration system
+4. Set up basic document upload and storage
+
+**Phase 2: OCR and AI Integration (Week 3-4)**
+1. Integrate Google Cloud Vision API
+2. Implement OpenAI GPT-4o integration
+3. Create multi-engine OCR system
+4. Build AI analysis pipeline
+
+**Phase 3: Industry-Specific Features (Week 5-6)**
+1. Implement medical document analyzer
+2. Create legal document analyzer
+3. Build logistics document analyzer
+4. Develop finance document analyzer
+5. Create general business analyzer
+
+**Phase 4: Frontend Development (Week 7-8)**
+1. Build React frontend with TypeScript
+2. Implement industry-specific UI customizations
+3. Create real-time progress tracking
+4. Build document management interface
+
+**Phase 5: Advanced Features (Week 9-10)**
+1. Implement document assembly and correlation
+2. Add export and reporting functionality
+3. Create audit trails and compliance features
+4. Build analytics dashboard
+
+**Phase 6: Testing and Deployment (Week 11-12)**
+1. Comprehensive testing across all industries
+2. Performance optimization
+3. Security audit
+4. Production deployment setup
+
+### Key Differentiators
+
+**1. Industry Intelligence**: Unlike generic document processing tools, DOKTECH 3.0 understands the specific needs and challenges of each industry, providing tailored solutions.
+
+**2. Multi-AI Approach**: Leverages multiple AI models to ensure the highest accuracy and comprehensive analysis.
+
+**3. Real-Time Processing**: Provides instant feedback and progress updates throughout the document processing pipeline.
+
+**4. Compliance-First Design**: Built with industry-specific compliance requirements in mind from the ground up.
+
+**5. Scalable Architecture**: Microservices-based design allows for easy scaling and addition of new industries.
+
+### Success Metrics
+
+- **Processing Accuracy**: >95% accuracy across all document types
+- **Processing Speed**: <30 seconds for standard documents
+- **User Satisfaction**: >4.5/5 rating from industry professionals
+- **Compliance**: 100% compliance with industry regulations
+- **Scalability**: Support for 10,000+ concurrent users
+
+This comprehensive platform will revolutionize document intelligence across industries, providing businesses with the tools they need to automate, analyze, and optimize their document workflows while maintaining the highest standards of accuracy, security, and compliance.
+

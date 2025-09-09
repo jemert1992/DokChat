@@ -48,7 +48,7 @@ import {
   type InsertCustomsCompliance,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -59,7 +59,9 @@ export interface IStorage {
   // Document operations
   createDocument(document: InsertDocument): Promise<Document>;
   getDocument(id: number): Promise<Document | undefined>;
+  getDocuments(): Promise<Document[]>;
   getUserDocuments(userId: string, limit?: number): Promise<Document[]>;
+  getDocumentsByDateRange(startDate: Date, endDate: Date): Promise<Document[]>;
   updateDocumentStatus(id: number, status: string, progress?: number, message?: string): Promise<void>;
   updateDocumentAnalysis(id: number, extractedText: string, extractedData: any, ocrConfidence: number, aiConfidence: number): Promise<void>;
   
@@ -160,6 +162,13 @@ export class DatabaseStorage implements IStorage {
     return doc;
   }
 
+  async getDocuments(): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .orderBy(desc(documents.createdAt));
+  }
+
   async getUserDocuments(userId: string, limit: number = 50): Promise<Document[]> {
     return await db
       .select()
@@ -167,6 +176,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.userId, userId))
       .orderBy(desc(documents.createdAt))
       .limit(limit);
+  }
+
+  async getDocumentsByDateRange(startDate: Date, endDate: Date): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .where(
+        and(
+          gte(documents.createdAt, startDate),
+          lte(documents.createdAt, endDate)
+        )
+      );
   }
 
   async updateDocumentStatus(id: number, status: string, progress?: number, message?: string): Promise<void> {

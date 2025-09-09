@@ -55,8 +55,8 @@ export class MultiAIService {
 
     try {
       // Enhanced OCR if it's an image or PDF (temporarily disabled due to auth issues)
-      if (filePath && this.isImageOrPDF(mimeType) && false) {
-        const ocrResult = mimeType?.includes('pdf') 
+      if (filePath && mimeType && this.isImageOrPDF(mimeType) && false) {
+        const ocrResult = mimeType.includes('pdf') 
           ? await this.visionService.extractTextFromPDF(filePath)
           : await this.visionService.extractTextFromImage(filePath);
         
@@ -80,11 +80,11 @@ export class MultiAIService {
         };
       }
 
-      // Run all AI analyses in parallel
+      // Run all AI analyses in parallel with safer error handling
       const [openaiResult, geminiResult, anthropicResult] = await Promise.allSettled([
         this.openaiService.analyzeDocument(text, industry),
         this.analyzeWithGemini(text, industry),
-        this.anthropic ? this.analyzeWithAnthropic(text, industry) : Promise.resolve(null)
+        this.handleAnthropicSafely(text, industry)
       ]);
 
       // Process OpenAI results
@@ -289,5 +289,15 @@ Respond with JSON format:
       confidence: 0.7,
       processingNotes: ['Fallback analysis used']
     };
+  }
+
+  private async handleAnthropicSafely(text: string, industry: string) {
+    try {
+      if (!this.anthropic) return null;
+      return await this.analyzeWithAnthropic(text, industry);
+    } catch (error) {
+      console.error('Anthropic analysis failed, continuing without it:', error);
+      return null;
+    }
   }
 }

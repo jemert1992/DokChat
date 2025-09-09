@@ -86,7 +86,7 @@ export default function RecentActivity({ documents, isLoading, onDocumentClick }
   const recentDocuments = documents.slice(0, 5);
 
   return (
-    <Card>
+    <Card data-testid="recent-activity">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>

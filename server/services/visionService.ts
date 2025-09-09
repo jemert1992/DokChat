@@ -19,9 +19,10 @@ export class VisionService {
   private client: ImageAnnotatorClient;
 
   constructor() {
+    // Use API key authentication for Replit environment
     this.client = new ImageAnnotatorClient({
-      keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      apiKey: process.env.GOOGLE_CLOUD_API_KEY,
     });
   }
 

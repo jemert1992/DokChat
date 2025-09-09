@@ -37,9 +37,9 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
 
-      // Stage 1: Advanced OCR Text Extraction with Google Vision
-      await storage.updateDocumentStatus(documentId, 'processing', 20, 'Extracting text with Google Vision API...');
-      this.sendWebSocketUpdate(documentId, 'processing', 20, 'Running advanced OCR analysis', 'ocr');
+      // Stage 1: Text Extraction (OCR temporarily simplified)
+      await storage.updateDocumentStatus(documentId, 'processing', 20, 'Extracting text from document...');
+      this.sendWebSocketUpdate(documentId, 'processing', 20, 'Running text extraction', 'ocr');
       const extractedText = await this.extractText(document.filePath, document.mimeType);
       
       // Stage 2: Multi-AI Analysis (OpenAI + Gemini + Anthropic)

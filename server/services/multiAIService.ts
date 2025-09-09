@@ -54,8 +54,8 @@ export class MultiAIService {
     const results: Partial<MultiAIResult> = {};
 
     try {
-      // Enhanced OCR if it's an image or PDF
-      if (filePath && this.isImageOrPDF(mimeType)) {
+      // Enhanced OCR if it's an image or PDF (temporarily disabled due to auth issues)
+      if (filePath && this.isImageOrPDF(mimeType) && false) {
         const ocrResult = mimeType?.includes('pdf') 
           ? await this.visionService.extractTextFromPDF(filePath)
           : await this.visionService.extractTextFromImage(filePath);

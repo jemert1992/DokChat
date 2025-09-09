@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Document, DocumentAnalysis, ExtractedEntity } from "@shared/schema";
 import ExtractedDataDisplay from "@/components/ExtractedDataDisplay";
+import DocumentChat from '@/components/DocumentChat';
 
 interface DocumentAnalysisProps {
   params: { id: string };
@@ -380,6 +381,14 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
           </div>
         </div>
       </div>
+      
+      {/* Document Chat - Only show for completed documents */}
+      {document && document.status === 'completed' && (
+        <DocumentChat 
+          documentId={parseInt(documentId)} 
+          documentTitle={document.originalFilename} 
+        />
+      )}
     </div>
   );
 }

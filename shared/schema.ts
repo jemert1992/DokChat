@@ -73,6 +73,18 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Chat messages table for document conversations
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: varchar("role", { length: 20 }).notNull(), // 'user' or 'assistant'
+  content: text("content").notNull(),
+  confidence: real("confidence"),
+  model: varchar("model", { length: 20 }), // 'openai' or 'gemini'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Document analysis results
 export const documentAnalysis = pgTable("document_analysis", {
   id: serial("id").primaryKey(),
@@ -125,6 +137,9 @@ export type ProcessingJob = typeof processingJobs.$inferSelect;
 
 export type InsertIndustryConfiguration = typeof industryConfigurations.$inferInsert;
 export type IndustryConfiguration = typeof industryConfigurations.$inferSelect;
+
+export type InsertChatMessage = typeof chatMessages.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({

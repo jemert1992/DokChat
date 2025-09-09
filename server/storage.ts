@@ -5,6 +5,7 @@ import {
   extractedEntities,
   processingJobs,
   industryConfigurations,
+  chatMessages,
   type User,
   type UpsertUser,
   type Document,
@@ -16,6 +17,8 @@ import {
   type ProcessingJob,
   type InsertProcessingJob,
   type IndustryConfiguration,
+  type ChatMessage,
+  type InsertChatMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -48,6 +51,11 @@ export interface IStorage {
   
   // Industry configuration operations
   getIndustryConfiguration(industry: string): Promise<IndustryConfiguration | undefined>;
+  
+  // Chat operations
+  saveChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getChatHistory(documentId: number, limit?: number): Promise<ChatMessage[]>;
+  clearChatHistory(documentId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -223,6 +231,31 @@ export class DatabaseStorage implements IStorage {
       .from(industryConfigurations)
       .where(eq(industryConfigurations.industry, industry));
     return config;
+  }
+
+  // Chat operations
+  async saveChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [savedMessage] = await db
+      .insert(chatMessages)
+      .values(message)
+      .returning();
+    return savedMessage;
+  }
+
+  async getChatHistory(documentId: number, limit: number = 50): Promise<ChatMessage[]> {
+    const messages = await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.documentId, documentId))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit);
+    return messages.reverse(); // Return in chronological order
+  }
+
+  async clearChatHistory(documentId: number): Promise<void> {
+    await db
+      .delete(chatMessages)
+      .where(eq(chatMessages.documentId, documentId));
   }
 }
 

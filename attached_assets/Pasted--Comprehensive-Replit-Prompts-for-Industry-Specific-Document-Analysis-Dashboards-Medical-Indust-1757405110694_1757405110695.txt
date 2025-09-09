@@ -1,0 +1,265 @@
+# Comprehensive Replit Prompts for Industry-Specific Document Analysis Dashboards
+
+## Medical Industry Document Analysis Dashboard - Replit Prompt
+
+### Project Overview
+Create a comprehensive medical document analysis dashboard that revolutionizes how healthcare organizations handle patient records, clinical documentation, and medical data processing. This HIPAA-compliant platform will serve hospitals, clinics, and healthcare providers by automating document analysis while ensuring the highest standards of patient privacy and regulatory compliance.
+
+### Technical Requirements
+
+**Backend Framework:** Flask with SQLAlchemy ORM and PostgreSQL database
+**Frontend Framework:** React.js with TypeScript and Material-UI for healthcare-appropriate design
+**AI Integration:** OpenAI GPT-4 for medical document analysis, Google Cloud Vision API for OCR
+**Security:** Healthcare-grade encryption, HIPAA compliance features, and audit logging
+**Additional Technologies:** Redis for caching, Celery for background processing, WebSocket for real-time updates
+
+### Core Features to Implement
+
+**1. HIPAA-Compliant Document Upload System**
+Create a secure document upload interface that automatically detects medical document types including patient records, lab results, imaging reports, consent forms, and clinical notes. Implement automatic PHI (Protected Health Information) detection and handling protocols. The system should support batch uploads and provide real-time processing status updates.
+
+**2. Medical Entity Extraction Engine**
+Develop an advanced AI-powered extraction system that identifies and categorizes medical entities including patient demographics, medical conditions, medications, procedures, allergies, and vital signs. The system should understand medical terminology, abbreviations, and clinical context to provide accurate data extraction with confidence scoring.
+
+**3. Clinical Decision Support Interface**
+Build an intelligent analysis panel that provides clinical insights, identifies potential drug interactions, flags critical values, and generates clinical summaries. The system should highlight important findings and provide contextual medical information to support healthcare decision-making.
+
+**4. Compliance and Audit Dashboard**
+Implement comprehensive HIPAA compliance monitoring with automatic audit trail generation, access logging, and privacy impact assessments. Include features for data retention management, breach detection, and regulatory reporting capabilities.
+
+### Database Schema Design
+
+```sql
+-- Core medical document tables
+CREATE TABLE medical_documents (
+    id SERIAL PRIMARY KEY,
+    patient_mrn VARCHAR(50),
+    document_type VARCHAR(100) NOT NULL,
+    phi_detected BOOLEAN DEFAULT FALSE,
+    clinical_significance VARCHAR(20),
+    processing_status VARCHAR(50) DEFAULT 'uploaded',
+    hipaa_compliant BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE medical_entities (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES medical_documents(id),
+    entity_type VARCHAR(100) NOT NULL, -- medication, diagnosis, procedure, etc.
+    entity_value TEXT NOT NULL,
+    medical_code VARCHAR(50), -- ICD-10, CPT, etc.
+    confidence_score FLOAT,
+    clinical_context TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE patient_summaries (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES medical_documents(id),
+    patient_demographics JSONB,
+    medical_history JSONB,
+    current_medications JSONB,
+    allergies JSONB,
+    vital_signs JSONB,
+    clinical_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Implementation Guidelines
+
+**Security Implementation:** Ensure all data is encrypted at rest and in transit using AES-256 encryption. Implement role-based access control with healthcare-specific permissions (physician, nurse, administrator, etc.). Create automatic session timeouts and multi-factor authentication for sensitive operations.
+
+**Medical AI Processing:** Integrate with medical terminology databases (SNOMED CT, ICD-10, RxNorm) for accurate entity recognition. Implement confidence scoring for all extracted medical data and provide manual review capabilities for low-confidence extractions.
+
+**User Interface Design:** Create a clean, clinical interface with healthcare-appropriate color schemes (blues and whites). Implement accessibility features for healthcare professionals and ensure the interface works well in clinical environments with proper contrast and readability.
+
+**Integration Capabilities:** Build APIs for integration with Electronic Health Record (EHR) systems, Laboratory Information Systems (LIS), and Hospital Information Systems (HIS). Support HL7 FHIR standards for healthcare data exchange.
+
+### Success Metrics and Testing
+
+Implement comprehensive testing including HIPAA compliance validation, medical entity extraction accuracy testing (target >95% accuracy), and performance testing for high-volume document processing. Include user acceptance testing with healthcare professionals and security penetration testing for HIPAA compliance verification.
+
+## Legal Industry Document Analysis Dashboard - Replit Prompt
+
+### Project Overview
+Develop a sophisticated legal document analysis platform that transforms how law firms, legal departments, and legal professionals handle contract analysis, document review, and legal research. This platform will provide advanced AI-powered analysis of legal documents while maintaining the highest standards of attorney-client privilege and legal confidentiality.
+
+### Technical Requirements
+
+**Backend Framework:** Flask with SQLAlchemy ORM and PostgreSQL database
+**Frontend Framework:** React.js with TypeScript and Ant Design for professional legal interface
+**AI Integration:** OpenAI GPT-4 for legal document analysis, specialized legal NLP models
+**Security:** Legal-grade security with privilege protection and confidentiality features
+**Additional Technologies:** Elasticsearch for legal document search, Redis for caching, WebSocket for collaboration
+
+### Core Features to Implement
+
+**1. Advanced Legal Document Processing**
+Create a comprehensive document upload and processing system that handles various legal document types including contracts, briefs, pleadings, discovery documents, and legal correspondence. Implement automatic document classification, clause extraction, and legal entity identification with specialized legal AI models.
+
+**2. Contract Analysis and Risk Assessment**
+Develop an intelligent contract analysis engine that identifies key clauses, terms, obligations, and potential risks. The system should extract important dates, parties, governing law, and financial terms while providing risk scoring and legal precedent analysis.
+
+**3. Legal Entity and Citation Extraction**
+Build advanced extraction capabilities for legal entities including parties, jurisdictions, case citations, statutes, and legal references. Implement automatic legal research integration and precedent analysis to provide contextual legal information.
+
+**4. Document Comparison and Version Control**
+Create sophisticated document comparison tools with change tracking, version control, and collaboration features. Implement redaction capabilities, privilege protection, and secure document sharing for legal teams.
+
+### Database Schema Design
+
+```sql
+-- Core legal document tables
+CREATE TABLE legal_documents (
+    id SERIAL PRIMARY KEY,
+    case_number VARCHAR(100),
+    document_type VARCHAR(100) NOT NULL,
+    privilege_level VARCHAR(50) DEFAULT 'attorney_client',
+    legal_significance VARCHAR(20),
+    processing_status VARCHAR(50) DEFAULT 'uploaded',
+    confidentiality_level VARCHAR(50) DEFAULT 'confidential',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE contract_analysis (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES legal_documents(id),
+    contract_type VARCHAR(100),
+    parties JSONB,
+    key_terms JSONB,
+    obligations JSONB,
+    important_dates JSONB,
+    governing_law VARCHAR(100),
+    risk_score FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE legal_entities (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES legal_documents(id),
+    entity_type VARCHAR(100) NOT NULL, -- party, court, statute, case_citation
+    entity_value TEXT NOT NULL,
+    legal_context TEXT,
+    jurisdiction VARCHAR(100),
+    confidence_score FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Implementation Guidelines
+
+**Legal Security Implementation:** Implement attorney-client privilege protection with automatic privilege detection and secure client portals. Create comprehensive audit trails for all document access and modifications. Ensure compliance with legal ethics rules and bar association requirements.
+
+**Legal AI Processing:** Integrate with legal databases and citation systems for accurate legal entity recognition. Implement specialized legal language processing for contract terms, legal jargon, and case law analysis. Provide confidence scoring and manual review capabilities for legal professionals.
+
+**Professional Interface Design:** Create a sophisticated, professional interface appropriate for legal environments. Implement advanced search capabilities, document organization features, and collaboration tools for legal teams. Ensure the interface supports complex legal workflows and document review processes.
+
+**Legal System Integration:** Build APIs for integration with legal practice management systems, case management software, and legal research platforms. Support legal document standards and formats commonly used in the legal industry.
+
+## Logistics Industry Document Analysis Dashboard - Replit Prompt
+
+### Project Overview
+Build a high-performance logistics document analysis platform that revolutionizes supply chain documentation, customs processing, and international trade compliance. This system will handle massive volumes of shipping documents while ensuring accuracy, speed, and regulatory compliance across global logistics operations.
+
+### Technical Requirements
+
+**Backend Framework:** Flask with SQLAlchemy ORM and PostgreSQL database with horizontal scaling
+**Frontend Framework:** React.js with TypeScript and Ant Design for logistics operations interface
+**AI Integration:** OpenAI GPT-4 for document analysis, Google Cloud Vision API with multi-language OCR
+**Performance:** High-throughput processing with queue management and parallel processing
+**Additional Technologies:** Redis for caching, Celery for background processing, Docker for containerization
+
+### Core Features to Implement
+
+**1. High-Volume Document Processing System**
+Create a robust document processing pipeline that handles thousands of logistics documents simultaneously including bills of lading, customs declarations, commercial invoices, packing lists, and proof of delivery documents. Implement automatic document type detection, multi-language OCR, and batch processing capabilities.
+
+**2. Customs Compliance and Trade Automation**
+Develop intelligent customs compliance verification that automatically checks documents against international trade regulations, calculates duties and taxes, and identifies compliance issues. Implement automated customs filing and regulatory reporting capabilities.
+
+**3. Shipment Tracking and Logistics Analytics**
+Build comprehensive shipment tracking integration that connects document data with carrier systems and provides real-time visibility into shipment status. Implement logistics analytics for performance monitoring, cost analysis, and operational optimization.
+
+**4. Multi-Language and Multi-Currency Support**
+Create advanced multi-language processing capabilities for international documents with automatic translation and currency conversion. Implement region-specific compliance rules and documentation requirements.
+
+### Database Schema Design
+
+```sql
+-- Core logistics document tables
+CREATE TABLE logistics_documents (
+    id SERIAL PRIMARY KEY,
+    shipment_id VARCHAR(100),
+    document_type VARCHAR(100) NOT NULL,
+    origin_country VARCHAR(50),
+    destination_country VARCHAR(50),
+    carrier VARCHAR(100),
+    processing_status VARCHAR(50) DEFAULT 'uploaded',
+    customs_status VARCHAR(50) DEFAULT 'pending',
+    compliance_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE shipment_data (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES logistics_documents(id),
+    shipper_info JSONB,
+    consignee_info JSONB,
+    cargo_details JSONB,
+    shipping_terms JSONB,
+    customs_info JSONB,
+    tracking_number VARCHAR(100),
+    estimated_delivery DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE customs_compliance (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES logistics_documents(id),
+    hs_codes JSONB,
+    duty_calculations JSONB,
+    compliance_status VARCHAR(50),
+    regulatory_requirements JSONB,
+    clearance_status VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Implementation Guidelines
+
+**High-Performance Processing:** Implement asynchronous processing with queue management for handling high document volumes. Create horizontal scaling capabilities and load balancing for peak processing periods. Implement caching strategies for frequently accessed data and carrier integrations.
+
+**International Compliance:** Integrate with customs databases and regulatory systems for real-time compliance verification. Implement automated duty calculations, restricted goods detection, and regulatory filing capabilities. Create region-specific processing rules and documentation requirements.
+
+**Carrier Integration:** Build APIs for integration with major shipping carriers, freight forwarders, and logistics management systems. Implement real-time tracking updates and delivery confirmation processing. Create standardized data exchange formats for logistics industry compatibility.
+
+**Analytics and Reporting:** Develop comprehensive logistics analytics including shipment performance metrics, cost analysis, and operational efficiency reporting. Implement predictive analytics for delivery times and potential delays.
+
+## Finance Industry Document Analysis Dashboard - Replit Prompt
+
+### Project Overview
+Create a sophisticated financial document analysis platform that transforms how banks, credit unions, and financial institutions handle loan processing, compliance documentation, and financial analysis. This platform will provide advanced AI-powered analysis while maintaining the highest standards of financial security and regulatory compliance.
+
+### Technical Requirements
+
+**Backend Framework:** Flask with SQLAlchemy ORM and PostgreSQL database with financial-grade security
+**Frontend Framework:** React.js with TypeScript and Material-UI for financial services interface
+**AI Integration:** OpenAI GPT-4 for financial document analysis, specialized fraud detection models
+**Security:** Bank-grade security with multi-factor authentication and encryption
+**Additional Technologies:** Redis for caching, Celery for background processing, blockchain for audit trails
+
+### Core Features to Implement
+
+**1. Financial Document Processing and Analysis**
+Create a comprehensive financial document processing system that handles bank statements, loan applications, tax returns, financial statements, and credit reports. Implement automatic financial data extraction, income verification, and creditworthiness assessment with advanced AI models.
+
+**2. Fraud Detection and Risk Assessment**
+Develop intelligent fraud detection capabilities that analyze documents for authenticity, identify suspicious patterns, and assess financial risks. Implement machine learning algorithms for fraud scoring and automated risk assessment with real-time alerts.
+
+**3. Regulatory Compliance Automation**
+Build comprehensive regulatory compliance features including KYC (Know Your Customer), AML (Anti-Money Laundering), and regulatory reporting automation. Implement automatic compliance checking and regulatory filing capabilities.
+
+**4. Customer Financial Profiling**
+Create advanced customer financial profiling that aggregates data from multiple documents to provide comprehensive financial assessments, 
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

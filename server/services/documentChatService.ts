@@ -2,15 +2,11 @@ import { OpenAIService } from './openaiService';
 import { summarizeArticle as geminiSummarize } from '../../gemini';
 import { storage } from '../storage';
 
-export interface ChatMessage {
-  id?: number;
-  documentId: number;
-  userId: string;
-  role: 'user' | 'assistant';
-  content: string;
+// Use the ChatMessage type from schema instead of defining our own
+import type { ChatMessage as ChatMessageDB } from '@shared/schema';
+
+export interface ChatMessage extends Omit<ChatMessageDB, 'createdAt'> {
   timestamp: Date;
-  confidence?: number;
-  model?: 'openai' | 'gemini';
 }
 
 export interface ChatResponse {
@@ -40,7 +36,11 @@ export class DocumentChatService {
       }
 
       // Get recent chat history for context
-      const chatHistory = await storage.getChatHistory(documentId, 10);
+      const dbChatHistory = await storage.getChatHistory(documentId, 10);
+      const chatHistory = dbChatHistory.map(msg => ({
+        ...msg,
+        timestamp: msg.createdAt || new Date()
+      }));
       
       // Generate response using both AI models
       const [openaiResponse, geminiResponse] = await Promise.allSettled([
@@ -69,8 +69,7 @@ export class DocumentChatService {
         documentId,
         userId,
         role: 'user',
-        content: question,
-        timestamp: new Date()
+        content: question
       });
 
       await storage.saveChatMessage({
@@ -79,8 +78,7 @@ export class DocumentChatService {
         role: 'assistant',
         content: finalResponse.response,
         confidence: finalResponse.confidence,
-        model: finalResponse.model,
-        timestamp: new Date()
+        model: finalResponse.model
       });
 
       return finalResponse;
@@ -218,7 +216,11 @@ Please provide a helpful and accurate answer based on the document content. If t
         throw new Error('Document not found or access denied');
       }
 
-      return await storage.getChatHistory(documentId);
+      const dbHistory = await storage.getChatHistory(documentId);
+      return dbHistory.map(msg => ({
+        ...msg,
+        timestamp: msg.createdAt || new Date()
+      }));
     } catch (error) {
       console.error('Error getting chat history:', error);
       throw error;

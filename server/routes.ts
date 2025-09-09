@@ -7,8 +7,10 @@ import path from "path";
 import { DocumentProcessor } from "./services/documentProcessor";
 import { WebSocketService } from "./services/websocketService";
 import { IndustryConfigService } from "./services/industryConfig";
+import { DocumentChatService } from "./services/documentChatService";
 import { industrySelectionSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -42,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const websocketService = new WebSocketService(httpServer);
   const documentProcessor = new DocumentProcessor(websocketService);
   const industryConfigService = new IndustryConfigService();
+  const chatService = new DocumentChatService();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -312,6 +315,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching advanced analytics:", error);
       res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
+  // Chat endpoints
+  const chatQuerySchema = z.object({
+    question: z.string().min(1, "Question cannot be empty").max(1000, "Question too long"),
+  });
+
+  // Chat with document
+  app.post('/api/documents/:id/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const { question } = chatQuerySchema.parse(req.body);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const response = await chatService.chatWithDocument(documentId, userId, question);
+      res.json(response);
+    } catch (error) {
+      console.error("Error in document chat:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Chat failed" 
+      });
+    }
+  });
+
+  // Get chat history
+  app.get('/api/documents/:id/chat/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const history = await chatService.getChatHistory(documentId, userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error getting chat history:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to get chat history" 
+      });
+    }
+  });
+
+  // Clear chat history
+  app.delete('/api/documents/:id/chat/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      await chatService.clearChatHistory(documentId, userId);
+      res.json({ message: "Chat history cleared successfully" });
+    } catch (error) {
+      console.error("Error clearing chat history:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to clear chat history" 
+      });
     }
   });
 

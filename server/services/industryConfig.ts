@@ -12,12 +12,39 @@ export interface IndustryConfig {
     requiresCompliance: boolean;
     complianceStandards: string[];
     customValidation: boolean;
+    securityLevel: 'standard' | 'high' | 'maximum';
+    auditRequirements: string[];
+    dataRetention: number; // days
+    multiLanguageSupport: boolean;
+    customEntityTypes: string[];
+  };
+  entityTypes: {
+    primary: string[];
+    secondary: string[];
+    codes: string[]; // ICD-10, CPT, HS codes, etc.
+  };
+  complianceFeatures: {
+    encryption: boolean;
+    accessControl: boolean;
+    auditLogging: boolean;
+    dataMinimization: boolean;
+    anonymization: boolean;
   };
   statLabels: {
     stat1: string;
     stat2: string;
     stat3: string;
     stat4: string;
+  };
+  aiModels: {
+    primary: string;
+    secondary: string;
+    specializedPrompts: boolean;
+  };
+  integrations: {
+    external: string[];
+    apis: string[];
+    standards: string[];
   };
 }
 
@@ -28,21 +55,48 @@ export class IndustryConfigService {
       icon: 'fas fa-heartbeat',
       color: 'teal',
       dashboardTitle: 'Medical Dashboard',
-      dashboardSubtitle: 'Manage your patient documents and clinical analysis',
+      dashboardSubtitle: 'HIPAA-compliant patient document analysis and clinical decision support',
       userTitle: 'Medical Professional',
       documentLibraryLabel: 'Patient Records',
-      uploadDescription: 'Upload patient records, lab results, or clinical documents',
-      documentTypes: ['patient_records', 'lab_results', 'imaging_reports', 'clinical_notes'],
+      uploadDescription: 'Upload patient records, lab results, imaging reports, or clinical documentation with automatic PHI detection',
+      documentTypes: ['patient_records', 'lab_results', 'imaging_reports', 'clinical_notes', 'consent_forms', 'discharge_summaries', 'procedure_notes', 'pathology_reports'],
       processingRules: {
         requiresCompliance: true,
-        complianceStandards: ['HIPAA'],
+        complianceStandards: ['HIPAA', 'HL7_FHIR', 'FDA_CFR_Part_11'],
         customValidation: true,
+        securityLevel: 'maximum',
+        auditRequirements: ['access_logs', 'phi_detection', 'data_lineage', 'consent_tracking'],
+        dataRetention: 2555, // 7 years as per HIPAA
+        multiLanguageSupport: false,
+        customEntityTypes: ['medications', 'diagnoses', 'procedures', 'allergies', 'vital_signs', 'lab_values'],
+      },
+      entityTypes: {
+        primary: ['patient_demographics', 'medical_conditions', 'medications', 'procedures', 'allergies'],
+        secondary: ['vital_signs', 'lab_results', 'provider_info', 'insurance_info'],
+        codes: ['ICD-10', 'CPT', 'HCPCS', 'SNOMED_CT', 'LOINC', 'RxNorm'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: true,
+        auditLogging: true,
+        dataMinimization: true,
+        anonymization: true,
       },
       statLabels: {
         stat1: 'Patient Records',
         stat2: 'HIPAA Compliance',
-        stat3: 'Processing Time',
-        stat4: 'Clinical Accuracy',
+        stat3: 'Clinical Accuracy',
+        stat4: 'PHI Detection Rate',
+      },
+      aiModels: {
+        primary: 'openai',
+        secondary: 'gemini',
+        specializedPrompts: true,
+      },
+      integrations: {
+        external: ['EHR_systems', 'LIS', 'HIS', 'PACS'],
+        apis: ['HL7_FHIR', 'DICOM'],
+        standards: ['HIPAA', 'HL7', 'SNOMED_CT'],
       },
     },
     legal: {
@@ -50,21 +104,48 @@ export class IndustryConfigService {
       icon: 'fas fa-gavel',
       color: 'blue-900',
       dashboardTitle: 'Legal Dashboard',
-      dashboardSubtitle: 'Manage your legal documents and contract analysis',
+      dashboardSubtitle: 'Advanced legal document analysis with privilege protection and contract intelligence',
       userTitle: 'Legal Professional',
       documentLibraryLabel: 'Case Documents',
-      uploadDescription: 'Upload contracts, briefs, or legal documents',
-      documentTypes: ['contracts', 'briefs', 'depositions', 'case_law'],
+      uploadDescription: 'Upload contracts, briefs, pleadings, or legal correspondence with automatic privilege detection',
+      documentTypes: ['contracts', 'briefs', 'pleadings', 'discovery_documents', 'case_law', 'legal_correspondence', 'depositions', 'expert_reports'],
       processingRules: {
         requiresCompliance: true,
-        complianceStandards: ['Attorney-Client Privilege'],
+        complianceStandards: ['Attorney_Client_Privilege', 'Work_Product_Doctrine', 'Bar_Ethics_Rules'],
         customValidation: true,
+        securityLevel: 'maximum',
+        auditRequirements: ['privilege_protection', 'access_control', 'document_lineage', 'confidentiality_levels'],
+        dataRetention: 2555, // 7 years for legal records
+        multiLanguageSupport: true,
+        customEntityTypes: ['parties', 'jurisdictions', 'case_citations', 'statutes', 'contract_terms', 'obligations'],
+      },
+      entityTypes: {
+        primary: ['parties', 'contract_terms', 'obligations', 'dates_deadlines', 'governing_law'],
+        secondary: ['case_citations', 'statutes', 'legal_precedents', 'jurisdictions'],
+        codes: ['case_citations', 'statute_citations', 'regulation_citations'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: true,
+        auditLogging: true,
+        dataMinimization: true,
+        anonymization: false, // Legal docs require full attribution
       },
       statLabels: {
         stat1: 'Documents Reviewed',
-        stat2: 'Contract Accuracy',
-        stat3: 'Analysis Time',
-        stat4: 'Compliance Score',
+        stat2: 'Contract Risk Score',
+        stat3: 'Privilege Protection',
+        stat4: 'Citation Accuracy',
+      },
+      aiModels: {
+        primary: 'openai',
+        secondary: 'gemini',
+        specializedPrompts: true,
+      },
+      integrations: {
+        external: ['practice_management', 'case_management', 'legal_research'],
+        apis: ['court_records', 'legal_databases'],
+        standards: ['legal_citation', 'court_filing'],
       },
     },
     logistics: {
@@ -72,21 +153,48 @@ export class IndustryConfigService {
       icon: 'fas fa-truck',
       color: 'orange',
       dashboardTitle: 'Logistics Dashboard',
-      dashboardSubtitle: 'Manage your shipping documents and customs forms',
+      dashboardSubtitle: 'High-volume international shipping document processing with customs automation',
       userTitle: 'Logistics Professional',
       documentLibraryLabel: 'Shipping Documents',
-      uploadDescription: 'Upload bills of lading, customs forms, or invoices',
-      documentTypes: ['bills_of_lading', 'customs_declarations', 'proof_of_delivery', 'invoices'],
+      uploadDescription: 'Upload bills of lading, customs declarations, commercial invoices with multi-language OCR support',
+      documentTypes: ['bills_of_lading', 'customs_declarations', 'commercial_invoices', 'packing_lists', 'proof_of_delivery', 'air_waybills', 'sea_waybills', 'certificates_of_origin'],
       processingRules: {
         requiresCompliance: true,
-        complianceStandards: ['Customs Regulations'],
+        complianceStandards: ['WCO_Framework', 'C-TPAT', 'AEO', 'International_Trade_Regulations'],
         customValidation: true,
+        securityLevel: 'high',
+        auditRequirements: ['customs_compliance', 'duty_calculations', 'origin_verification', 'trade_sanctions'],
+        dataRetention: 1825, // 5 years for customs records
+        multiLanguageSupport: true,
+        customEntityTypes: ['shipper_info', 'consignee_info', 'cargo_details', 'customs_codes', 'incoterms'],
+      },
+      entityTypes: {
+        primary: ['shipper_info', 'consignee_info', 'cargo_details', 'shipping_terms', 'customs_info'],
+        secondary: ['tracking_numbers', 'port_info', 'vessel_info', 'container_numbers'],
+        codes: ['HS_codes', 'commodity_codes', 'country_codes', 'port_codes'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: true,
+        auditLogging: true,
+        dataMinimization: false,
+        anonymization: false, // Full traceability required
       },
       statLabels: {
         stat1: 'Shipments Processed',
         stat2: 'Customs Accuracy',
-        stat3: 'Processing Speed',
-        stat4: 'Compliance Rate',
+        stat3: 'Multi-Language OCR',
+        stat4: 'Trade Compliance',
+      },
+      aiModels: {
+        primary: 'gemini', // Better for multi-language
+        secondary: 'openai',
+        specializedPrompts: true,
+      },
+      integrations: {
+        external: ['carrier_systems', 'customs_authorities', 'port_systems'],
+        apis: ['tracking_apis', 'customs_apis', 'exchange_rate_apis'],
+        standards: ['EDI', 'UN_EDIFACT', 'WCO_data_model'],
       },
     },
     finance: {
@@ -94,21 +202,48 @@ export class IndustryConfigService {
       icon: 'fas fa-chart-line',
       color: 'green',
       dashboardTitle: 'Finance Dashboard',
-      dashboardSubtitle: 'Manage your financial documents and risk analysis',
+      dashboardSubtitle: 'Advanced financial document analysis with fraud detection and regulatory compliance',
       userTitle: 'Finance Professional',
       documentLibraryLabel: 'Financial Records',
-      uploadDescription: 'Upload financial statements, reports, or applications',
-      documentTypes: ['financial_statements', 'loan_applications', 'bank_statements', 'audit_reports'],
+      uploadDescription: 'Upload financial statements, loan applications, bank statements with automated fraud detection',
+      documentTypes: ['financial_statements', 'loan_applications', 'bank_statements', 'audit_reports', 'tax_documents', 'investment_reports', 'insurance_claims'],
       processingRules: {
         requiresCompliance: true,
-        complianceStandards: ['SOX', 'GDPR'],
+        complianceStandards: ['SOX', 'GDPR', 'PCI_DSS', 'Basel_III'],
         customValidation: true,
+        securityLevel: 'high',
+        auditRequirements: ['transaction_logs', 'risk_assessment', 'fraud_detection', 'regulatory_reporting'],
+        dataRetention: 2555, // 7 years for financial records
+        multiLanguageSupport: true,
+        customEntityTypes: ['financial_metrics', 'risk_indicators', 'transaction_data', 'account_info'],
+      },
+      entityTypes: {
+        primary: ['financial_data', 'transaction_details', 'account_numbers', 'monetary_amounts', 'dates'],
+        secondary: ['risk_metrics', 'credit_scores', 'financial_ratios', 'regulatory_codes'],
+        codes: ['SWIFT_codes', 'IBAN', 'routing_numbers', 'currency_codes'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: true,
+        auditLogging: true,
+        dataMinimization: true,
+        anonymization: true,
       },
       statLabels: {
         stat1: 'Documents Analyzed',
-        stat2: 'Risk Accuracy',
-        stat3: 'Analysis Time',
-        stat4: 'Fraud Detection',
+        stat2: 'Fraud Detection Rate',
+        stat3: 'Risk Assessment',
+        stat4: 'Compliance Score',
+      },
+      aiModels: {
+        primary: 'openai',
+        secondary: 'gemini',
+        specializedPrompts: true,
+      },
+      integrations: {
+        external: ['banking_systems', 'credit_bureaus', 'regulatory_systems'],
+        apis: ['financial_data_apis', 'fraud_detection_apis'],
+        standards: ['ISO_20022', 'XBRL', 'FIX'],
       },
     },
     general: {
@@ -116,21 +251,48 @@ export class IndustryConfigService {
       icon: 'fas fa-briefcase',
       color: 'blue',
       dashboardTitle: 'Business Dashboard',
-      dashboardSubtitle: 'Manage your business documents and data extraction',
+      dashboardSubtitle: 'Versatile document processing for general business operations and data extraction',
       userTitle: 'Business Professional',
       documentLibraryLabel: 'Document Library',
-      uploadDescription: 'Upload invoices, contracts, or business documents',
-      documentTypes: ['business_plans', 'invoices', 'contracts', 'reports', 'correspondence'],
+      uploadDescription: 'Upload invoices, contracts, reports, or any business documents for intelligent analysis',
+      documentTypes: ['business_plans', 'invoices', 'contracts', 'reports', 'correspondence', 'presentations', 'proposals', 'memos'],
       processingRules: {
         requiresCompliance: false,
         complianceStandards: [],
         customValidation: false,
+        securityLevel: 'standard',
+        auditRequirements: ['basic_logging'],
+        dataRetention: 1095, // 3 years standard business retention
+        multiLanguageSupport: true,
+        customEntityTypes: ['contact_info', 'dates_deadlines', 'financial_data', 'entity_names'],
+      },
+      entityTypes: {
+        primary: ['contact_info', 'dates_deadlines', 'financial_data', 'entity_names', 'addresses'],
+        secondary: ['phone_numbers', 'email_addresses', 'urls', 'product_info'],
+        codes: ['postal_codes', 'tax_ids', 'reference_numbers'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: false,
+        auditLogging: false,
+        dataMinimization: false,
+        anonymization: false,
       },
       statLabels: {
         stat1: 'Documents Processed',
         stat2: 'Extraction Accuracy',
-        stat3: 'Processing Time',
+        stat3: 'Processing Speed',
         stat4: 'Quality Score',
+      },
+      aiModels: {
+        primary: 'openai',
+        secondary: 'gemini',
+        specializedPrompts: false,
+      },
+      integrations: {
+        external: ['crm_systems', 'erp_systems'],
+        apis: ['business_data_apis'],
+        standards: ['standard_formats'],
       },
     },
   };

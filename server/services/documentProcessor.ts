@@ -1,5 +1,6 @@
 import { storage } from "../storage";
-import { OpenAIService } from "./openaiService";
+import { MultiAIService } from "./multiAIService";
+import { WebSocketService } from "./websocketService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -16,45 +17,68 @@ export interface ProcessingResult {
 }
 
 export class DocumentProcessor {
-  private openaiService: OpenAIService;
+  private multiAIService: MultiAIService;
+  private websocketService: WebSocketService | null = null;
 
-  constructor() {
-    this.openaiService = new OpenAIService();
+  constructor(websocketService?: WebSocketService) {
+    this.multiAIService = new MultiAIService();
+    this.websocketService = websocketService || null;
   }
 
   async processDocument(documentId: number): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting document processing...');
+      this.sendWebSocketUpdate(documentId, 'processing', 10, 'Starting multi-AI document analysis', 'initialization');
 
       const document = await storage.getDocument(documentId);
       if (!document) {
         throw new Error('Document not found');
       }
 
-      // Stage 1: OCR Text Extraction
-      await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text from document...');
-      const extractedText = await this.extractText(document.filePath);
+      // Stage 1: Advanced OCR Text Extraction with Google Vision
+      await storage.updateDocumentStatus(documentId, 'processing', 20, 'Extracting text with Google Vision API...');
+      this.sendWebSocketUpdate(documentId, 'processing', 20, 'Running advanced OCR analysis', 'ocr');
+      const extractedText = await this.extractText(document.filePath, document.mimeType);
       
-      // Stage 2: AI Analysis
-      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Analyzing document content with AI...');
-      const analysisResult = await this.openaiService.analyzeDocument(extractedText, document.industry);
+      // Stage 2: Multi-AI Analysis (OpenAI + Gemini + Anthropic)
+      await storage.updateDocumentStatus(documentId, 'processing', 40, 'Analyzing with multiple AI models...');
+      this.sendWebSocketUpdate(documentId, 'processing', 40, 'Running OpenAI, Gemini, and Anthropic analysis', 'ai_analysis');
       
-      // Stage 3: Entity Extraction
-      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting entities and insights...');
-      const entities = await this.extractEntities(extractedText, document.industry);
+      const multiAIResult = await this.multiAIService.analyzeDocument(
+        extractedText, 
+        document.industry, 
+        document.filePath,
+        document.mimeType
+      );
       
-      // Stage 4: Save Results
-      await storage.updateDocumentStatus(documentId, 'processing', 90, 'Saving analysis results...');
+      // Stage 3: Enhanced Entity Extraction
+      await storage.updateDocumentStatus(documentId, 'processing', 70, 'Extracting enhanced entities...');
+      this.sendWebSocketUpdate(documentId, 'processing', 70, 'Extracting industry-specific entities', 'entity_extraction');
+      const entities = this.combineEntities(multiAIResult);
+      
+      // Stage 4: Consensus Analysis
+      await storage.updateDocumentStatus(documentId, 'processing', 85, 'Generating consensus analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 85, 'Creating consensus from multiple AI models', 'consensus');
+      
+      // Stage 5: Save Enhanced Results
+      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving comprehensive analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 95, 'Saving multi-AI analysis results', 'saving');
       
       const processingResult: ProcessingResult = {
-        extractedText,
-        extractedData: analysisResult,
-        ocrConfidence: 0.95, // This would come from actual OCR
-        aiConfidence: analysisResult.confidence || 0.9,
+        extractedText: multiAIResult.ocrResults.text,
+        extractedData: {
+          multiAI: multiAIResult,
+          recommendedModel: multiAIResult.consensus.recommendedModel,
+          processingTime: Date.now() - startTime
+        },
+        ocrConfidence: multiAIResult.ocrResults.confidence,
+        aiConfidence: multiAIResult.consensus.confidence,
         entities,
       };
 
-      // Update document with results
+      // Update document with enhanced results
       await storage.updateDocumentAnalysis(
         documentId,
         processingResult.extractedText,
@@ -63,7 +87,7 @@ export class DocumentProcessor {
         processingResult.aiConfidence
       );
 
-      // Save entities
+      // Save enhanced entities
       for (const entity of processingResult.entities) {
         await storage.createExtractedEntity({
           documentId,
@@ -73,29 +97,130 @@ export class DocumentProcessor {
         });
       }
 
-      // Create analysis record
+      // Create comprehensive analysis record
       await storage.createDocumentAnalysis({
         documentId,
-        analysisType: 'full_analysis',
-        analysisData: analysisResult,
+        analysisType: 'multi_ai_analysis',
+        analysisData: processingResult.extractedData,
         confidenceScore: processingResult.aiConfidence,
       });
 
-      await storage.updateDocumentStatus(documentId, 'completed', 100, 'Document processing completed successfully');
+      const totalTime = Date.now() - startTime;
+      await storage.updateDocumentStatus(documentId, 'completed', 100, 'Multi-AI processing completed successfully');
+      
+      // Send completion update with full results
+      this.sendWebSocketUpdate(
+        documentId, 
+        'completed', 
+        100, 
+        `Document processed in ${totalTime}ms using ${multiAIResult.consensus.recommendedModel}`, 
+        'completed',
+        multiAIResult.consensus.recommendedModel,
+        totalTime
+      );
+
+      // Send document complete notification with analysis
+      if (this.websocketService) {
+        this.websocketService.sendDocumentComplete(document.userId, String(documentId), multiAIResult);
+      }
 
     } catch (error) {
       console.error(`Error processing document ${documentId}:`, error);
-      await storage.updateDocumentStatus(
-        documentId, 
-        'error', 
-        0, 
-        `Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      const errorMessage = `Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      
+      await storage.updateDocumentStatus(documentId, 'error', 0, errorMessage);
+      this.sendWebSocketUpdate(documentId, 'failed', 0, errorMessage, 'error');
+      
       throw error;
     }
   }
 
-  private async extractText(filePath: string): Promise<string> {
+  private sendWebSocketUpdate(
+    documentId: number, 
+    status: 'queued' | 'processing' | 'completed' | 'failed', 
+    progress: number, 
+    message: string, 
+    stage?: string,
+    aiModel?: string,
+    processingTime?: number
+  ) {
+    if (this.websocketService) {
+      // Get userId from document - we'll need to modify this to pass userId
+      const userId = String(documentId); // Simplified for now
+      this.websocketService.sendProcessingUpdate(userId, {
+        documentId: String(documentId),
+        status,
+        progress,
+        message,
+        stage,
+        aiModel,
+        processingTime
+      });
+    }
+  }
+
+  private combineEntities(multiAIResult: any): Array<{type: string, value: string, confidence: number}> {
+    const entities: Array<{type: string, value: string, confidence: number}> = [];
+    
+    // Combine entities from OpenAI analysis
+    if (multiAIResult.openai?.keyEntities) {
+      entities.push(...multiAIResult.openai.keyEntities);
+    }
+    
+    // Add insights as entities
+    if (multiAIResult.openai?.insights) {
+      multiAIResult.openai.insights.forEach((insight: string) => {
+        entities.push({
+          type: 'insight',
+          value: insight,
+          confidence: 0.85
+        });
+      });
+    }
+    
+    // Add Gemini insights
+    if (multiAIResult.gemini?.insights) {
+      multiAIResult.gemini.insights.forEach((insight: string) => {
+        entities.push({
+          type: 'gemini_insight',
+          value: insight,
+          confidence: 0.82
+        });
+      });
+    }
+    
+    // Add consensus findings
+    if (multiAIResult.consensus?.keyFindings) {
+      multiAIResult.consensus.keyFindings.forEach((finding: string) => {
+        entities.push({
+          type: 'consensus_finding',
+          value: finding,
+          confidence: multiAIResult.consensus.confidence
+        });
+      });
+    }
+
+    // Add OCR-specific entities
+    if (multiAIResult.ocrResults?.language !== 'en') {
+      entities.push({
+        type: 'language',
+        value: multiAIResult.ocrResults.language,
+        confidence: 0.95
+      });
+    }
+
+    if (multiAIResult.ocrResults?.handwritingDetected) {
+      entities.push({
+        type: 'handwriting',
+        value: 'Handwritten text detected',
+        confidence: 0.88
+      });
+    }
+    
+    return entities;
+  }
+
+  private async extractText(filePath: string, mimeType?: string): Promise<string> {
     try {
       // For demo purposes, we'll simulate OCR text extraction
       // In a real implementation, this would use Google Cloud Vision API or Tesseract

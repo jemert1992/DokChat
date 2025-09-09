@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import multer from "multer";
 import path from "path";
 import { DocumentProcessor } from "./services/documentProcessor";
+import { WebSocketService } from "./services/websocketService";
 import { IndustryConfigService } from "./services/industryConfig";
 import { industrySelectionSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -34,8 +35,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Initialize services
-  const documentProcessor = new DocumentProcessor();
+  // Create HTTP server first
+  const httpServer = createServer(app);
+  
+  // Initialize services with server
+  const websocketService = new WebSocketService(httpServer);
+  const documentProcessor = new DocumentProcessor(websocketService);
   const industryConfigService = new IndustryConfigService();
 
   // Auth routes
@@ -218,6 +223,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // Advanced Analytics API
+  app.get('/api/analytics/advanced', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { industry } = req.query;
+      
+      const documents = await storage.getUserDocuments(userId, 1000);
+      
+      // Generate mock advanced analytics data
+      // In production, this would aggregate real data from the database
+      const analyticsData = {
+        processingTrends: [
+          { date: '2025-09-01', documentsProcessed: 12, avgConfidence: 94.2, processingTime: 2.1 },
+          { date: '2025-09-02', documentsProcessed: 18, avgConfidence: 96.1, processingTime: 1.9 },
+          { date: '2025-09-03', documentsProcessed: 15, avgConfidence: 93.8, processingTime: 2.3 },
+          { date: '2025-09-04', documentsProcessed: 22, avgConfidence: 95.7, processingTime: 2.0 },
+          { date: '2025-09-05', documentsProcessed: 19, avgConfidence: 94.9, processingTime: 1.8 },
+        ],
+        modelPerformance: [
+          { model: 'openai', accuracy: 94.2, usage: 45, avgTime: 1.8 },
+          { model: 'gemini', accuracy: 92.7, usage: 38, avgTime: 2.1 },
+          { model: 'anthropic', accuracy: 95.1, usage: 31, avgTime: 2.3 },
+        ],
+        industryInsights: [
+          { category: 'Patient Information', count: 23, confidence: 96.2 },
+          { category: 'Clinical Data', count: 18, confidence: 93.8 },
+          { category: 'Medication Records', count: 15, confidence: 94.5 },
+          { category: 'Lab Results', count: 12, confidence: 97.1 },
+        ],
+        complianceMetrics: [
+          { type: 'HIPAA Compliance', score: 98.5, issues: 2 },
+          { type: 'Data Privacy', score: 96.8, issues: 1 },
+          { type: 'Medical Standards', score: 94.2, issues: 3 },
+          { type: 'Security Protocol', score: 99.1, issues: 0 },
+        ],
+        entityDistribution: [
+          { type: 'patient_info', count: 45, confidence: 94.8 },
+          { type: 'diagnosis', count: 32, confidence: 92.3 },
+          { type: 'medication', count: 28, confidence: 96.1 },
+          { type: 'lab_result', count: 21, confidence: 97.4 },
+          { type: 'provider_info', count: 19, confidence: 93.7 },
+        ],
+        processingStages: [
+          { stage: 'ocr', avgTime: 0.8, successRate: 98.2 },
+          { stage: 'ai_analysis', avgTime: 1.2, successRate: 94.7 },
+          { stage: 'entity_extraction', avgTime: 0.6, successRate: 96.3 },
+          { stage: 'consensus', avgTime: 0.4, successRate: 97.8 },
+          { stage: 'saving', avgTime: 0.2, successRate: 99.5 },
+        ]
+      };
+
+      res.json(analyticsData);
+    } catch (error) {
+      console.error("Error fetching advanced analytics:", error);
+      res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
   return httpServer;
 }

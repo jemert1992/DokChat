@@ -16,12 +16,38 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
     window.location.href = "/api/logout";
   };
 
+  const handleNavClick = (item: any) => {
+    switch (item.action) {
+      case 'navigate':
+        if (item.path) setLocation(item.path);
+        break;
+      case 'focus-upload':
+        const uploadZone = document.getElementById('upload-zone');
+        if (uploadZone) {
+          uploadZone.scrollIntoView({ behavior: 'smooth' });
+          uploadZone.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
+          setTimeout(() => {
+            uploadZone.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
+          }, 2000);
+        }
+        break;
+      case 'scroll-to-activity':
+        const activitySection = document.querySelector('[data-testid="recent-activity"]');
+        if (activitySection) {
+          activitySection.scrollIntoView({ behavior: 'smooth' });
+        }
+        break;
+      default:
+        if (item.path) setLocation(item.path);
+    }
+  };
+
   const navItems = [
-    { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard', path: '/dashboard' },
-    { id: 'upload', icon: 'fas fa-upload', label: 'Upload Documents', path: '/dashboard' },
-    { id: 'library', icon: 'fas fa-folder-open', label: industryConfig.documentLibraryLabel, path: '/dashboard' },
-    { id: 'analytics', icon: 'fas fa-chart-bar', label: 'Analytics', path: '/dashboard' },
-    { id: 'settings', icon: 'fas fa-cog', label: 'Settings', path: '/dashboard' },
+    { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard', path: '/dashboard', action: 'navigate' },
+    { id: 'upload', icon: 'fas fa-upload', label: 'Upload Documents', path: '/dashboard', action: 'focus-upload' },
+    { id: 'library', icon: 'fas fa-folder-open', label: industryConfig.documentLibraryLabel, path: '/dashboard', action: 'scroll-to-activity' },
+    { id: 'analytics', icon: 'fas fa-chart-bar', label: 'Analytics', path: '/dashboard', action: 'navigate' },
+    { id: 'settings', icon: 'fas fa-cog', label: 'Settings', path: '/industry-selection', action: 'navigate' },
   ];
 
   const getUserInitials = (user: User) => {
@@ -51,7 +77,7 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => item.path && setLocation(item.path)}
+              onClick={() => handleNavClick(item)}
               className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md transition-colors ${
                 currentPage === item.id
                   ? 'text-foreground bg-accent'

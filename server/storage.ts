@@ -6,6 +6,15 @@ import {
   processingJobs,
   industryConfigurations,
   chatMessages,
+  medicalDocuments,
+  medicalEntities,
+  patientSummaries,
+  legalDocuments,
+  contractAnalysis,
+  legalEntities,
+  logisticsDocuments,
+  shipmentData,
+  customsCompliance,
   type User,
   type UpsertUser,
   type Document,
@@ -19,6 +28,24 @@ import {
   type IndustryConfiguration,
   type ChatMessage,
   type InsertChatMessage,
+  type MedicalDocument,
+  type InsertMedicalDocument,
+  type MedicalEntity,
+  type InsertMedicalEntity,
+  type PatientSummary,
+  type InsertPatientSummary,
+  type LegalDocument,
+  type InsertLegalDocument,
+  type ContractAnalysis,
+  type InsertContractAnalysis,
+  type LegalEntity,
+  type InsertLegalEntity,
+  type LogisticsDocument,
+  type InsertLogisticsDocument,
+  type ShipmentData,
+  type InsertShipmentData,
+  type CustomsCompliance,
+  type InsertCustomsCompliance,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -56,6 +83,27 @@ export interface IStorage {
   saveChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatHistory(documentId: number, limit?: number): Promise<ChatMessage[]>;
   clearChatHistory(documentId: number): Promise<void>;
+  
+  // Medical industry operations
+  createMedicalDocument(medDoc: InsertMedicalDocument): Promise<MedicalDocument>;
+  createMedicalEntity(entity: InsertMedicalEntity): Promise<MedicalEntity>;
+  createPatientSummary(summary: InsertPatientSummary): Promise<PatientSummary>;
+  getMedicalEntities(documentId: number): Promise<MedicalEntity[]>;
+  getPatientSummary(documentId: number): Promise<PatientSummary | undefined>;
+  
+  // Legal industry operations
+  createLegalDocument(legalDoc: InsertLegalDocument): Promise<LegalDocument>;
+  createContractAnalysis(analysis: InsertContractAnalysis): Promise<ContractAnalysis>;
+  createLegalEntity(entity: InsertLegalEntity): Promise<LegalEntity>;
+  getLegalEntities(documentId: number): Promise<LegalEntity[]>;
+  getContractAnalysis(documentId: number): Promise<ContractAnalysis | undefined>;
+  
+  // Logistics industry operations
+  createLogisticsDocument(logDoc: InsertLogisticsDocument): Promise<LogisticsDocument>;
+  createShipmentData(shipment: InsertShipmentData): Promise<ShipmentData>;
+  createCustomsCompliance(customs: InsertCustomsCompliance): Promise<CustomsCompliance>;
+  getShipmentData(documentId: number): Promise<ShipmentData | undefined>;
+  getCustomsCompliance(documentId: number): Promise<CustomsCompliance | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,6 +304,127 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(chatMessages)
       .where(eq(chatMessages.documentId, documentId));
+  }
+
+  // Medical industry operations
+  async createMedicalDocument(medDoc: InsertMedicalDocument): Promise<MedicalDocument> {
+    const [result] = await db
+      .insert(medicalDocuments)
+      .values(medDoc)
+      .returning();
+    return result;
+  }
+
+  async createMedicalEntity(entity: InsertMedicalEntity): Promise<MedicalEntity> {
+    const [result] = await db
+      .insert(medicalEntities)
+      .values(entity)
+      .returning();
+    return result;
+  }
+
+  async createPatientSummary(summary: InsertPatientSummary): Promise<PatientSummary> {
+    const [result] = await db
+      .insert(patientSummaries)
+      .values(summary)
+      .returning();
+    return result;
+  }
+
+  async getMedicalEntities(documentId: number): Promise<MedicalEntity[]> {
+    return await db
+      .select()
+      .from(medicalEntities)
+      .where(eq(medicalEntities.documentId, documentId));
+  }
+
+  async getPatientSummary(documentId: number): Promise<PatientSummary | undefined> {
+    const [result] = await db
+      .select()
+      .from(patientSummaries)
+      .where(eq(patientSummaries.documentId, documentId));
+    return result;
+  }
+
+  // Legal industry operations
+  async createLegalDocument(legalDoc: InsertLegalDocument): Promise<LegalDocument> {
+    const [result] = await db
+      .insert(legalDocuments)
+      .values(legalDoc)
+      .returning();
+    return result;
+  }
+
+  async createContractAnalysis(analysis: InsertContractAnalysis): Promise<ContractAnalysis> {
+    const [result] = await db
+      .insert(contractAnalysis)
+      .values(analysis)
+      .returning();
+    return result;
+  }
+
+  async createLegalEntity(entity: InsertLegalEntity): Promise<LegalEntity> {
+    const [result] = await db
+      .insert(legalEntities)
+      .values(entity)
+      .returning();
+    return result;
+  }
+
+  async getLegalEntities(documentId: number): Promise<LegalEntity[]> {
+    return await db
+      .select()
+      .from(legalEntities)
+      .where(eq(legalEntities.documentId, documentId));
+  }
+
+  async getContractAnalysis(documentId: number): Promise<ContractAnalysis | undefined> {
+    const [result] = await db
+      .select()
+      .from(contractAnalysis)
+      .where(eq(contractAnalysis.documentId, documentId));
+    return result;
+  }
+
+  // Logistics industry operations
+  async createLogisticsDocument(logDoc: InsertLogisticsDocument): Promise<LogisticsDocument> {
+    const [result] = await db
+      .insert(logisticsDocuments)
+      .values(logDoc)
+      .returning();
+    return result;
+  }
+
+  async createShipmentData(shipment: InsertShipmentData): Promise<ShipmentData> {
+    const [result] = await db
+      .insert(shipmentData)
+      .values(shipment)
+      .returning();
+    return result;
+  }
+
+  async createCustomsCompliance(customs: InsertCustomsCompliance): Promise<CustomsCompliance> {
+    const [result] = await db
+      .insert(customsCompliance)
+      .values(customs)
+      .returning();
+    return result;
+  }
+
+  async getShipmentData(documentId: number): Promise<ShipmentData | undefined> {
+    const [result] = await db
+      .select()
+      .from(shipmentData)
+      .where(eq(shipmentData.documentId, documentId));
+    return result;
+  }
+
+  async getCustomsCompliance(documentId: number): Promise<CustomsCompliance | undefined> {
+    const [result] = await db
+      .select()
+      .from(customsCompliance)
+      .where(eq(customsCompliance.documentId, documentId));
+    return result;
   }
 }
 

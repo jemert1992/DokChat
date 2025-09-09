@@ -39,10 +39,8 @@ export class MultiAIService {
     this.openaiService = new OpenAIService();
     this.visionService = new VisionService();
     
-    // Initialize Anthropic if API key is available
-    this.anthropic = process.env.ANTHROPIC_API_KEY 
-      ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      : null;
+    // Anthropic disabled due to authentication issues
+    this.anthropic = null;
   }
 
   async analyzeDocument(

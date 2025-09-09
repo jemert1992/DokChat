@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Document, DocumentAnalysis, ExtractedEntity } from "@shared/schema";
+import ExtractedDataDisplay from "@/components/ExtractedDataDisplay";
 
 interface DocumentAnalysisProps {
   params: { id: string };
@@ -263,16 +264,7 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                     
                     <div className="space-y-4" data-testid="section-extracted-data">
                       {document.extractedData && typeof document.extractedData === 'object' ? (
-                        Object.entries(document.extractedData).map(([key, value], index) => (
-                          <div key={index} className="flex justify-between items-center p-3 bg-accent/30 rounded-lg">
-                            <span className="text-sm font-medium text-muted-foreground capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').trim()}
-                            </span>
-                            <span className="text-sm font-semibold text-foreground">
-                              {typeof value === 'string' ? value : JSON.stringify(value)}
-                            </span>
-                          </div>
-                        ))
+                        <ExtractedDataDisplay data={document.extractedData} />
                       ) : (
                         <div className="text-center text-muted-foreground py-8">
                           <i className="fas fa-search text-4xl mb-4 opacity-50"></i>

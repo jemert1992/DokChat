@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
-type Industry = 'medical' | 'legal' | 'logistics' | 'finance' | 'general';
+type Industry = 'medical' | 'legal' | 'logistics' | 'finance' | 'real_estate' | 'general';
 
 export default function IndustrySelection() {
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
@@ -102,6 +102,15 @@ export default function IndustrySelection() {
       iconBg: 'bg-green-600',
       description: 'Financial document analysis and compliance',
       documentTypes: 'Statements • Reports • Applications'
+    },
+    {
+      id: 'real_estate' as Industry,
+      name: 'Real Estate',
+      icon: 'fas fa-home',
+      color: 'hover:border-indigo-600',
+      iconBg: 'bg-indigo-600',
+      description: 'Property transaction and real estate document intelligence',
+      documentTypes: 'Purchase contracts • Leases • Disclosures • Inspections'
     },
     {
       id: 'general' as Industry,

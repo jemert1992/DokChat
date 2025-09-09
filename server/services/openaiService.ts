@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getIndustryPrompt } from './industryPrompts';
 
 export interface DocumentAnalysisResult {
   summary: string;
@@ -15,6 +16,7 @@ export interface DocumentAnalysisResult {
   };
   confidence: number;
   processingNotes: string[];
+  industrySpecificFindings?: string[];
 }
 
 export class OpenAIService {
@@ -57,7 +59,8 @@ export class OpenAIService {
           recommendations: []
         },
         confidence: result.confidence || 0.9,
-        processingNotes: result.processingNotes || []
+        processingNotes: result.processingNotes || [],
+        industrySpecificFindings: result.industrySpecificFindings || []
       };
 
     } catch (error) {
@@ -67,7 +70,15 @@ export class OpenAIService {
   }
 
   private generateIndustryPrompt(text: string, industry: string): string {
-    const basePrompt = `Analyze the following document and extract structured information. Respond with JSON in this exact format:
+    const industryConfig = getIndustryPrompt(industry);
+    
+    const basePrompt = `${industryConfig.systemPrompt}
+
+${industryConfig.analysisPrompt}
+
+For ${industryConfig.entityTypes.join(', ')} extraction and ${industryConfig.complianceChecks.join(', ')} compliance assessment.
+
+Analyze the following document and extract structured information. Respond with JSON in this exact format:
 
 {
   "summary": "Brief summary of the document",

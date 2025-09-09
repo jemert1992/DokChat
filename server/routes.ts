@@ -246,24 +246,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { model: 'gemini', accuracy: 92.7, usage: 38, avgTime: 2.1 },
           { model: 'anthropic', accuracy: 95.1, usage: 31, avgTime: 2.3 },
         ],
-        industryInsights: [
+        industryInsights: industry === 'real_estate' ? [
+          { category: 'Purchase Contracts', count: 28, confidence: 95.8 },
+          { category: 'Lease Agreements', count: 22, confidence: 94.3 },
+          { category: 'Disclosure Forms', count: 18, confidence: 96.7 },
+          { category: 'Inspection Reports', count: 15, confidence: 93.2 },
+          { category: 'Title Documents', count: 12, confidence: 97.4 },
+        ] : industry === 'medical' ? [
           { category: 'Patient Information', count: 23, confidence: 96.2 },
           { category: 'Clinical Data', count: 18, confidence: 93.8 },
           { category: 'Medication Records', count: 15, confidence: 94.5 },
           { category: 'Lab Results', count: 12, confidence: 97.1 },
+        ] : [
+          { category: 'Business Contracts', count: 25, confidence: 94.8 },
+          { category: 'Financial Records', count: 20, confidence: 96.1 },
+          { category: 'Legal Documents', count: 16, confidence: 95.3 },
+          { category: 'Compliance Forms', count: 14, confidence: 93.7 },
         ],
-        complianceMetrics: [
+        complianceMetrics: industry === 'real_estate' ? [
+          { type: 'Fair Housing Compliance', score: 97.2, issues: 1 },
+          { type: 'Disclosure Requirements', score: 95.8, issues: 2 },
+          { type: 'Title Insurance Standards', score: 98.9, issues: 0 },
+          { type: 'Escrow Regulations', score: 96.4, issues: 1 },
+        ] : industry === 'medical' ? [
           { type: 'HIPAA Compliance', score: 98.5, issues: 2 },
           { type: 'Data Privacy', score: 96.8, issues: 1 },
           { type: 'Medical Standards', score: 94.2, issues: 3 },
           { type: 'Security Protocol', score: 99.1, issues: 0 },
+        ] : [
+          { type: 'Regulatory Compliance', score: 96.3, issues: 2 },
+          { type: 'Data Privacy', score: 95.7, issues: 1 },
+          { type: 'Industry Standards', score: 94.8, issues: 3 },
+          { type: 'Security Protocol', score: 98.2, issues: 1 },
         ],
-        entityDistribution: [
+        entityDistribution: industry === 'real_estate' ? [
+          { type: 'property_address', count: 52, confidence: 97.1 },
+          { type: 'buyer_seller_info', count: 48, confidence: 95.4 },
+          { type: 'purchase_price', count: 41, confidence: 98.2 },
+          { type: 'closing_date', count: 38, confidence: 96.8 },
+          { type: 'agent_info', count: 35, confidence: 94.6 },
+          { type: 'contingencies', count: 29, confidence: 93.1 },
+        ] : industry === 'medical' ? [
           { type: 'patient_info', count: 45, confidence: 94.8 },
           { type: 'diagnosis', count: 32, confidence: 92.3 },
           { type: 'medication', count: 28, confidence: 96.1 },
           { type: 'lab_result', count: 21, confidence: 97.4 },
           { type: 'provider_info', count: 19, confidence: 93.7 },
+        ] : [
+          { type: 'contract_terms', count: 38, confidence: 95.2 },
+          { type: 'financial_data', count: 32, confidence: 96.7 },
+          { type: 'entity_names', count: 28, confidence: 94.8 },
+          { type: 'dates_deadlines', count: 25, confidence: 97.1 },
+          { type: 'contact_info', count: 22, confidence: 93.6 },
         ],
         processingStages: [
           { stage: 'ocr', avgTime: 0.8, successRate: 98.2 },

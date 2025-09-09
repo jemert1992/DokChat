@@ -80,6 +80,22 @@ const industryConfigs: Record<string, IndustryConfig> = {
       stat4: 'Fraud Detection',
     },
   },
+  real_estate: {
+    name: 'Real Estate',
+    icon: 'fas fa-home',
+    color: 'indigo',
+    dashboardTitle: 'Real Estate Dashboard',
+    dashboardSubtitle: 'Manage your property transactions and real estate documents',
+    userTitle: 'Real Estate Professional',
+    documentLibraryLabel: 'Property Documents',
+    uploadDescription: 'Upload contracts, leases, disclosures, inspection reports, or closing documents',
+    statLabels: {
+      stat1: 'Transactions Processed',
+      stat2: 'Contract Accuracy',
+      stat3: 'Deal Processing Time',
+      stat4: 'Compliance Score',
+    },
+  },
   general: {
     name: 'General Business',
     icon: 'fas fa-briefcase',

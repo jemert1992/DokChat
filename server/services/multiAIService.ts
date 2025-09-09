@@ -1,6 +1,7 @@
 import { OpenAIService, DocumentAnalysisResult } from './openaiService';
 import { VisionService } from './visionService';
 import { summarizeArticle as geminiSummarize, analyzeSentiment as geminiAnalyze, analyzeImage as geminiAnalyzeImage } from '../../gemini';
+import { getIndustryPrompt } from './industryPrompts';
 import Anthropic from '@anthropic-ai/sdk';
 
 interface MultiAIResult {
@@ -147,24 +148,33 @@ export class MultiAIService {
     if (!this.anthropic) return null;
 
     try {
-      const prompt = `Analyze the following ${industry} document and provide:
-1. A concise summary
-2. Key analysis points
-3. Your confidence level (0-1)
+      const industryConfig = getIndustryPrompt(industry);
+      
+      const prompt = `${industryConfig.systemPrompt}
 
-Document:
+${industryConfig.analysisPrompt}
+
+Document to analyze:
 ${text}
+
+Provide detailed analysis covering:
+- Entity extraction for: ${industryConfig.entityTypes.join(', ')}
+- Compliance checks for: ${industryConfig.complianceChecks.join(', ')}
+- Risk assessment for: ${industryConfig.riskFactors.join(', ')}
 
 Respond with JSON format:
 {
-  "summary": "...",
-  "analysis": "...",
-  "confidence": 0.95
+  "summary": "Comprehensive summary of document",
+  "analysis": "Detailed analysis with industry-specific insights",
+  "confidence": 0.95,
+  "entities": ["entity1", "entity2"],
+  "complianceStatus": "assessment of compliance requirements",
+  "riskFactors": ["risk1", "risk2"]
 }`;
 
       const response = await this.anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       });
 
@@ -176,7 +186,10 @@ Respond with JSON format:
       return {
         summary: result.summary || 'Analysis completed',
         analysis: result.analysis || 'No specific analysis available',
-        confidence: result.confidence || 0.9
+        confidence: result.confidence || 0.9,
+        entities: result.entities || [],
+        complianceStatus: result.complianceStatus || 'No compliance issues detected',
+        riskFactors: result.riskFactors || []
       };
 
     } catch (error) {

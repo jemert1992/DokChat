@@ -255,6 +255,28 @@ The actual implementation would return the real extracted text from the document
     const entities: Array<{type: string, value: string, confidence: number}> = [];
     
     switch (industry) {
+      case 'real_estate':
+        // Extract real estate entities
+        if (text.toLowerCase().includes('buyer') || text.toLowerCase().includes('seller')) {
+          entities.push({ type: 'buyer_seller_info', value: 'Buyer/Seller information detected', confidence: 0.96 });
+        }
+        if (text.toLowerCase().includes('purchase price') || text.includes('$')) {
+          entities.push({ type: 'purchase_price', value: 'Purchase price identified', confidence: 0.97 });
+        }
+        if (text.toLowerCase().includes('closing') && text.toLowerCase().includes('date')) {
+          entities.push({ type: 'closing_date', value: 'Closing date found', confidence: 0.95 });
+        }
+        if (text.toLowerCase().includes('contingency') || text.toLowerCase().includes('contingencies')) {
+          entities.push({ type: 'contingencies', value: 'Contract contingencies detected', confidence: 0.93 });
+        }
+        if (text.toLowerCase().includes('inspection')) {
+          entities.push({ type: 'inspection_info', value: 'Inspection information found', confidence: 0.94 });
+        }
+        if (text.toLowerCase().includes('agent') || text.toLowerCase().includes('realtor')) {
+          entities.push({ type: 'agent_info', value: 'Agent information detected', confidence: 0.92 });
+        }
+        break;
+        
       case 'medical':
         // Extract medical entities
         if (text.toLowerCase().includes('patient')) {

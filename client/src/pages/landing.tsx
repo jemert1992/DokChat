@@ -36,6 +36,13 @@ export default function Landing() {
       features: ["Financial entity extraction", "Risk assessment", "Automated reporting"]
     },
     {
+      name: "Real Estate",
+      icon: "fas fa-home",
+      color: "bg-indigo-600",
+      description: "Comprehensive property transaction and real estate document processing.",
+      features: ["Contract intelligence", "Deal management", "Compliance & risk review"]
+    },
+    {
       name: "General Business", 
       icon: "fas fa-briefcase",
       color: "bg-blue-600",

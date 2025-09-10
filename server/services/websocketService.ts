@@ -101,12 +101,12 @@ export class WebSocketService {
   }
 
   private removeClientFromAllUsers(ws: WebSocket) {
-    for (const [userId, clients] of this.clients.entries()) {
+    this.clients.forEach((clients, userId) => {
       clients.delete(ws);
       if (clients.size === 0) {
         this.clients.delete(userId);
       }
-    }
+    });
   }
 
   // Public methods for sending updates
@@ -132,6 +132,11 @@ export class WebSocketService {
       if (userClients.size === 0) {
         this.clients.delete(userId);
       }
+
+      // Invalidate documents cache on status changes (not on every progress update)
+      if (update.status === 'completed' || update.status === 'failed') {
+        this.sendCacheInvalidation(userId, ['/api/documents']);
+      }
     }
   }
 
@@ -150,6 +155,9 @@ export class WebSocketService {
           ws.send(message);
         }
       });
+      
+      // Invalidate caches when document is complete
+      this.invalidateDocumentCaches(userId, analysis?.industry);
     }
   }
 
@@ -170,6 +178,40 @@ export class WebSocketService {
     }
   }
 
+  // Send cache invalidation signal for react-query
+  sendCacheInvalidation(userId: string, queryKeys: string[]) {
+    const userClients = this.clients.get(userId);
+    if (userClients) {
+      const message = JSON.stringify({
+        type: 'cache_invalidation',
+        queryKeys,
+        timestamp: new Date().toISOString()
+      });
+
+      userClients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(message);
+        }
+      });
+    }
+  }
+
+  // Helper method to invalidate analytics and documents cache when document changes
+  invalidateDocumentCaches(userId: string, industry?: string) {
+    const keysToInvalidate = [
+      '/api/documents',
+      '/api/dashboard/stats'
+    ];
+    
+    if (industry) {
+      keysToInvalidate.push(`/api/analytics/industry/${industry}`);
+    }
+    
+    keysToInvalidate.push('/api/analytics/compliance-alerts');
+    
+    this.sendCacheInvalidation(userId, keysToInvalidate);
+  }
+
   // Send system-wide notifications
   broadcast(message: any) {
     const broadcastMessage = JSON.stringify({
@@ -178,13 +220,13 @@ export class WebSocketService {
       timestamp: new Date().toISOString()
     });
 
-    for (const [, userClients] of this.clients) {
-      userClients.forEach(ws => {
+    this.clients.forEach((userClients) => {
+      userClients.forEach((ws: WebSocket) => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(broadcastMessage);
         }
       });
-    }
+    });
   }
 
   // Get connection statistics

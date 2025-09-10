@@ -300,3 +300,289 @@ export const industrySelectionSchema = z.object({
   industry: z.enum(['medical', 'legal', 'logistics', 'finance', 'real_estate', 'general']),
   company: z.string().optional(),
 });
+
+// Dashboard Analytics Types
+export interface DashboardStats {
+  documentsProcessed: number;
+  avgConfidence: number;
+  avgProcessingTime: number;
+  complianceScore: number;
+}
+
+export interface ComplianceAlert {
+  type: string;
+  message: string;
+  severity: 'low' | 'medium' | 'high';
+  documentId?: number;
+  timestamp?: string;
+}
+
+export interface IndustryAnalytics {
+  industryBreakdown: Record<string, number>;
+  documentTypeDistribution: Record<string, number>;
+  processingTimeByIndustry: Record<string, number>;
+  complianceMetrics: Record<string, number>;
+  errorRates: Record<string, number>;
+  languageDistribution: Record<string, number>;
+  volumeTrends: Array<{
+    date: string;
+    volume: number;
+    avgProcessingTime: number;
+  }>;
+}
+
+export interface MedicalAnalytics extends IndustryAnalytics {
+  hipaaCompliantDocs: number;
+  phiDetectionRate: number;
+  clinicalAccuracy: number;
+  patientRecordsProcessed: number;
+  criticalAlerts: ComplianceAlert[];
+  medicalEntities: {
+    medications: number;
+    diagnoses: number;
+    procedures: number;
+    allergies: number;
+    vitalSigns: number;
+  };
+}
+
+export interface LegalAnalytics extends IndustryAnalytics {
+  contractsReviewed: number;
+  privilegeProtection: number;
+  citationAccuracy: number;
+  contractRisks: Array<{
+    contract: string;
+    risk: 'Low' | 'Medium' | 'High';
+    issues: string[];
+  }>;
+  privilegeAlerts: ComplianceAlert[];
+  legalEntities: {
+    parties: number;
+    caseCitations: number;
+    statutes: number;
+    contractTerms: number;
+    obligations: number;
+  };
+}
+
+export interface LogisticsAnalytics extends IndustryAnalytics {
+  shipmentsProcessed: number;
+  customsAccuracy: number;
+  multiLanguageOCR: number;
+  tradeCompliance: number;
+  customsAlerts: ComplianceAlert[];
+  shipmentStatus: Array<{
+    id: string;
+    origin: string;
+    destination: string;
+    status: string;
+    eta: string;
+  }>;
+  logisticsEntities: {
+    shipments: number;
+    hsCodes: number;
+    certificates: number;
+    carriers: number;
+    ports: number;
+  };
+}
+
+export interface FinanceAnalytics extends IndustryAnalytics {
+  documentsAnalyzed: number;
+  fraudDetectionRate: number;
+  riskAssessment: number;
+  portfolioAnalysis: Array<{
+    category: string;
+    processed: number;
+    approved: number;
+    riskLevel: 'Low' | 'Medium' | 'High';
+  }>;
+  riskAlerts: ComplianceAlert[];
+  financialEntities: {
+    transactions: number;
+    accounts: number;
+    institutions: number;
+    riskIndicators: number;
+    complianceFlags: number;
+  };
+  riskMetrics: {
+    creditRisk: number;
+    operationalRisk: number;
+    marketRisk: number;
+    liquidityRisk: number;
+  };
+  complianceMetrics: {
+    soxCompliance: number;
+    pciDssCompliance: number;
+    gdprCompliance: number;
+    baselIIICompliance: number;
+  };
+}
+
+export interface RealEstateAnalytics extends IndustryAnalytics {
+  transactionsProcessed: number;
+  contractAccuracy: number;
+  complianceAlerts: ComplianceAlert[];
+  activeTransactions: Array<{
+    address: string;
+    type: 'Purchase' | 'Sale' | 'Lease';
+    status: string;
+    closing: string;
+    value: string;
+  }>;
+  realEstateEntities: {
+    properties: number;
+    buyers: number;
+    sellers: number;
+    agents: number;
+    lenders: number;
+  };
+  complianceMetrics: {
+    fairHousingCompliance: number;
+    respaCompliance: number;
+    tridCompliance: number;
+    stateRegCompliance: number;
+  };
+}
+
+// Zod schemas for dashboard analytics validation
+export const dashboardStatsSchema = z.object({
+  documentsProcessed: z.number(),
+  avgConfidence: z.number(),
+  avgProcessingTime: z.number(),
+  complianceScore: z.number(),
+});
+
+export const complianceAlertSchema = z.object({
+  type: z.string(),
+  message: z.string(),
+  severity: z.enum(['low', 'medium', 'high']),
+  documentId: z.number().optional(),
+  timestamp: z.string().optional(),
+});
+
+// Medical Analytics Validation Schema
+export const medicalAnalyticsSchema = z.object({
+  processed: z.number(),
+  avgProcessingTime: z.number(),
+  avgConfidence: z.number(),
+  hipaaCompliantDocs: z.number(),
+  phiDetectionRate: z.number(),
+  clinicalAccuracy: z.number(),
+  patientRecordsProcessed: z.number(),
+  criticalAlerts: z.array(complianceAlertSchema),
+  medicalEntities: z.object({
+    medications: z.number(),
+    diagnoses: z.number(),
+    procedures: z.number(),
+    allergies: z.number(),
+    vitalSigns: z.number(),
+  }),
+  qualityMetrics: z.object({
+    phiAccuracy: z.number(),
+    codingAccuracy: z.number(),
+    documentCompleteness: z.number(),
+    clinicalRelevance: z.number(),
+  }),
+  complianceMetrics: z.object({
+    hipaaCompliance: z.number(),
+    hitech: z.number(),
+    fdaCompliance: z.number(),
+    hl7Compliance: z.number(),
+  }),
+});
+
+// Legal Analytics Validation Schema
+export const legalAnalyticsSchema = z.object({
+  processed: z.number(),
+  avgProcessingTime: z.number(),
+  avgConfidence: z.number(),
+  contractsReviewed: z.number(),
+  privilegeProtection: z.number(),
+  citationAccuracy: z.number(),
+  contractRisks: z.array(z.object({
+    contract: z.string(),
+    risk: z.enum(['Low', 'Medium', 'High']),
+    issues: z.array(z.string()),
+  })),
+  privilegeAlerts: z.array(complianceAlertSchema),
+  legalEntities: z.object({
+    parties: z.number(),
+    caseCitations: z.number(),
+    statutes: z.number(),
+    contractTerms: z.number(),
+    obligations: z.number(),
+  }),
+});
+
+// Finance Analytics Validation Schema
+export const financeAnalyticsSchema = z.object({
+  processed: z.number(),
+  avgProcessingTime: z.number(),
+  avgConfidence: z.number(),
+  documentsAnalyzed: z.number(),
+  fraudDetectionRate: z.number(),
+  riskAssessment: z.number(),
+  portfolioAnalysis: z.array(z.object({
+    category: z.string(),
+    processed: z.number(),
+    approved: z.number(),
+    riskLevel: z.enum(['Low', 'Medium', 'High']),
+  })),
+  riskAlerts: z.array(complianceAlertSchema),
+  financialEntities: z.object({
+    transactions: z.number(),
+    accounts: z.number(),
+    institutions: z.number(),
+    riskIndicators: z.number(),
+    complianceFlags: z.number(),
+  }),
+  riskMetrics: z.object({
+    creditRisk: z.number(),
+    operationalRisk: z.number(),
+    marketRisk: z.number(),
+    liquidityRisk: z.number(),
+  }),
+  complianceMetrics: z.object({
+    soxCompliance: z.number(),
+    pciDssCompliance: z.number(),
+    gdprCompliance: z.number(),
+    baselIIICompliance: z.number(),
+  }),
+});
+
+// Logistics Analytics Validation Schema
+export const logisticsAnalyticsSchema = z.object({
+  processed: z.number(),
+  avgProcessingTime: z.number(),
+  avgConfidence: z.number(),
+  shipmentsTracked: z.number(),
+  customsCompliance: z.number(),
+  deliveryAccuracy: z.number(),
+  customsAlerts: z.array(complianceAlertSchema),
+  logisticsEntities: z.object({
+    shipments: z.number(),
+    consignees: z.number(),
+    hsCodes: z.number(),
+    transportModes: z.number(),
+    destinations: z.number(),
+  }),
+});
+
+// Real Estate Analytics Validation Schema
+export const realEstateAnalyticsSchema = z.object({
+  processed: z.number(),
+  avgProcessingTime: z.number(),
+  avgConfidence: z.number(),
+  dealsProcessed: z.number(),
+  titleAccuracy: z.number(),
+  complianceRate: z.number(),
+  complianceAlerts: z.array(complianceAlertSchema),
+  realEstateEntities: z.object({
+    properties: z.number(),
+    mortgages: z.number(),
+    buyers: z.number(),
+    sellers: z.number(),
+    legalDescriptions: z.number(),
+  }),
+});

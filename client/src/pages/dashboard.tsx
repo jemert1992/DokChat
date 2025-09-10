@@ -10,6 +10,11 @@ import DashboardStats from "@/components/dashboard-stats";
 import DocumentUploadZone from "@/components/document-upload-zone";
 import RecentActivity from "@/components/recent-activity";
 import AdvancedAnalytics from "@/components/advanced-analytics";
+import MedicalDashboard from "@/components/MedicalDashboard";
+import LegalDashboard from "@/components/LegalDashboard";
+import LogisticsDashboard from "@/components/LogisticsDashboard";
+import RealEstateDashboard from "@/components/RealEstateDashboard";
+import FinanceDashboard from "@/components/FinanceDashboard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +75,57 @@ export default function Dashboard() {
   }
 
   const industryConfig = getIndustryConfig(user.industry || 'general');
+
+  // Render industry-specific dashboard component
+  const renderIndustryDashboard = () => {
+    const industry = user.industry || 'general';
+    
+    switch (industry) {
+      case 'medical':
+        return <MedicalDashboard documents={documents || []} isLoading={documentsLoading} />;
+      case 'legal':
+        return <LegalDashboard documents={documents || []} isLoading={documentsLoading} />;
+      case 'logistics':
+        return <LogisticsDashboard documents={documents || []} isLoading={documentsLoading} />;
+      case 'real_estate':
+        return <RealEstateDashboard documents={documents || []} isLoading={documentsLoading} />;
+      case 'finance':
+        return <FinanceDashboard documents={documents || []} isLoading={documentsLoading} />;
+      case 'general':
+      default:
+        return (
+          <div className="space-y-6" data-testid="general-business-dashboard">
+            <div className="text-center py-12">
+              <h3 className="text-2xl font-semibold mb-4">General Business Dashboard</h3>
+              <p className="text-muted-foreground mb-8">
+                Comprehensive document processing for general business operations. 
+                Process invoices, contracts, reports, and business correspondence with AI-powered analysis.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div className="p-6 border rounded-lg">
+                  <h4 className="font-semibold mb-2">Document Processing</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Extract key information from business documents with high accuracy
+                  </p>
+                </div>
+                <div className="p-6 border rounded-lg">
+                  <h4 className="font-semibold mb-2">Data Extraction</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically identify contacts, dates, financial data, and entities
+                  </p>
+                </div>
+                <div className="p-6 border rounded-lg">
+                  <h4 className="font-semibold mb-2">Quality Analysis</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Comprehensive quality scoring and processing performance metrics
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
 
   const handleNewDocument = () => {
     // Focus on the upload zone
@@ -159,14 +215,15 @@ export default function Dashboard() {
 
             {/* Main Dashboard Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
-                <TabsTrigger value="upload">Upload Documents</TabsTrigger>
-                <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+                <TabsTrigger value="industry" data-testid="tab-industry">{industryConfig.name} Dashboard</TabsTrigger>
+                <TabsTrigger value="analytics" data-testid="tab-analytics">Advanced Analytics</TabsTrigger>
+                <TabsTrigger value="upload" data-testid="tab-upload">Upload Documents</TabsTrigger>
+                <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-6">
+              <TabsContent value="overview" className="space-y-6" data-testid="content-overview">
                 {/* Stats Cards */}
                 <DashboardStats 
                   stats={stats} 
@@ -189,6 +246,10 @@ export default function Dashboard() {
                     onDocumentClick={(documentId) => setLocation(`/document/${documentId}`)}
                   />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="industry" className="space-y-6" data-testid="content-industry">
+                {renderIndustryDashboard()}
               </TabsContent>
 
               <TabsContent value="analytics" className="space-y-6">

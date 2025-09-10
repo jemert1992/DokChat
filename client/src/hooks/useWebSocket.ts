@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { queryClient } from '@/lib/queryClient';
 
 interface ProcessingUpdate {
   documentId: string;
@@ -20,7 +21,7 @@ interface DocumentComplete {
 }
 
 interface WebSocketMessage {
-  type: 'connection' | 'subscribed' | 'processing_update' | 'document_complete' | 'analytics_update' | 'broadcast' | 'pong';
+  type: 'connection' | 'subscribed' | 'processing_update' | 'document_complete' | 'analytics_update' | 'broadcast' | 'pong' | 'cache_invalidation';
   [key: string]: any;
 }
 
@@ -160,6 +161,27 @@ export function useWebSocket() {
       case 'analytics_update':
         // Handle analytics updates - could trigger dashboard refresh
         console.log('Analytics updated:', message.analytics);
+        break;
+
+      case 'cache_invalidation':
+        // Handle cache invalidation for react-query
+        console.log('Invalidating caches:', message.queryKeys);
+        if (message.queryKeys && Array.isArray(message.queryKeys)) {
+          message.queryKeys.forEach((queryKey: string) => {
+            // For hierarchical keys, invalidate by prefix
+            if (queryKey.includes('/api/analytics/industry/')) {
+              queryClient.invalidateQueries({ 
+                predicate: (query) => {
+                  const key = Array.isArray(query.queryKey) ? query.queryKey[0] : query.queryKey;
+                  return typeof key === 'string' && key.startsWith(queryKey);
+                }
+              });
+            } else {
+              // For exact matches
+              queryClient.invalidateQueries({ queryKey: [queryKey] });
+            }
+          });
+        }
         break;
 
       case 'broadcast':

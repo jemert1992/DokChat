@@ -3,32 +3,94 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Shield, AlertTriangle, Activity, Users, FileText, Clock, CheckCircle, XCircle, Heart, Stethoscope } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import type { Document, MedicalAnalytics, ComplianceAlert } from '@shared/schema';
 
 interface MedicalDashboardProps {
-  documents: any[];
-  analytics: any;
+  documents: Document[];
+  isLoading?: boolean;
 }
 
-export default function MedicalDashboard({ documents, analytics }: MedicalDashboardProps) {
-  const hipaaCompliantDocs = documents.filter(doc => doc.status === 'completed').length;
-  const phiDetectionRate = 94.2; // Sample data - would come from analytics
-  const clinicalAccuracy = 96.8;
-  const avgProcessingTime = '2.3 min';
+export default function MedicalDashboard({ documents, isLoading = false }: MedicalDashboardProps) {
+  // Fetch real medical analytics data
+  const { data: medicalAnalytics, isLoading: analyticsLoading, error: analyticsError } = useQuery<MedicalAnalytics>({
+    queryKey: ['/api/analytics/industry/medical'],
+    enabled: !isLoading,
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  const criticalAlerts = [
-    { type: 'PHI_DETECTED', message: 'Protected Health Information detected in 3 documents', severity: 'high' },
-    { type: 'CONSENT_REQUIRED', message: '2 documents require patient consent verification', severity: 'medium' },
-    { type: 'RETENTION_WARNING', message: '15 documents approaching 7-year retention limit', severity: 'low' }
-  ];
+  // Fetch compliance alerts
+  const { data: complianceAlerts, isLoading: alertsLoading } = useQuery<ComplianceAlert[]>({
+    queryKey: ['/api/analytics/compliance-alerts'],
+    enabled: !isLoading,
+    retry: 1,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-  const medicalEntities = {
-    medications: 142,
-    diagnoses: 89,
-    procedures: 67,
-    allergies: 23,
-    vitalSigns: 156
+  // Use real data or fallbacks
+  const hipaaCompliantDocs = medicalAnalytics?.hipaaCompliantDocs ?? documents.filter(doc => doc.status === 'completed').length;
+  const phiDetectionRate = medicalAnalytics?.phiDetectionRate ?? 0;
+  const clinicalAccuracy = medicalAnalytics?.clinicalAccuracy ?? 0;
+  const patientRecordsProcessed = medicalAnalytics?.patientRecordsProcessed ?? 0;
+  
+  // Calculate average processing time from real data
+  const completedDocs = documents.filter(doc => doc.status === 'completed' && doc.extractedData?.processingTime);
+  const avgProcessingTimeMs = completedDocs.length > 0
+    ? completedDocs.reduce((sum, doc) => sum + (doc.extractedData?.processingTime || 0), 0) / completedDocs.length
+    : 0;
+  const avgProcessingTime = avgProcessingTimeMs > 0 ? `${(avgProcessingTimeMs / 1000).toFixed(1)}s` : 'N/A';
+
+  const criticalAlerts = (complianceAlerts || []).filter(alert => alert.severity === 'high' || alert.severity === 'medium').slice(0, 3);
+  const medicalEntities = medicalAnalytics?.medicalEntities || {
+    medications: 0,
+    diagnoses: 0,
+    procedures: 0,
+    allergies: 0,
+    vitalSigns: 0
   };
+
+  // Show loading state
+  if (isLoading || analyticsLoading) {
+    return (
+      <div className="space-y-6" data-testid="medical-dashboard-loading">
+        <div className="grid gap-4">
+          <Skeleton className="h-8 w-64" />
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (analyticsError) {
+    return (
+      <div className="space-y-6" data-testid="medical-dashboard-error">
+        <Alert className="border-red-500 bg-red-50 dark:bg-red-900/10">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load medical analytics. Some data may be unavailable.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -39,18 +101,30 @@ export default function MedicalDashboard({ documents, analytics }: MedicalDashbo
           HIPAA Compliance Dashboard
         </h2>
         
-        {criticalAlerts.map((alert, index) => (
-          <Alert key={index} className={`border-l-4 ${
+        {criticalAlerts.length > 0 ? criticalAlerts.map((alert, index) => (
+          <Alert key={alert.documentId || index} className={`border-l-4 ${
             alert.severity === 'high' ? 'border-red-500 bg-red-50 dark:bg-red-900/10' :
             alert.severity === 'medium' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/10' :
             'border-blue-500 bg-blue-50 dark:bg-blue-900/10'
-          }`}>
+          }`} data-testid={`alert-${alert.type.toLowerCase()}`}>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="font-medium">
               {alert.message}
             </AlertDescription>
+            {alert.timestamp && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {new Date(alert.timestamp).toLocaleString()}
+              </p>
+            )}
           </Alert>
-        ))}
+        )) : (
+          <Alert className="border-green-500 bg-green-50 dark:bg-green-900/10" data-testid="alert-no-issues">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="font-medium text-green-800 dark:text-green-200">
+              No critical HIPAA compliance issues detected
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Key Metrics */}

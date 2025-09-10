@@ -246,6 +246,55 @@ export class IndustryConfigService {
         standards: ['ISO_20022', 'XBRL', 'FIX'],
       },
     },
+    real_estate: {
+      name: 'Real Estate',
+      icon: 'fas fa-home',
+      color: 'indigo',
+      dashboardTitle: 'Real Estate Dashboard',
+      dashboardSubtitle: 'Property transaction and real estate document intelligence with Fair Housing compliance',
+      userTitle: 'Real Estate Professional',
+      documentLibraryLabel: 'Property Documents',
+      uploadDescription: 'Upload purchase contracts, leases, disclosures, inspection reports, or closing documents with compliance verification',
+      documentTypes: ['purchase_contracts', 'lease_agreements', 'property_disclosures', 'inspection_reports', 'closing_documents', 'escrow_instructions', 'title_reports', 'appraisal_reports'],
+      processingRules: {
+        requiresCompliance: true,
+        complianceStandards: ['Fair_Housing_Act', 'RESPA', 'TRID', 'State_Real_Estate_Laws'],
+        customValidation: true,
+        securityLevel: 'high',
+        auditRequirements: ['fair_housing_compliance', 'disclosure_tracking', 'signature_verification', 'deadline_monitoring'],
+        dataRetention: 2190, // 6 years for real estate transaction records
+        multiLanguageSupport: true,
+        customEntityTypes: ['property_address', 'buyer_seller_info', 'purchase_price', 'closing_date', 'agent_info', 'contingencies', 'inspection_info', 'lender_info'],
+      },
+      entityTypes: {
+        primary: ['property_address', 'buyer_seller_info', 'purchase_price', 'closing_date', 'agent_info'],
+        secondary: ['contingencies', 'inspection_info', 'lender_info', 'title_company', 'escrow_instructions'],
+        codes: ['MLS_numbers', 'parcel_numbers', 'license_numbers', 'jurisdiction_codes'],
+      },
+      complianceFeatures: {
+        encryption: true,
+        accessControl: true,
+        auditLogging: true,
+        dataMinimization: true,
+        anonymization: false, // Real estate requires full disclosure
+      },
+      statLabels: {
+        stat1: 'Transactions Processed',
+        stat2: 'Contract Accuracy',
+        stat3: 'Deal Processing Time',
+        stat4: 'Compliance Score',
+      },
+      aiModels: {
+        primary: 'openai',
+        secondary: 'gemini',
+        specializedPrompts: true,
+      },
+      integrations: {
+        external: ['MLS_systems', 'title_companies', 'escrow_services', 'lender_systems'],
+        apis: ['property_data_apis', 'valuation_apis', 'compliance_apis'],
+        standards: ['MISMO', 'RESO', 'NAR_standards'],
+      },
+    },
     general: {
       name: 'General Business',
       icon: 'fas fa-briefcase',

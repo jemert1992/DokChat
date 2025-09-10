@@ -297,6 +297,6 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
 });
 
 export const industrySelectionSchema = z.object({
-  industry: z.enum(['medical', 'legal', 'logistics', 'finance', 'general']),
+  industry: z.enum(['medical', 'legal', 'logistics', 'finance', 'real_estate', 'general']),
   company: z.string().optional(),
 });

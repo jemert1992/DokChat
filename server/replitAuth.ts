@@ -131,8 +131,8 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/logout", async (req, res) => {
-    req.logout(async () => {
-      const config = await getOidcConfig();
+    const config = await getOidcConfig();
+    req.logout(() => {
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,

@@ -39,8 +39,15 @@ export class MultiAIService {
     this.openaiService = new OpenAIService();
     this.visionService = new VisionService();
     
-    // Anthropic disabled due to authentication issues
-    this.anthropic = null;
+    // Initialize Anthropic Claude integration
+    try {
+      this.anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY
+      });
+    } catch (error) {
+      console.error('Failed to initialize Anthropic client:', error);
+      this.anthropic = null;
+    }
   }
 
   async analyzeDocument(
@@ -54,9 +61,12 @@ export class MultiAIService {
     try {
       // Enhanced OCR if it's an image or PDF (temporarily disabled due to auth issues)
       if (filePath && mimeType && this.isImageOrPDF(mimeType) && false) {
-        const ocrResult = mimeType.includes('pdf') 
-          ? await this.visionService.extractTextFromPDF(filePath)
-          : await this.visionService.extractTextFromImage(filePath);
+        // Type assertion since we already checked mimeType exists above
+        const safeMimeType: string = mimeType!;
+        const isPdf = safeMimeType.includes('pdf');
+        const ocrResult = isPdf
+          ? await this.visionService.extractTextFromPDF(filePath!)
+          : await this.visionService.extractTextFromImage(filePath!);
         
         results.ocrResults = {
           text: ocrResult.text,
@@ -171,7 +181,7 @@ Respond with JSON format:
 }`;
 
       const response = await this.anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-3-5-sonnet-20241022",
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       });

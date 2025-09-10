@@ -11,6 +11,7 @@ import { DocumentChatService } from "./services/documentChatService";
 import { industrySelectionSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import testAIEndpoints from "./test-ai-endpoints";
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -383,6 +384,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Add AI testing endpoints - ONLY in development with authentication
+  if (process.env.NODE_ENV === 'development') {
+    console.log('⚠️  AI Test endpoints enabled in development mode');
+    // Require authentication even in development for test endpoints
+    app.use('/api/test', isAuthenticated, testAIEndpoints);
+  } else {
+    // In production, return 404 for any test endpoint requests
+    app.use('/api/test*', (req, res) => {
+      res.status(404).json({ message: 'Not found' });
+    });
+  }
 
   return httpServer;
 }

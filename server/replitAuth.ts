@@ -72,30 +72,45 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
+  try {
+    const config = await getOidcConfig();
 
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
+    const verify: VerifyFunction = async (
+      tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+      verified: passport.AuthenticateCallback
+    ) => {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
-      {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
-      },
-      verify,
-    );
-    passport.use(strategy);
+    // Get all domains and add localhost for development
+    const domains = process.env.REPLIT_DOMAINS!.split(",");
+    
+    // In development, also support localhost
+    if (process.env.NODE_ENV === 'development') {
+      domains.push('localhost', '127.0.0.1');
+    }
+    
+    console.log('Setting up authentication strategies for domains:', domains);
+
+    for (const domain of domains) {
+      const strategy = new Strategy(
+        {
+          name: `replitauth:${domain}`,
+          config,
+          scope: "openid email profile offline_access",
+          callbackURL: `https://${domain}/api/callback`,
+        },
+        verify,
+      );
+      passport.use(strategy);
+      console.log(`Registered authentication strategy: replitauth:${domain}`);
+    }
+  } catch (error) {
+    console.error('Error setting up authentication:', error);
+    throw error;
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -115,8 +130,9 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
+  app.get("/api/logout", async (req, res) => {
+    req.logout(async () => {
+      const config = await getOidcConfig();
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,

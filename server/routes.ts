@@ -13,6 +13,7 @@ import { industrySelectionSchema, dashboardStatsSchema, complianceAlertSchema } 
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import testAIEndpoints from "./test-ai-endpoints";
+import testMultiLanguageEndpoints from "./test-multilanguage-comprehensive";
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -541,8 +542,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add AI testing endpoints - ONLY in development with authentication
   if (process.env.NODE_ENV === 'development') {
     console.log('⚠️  AI Test endpoints enabled in development mode');
+    console.log('🌍 Multi-Language Test endpoints enabled in development mode');
     // Require authentication even in development for test endpoints
     app.use('/api/test', isAuthenticated, testAIEndpoints);
+    app.use('/api/test', isAuthenticated, testMultiLanguageEndpoints);
   } else {
     // In production, return 404 for any test endpoint requests
     app.use('/api/test*', (req, res) => {

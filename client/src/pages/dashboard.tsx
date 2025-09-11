@@ -6,19 +6,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Sidebar from "@/components/sidebar";
+import ModernHeader from "@/components/modern-header";
+import TemplateCards from "@/components/template-cards";
+import ModernAnalyticsWidgets from "@/components/modern-analytics-widgets";
 import DashboardStats from "@/components/dashboard-stats";
 import DocumentUploadZone from "@/components/document-upload-zone";
 import RecentActivity from "@/components/recent-activity";
-import AdvancedAnalytics from "@/components/advanced-analytics";
-import ExecutiveDashboard from "@/components/ExecutiveDashboard";
-import MedicalDashboard from "@/components/MedicalDashboard";
-import LegalDashboard from "@/components/LegalDashboard";
-import LogisticsDashboard from "@/components/LogisticsDashboard";
-import RealEstateDashboard from "@/components/RealEstateDashboard";
-import FinanceDashboard from "@/components/FinanceDashboard";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { getIndustryConfig } from "@/lib/industry-config";
 import type { User, Document } from "@shared/schema";
 
@@ -27,7 +23,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { isConnected, processingUpdates } = useWebSocket();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeView, setActiveView] = useState("templates"); // templates, analytics, documents
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -62,10 +58,10 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 text-lg">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -77,232 +73,237 @@ export default function Dashboard() {
 
   const industryConfig = getIndustryConfig(user.industry || 'general');
 
-  // Render industry-specific dashboard component
-  const renderIndustryDashboard = () => {
-    const industry = user.industry || 'general';
-    
-    switch (industry) {
-      case 'medical':
-        return <MedicalDashboard documents={documents || []} isLoading={documentsLoading} />;
-      case 'legal':
-        return <LegalDashboard documents={documents || []} isLoading={documentsLoading} />;
-      case 'logistics':
-        return <LogisticsDashboard documents={documents || []} isLoading={documentsLoading} />;
-      case 'real_estate':
-        return <RealEstateDashboard documents={documents || []} isLoading={documentsLoading} />;
-      case 'finance':
-        return <FinanceDashboard documents={documents || []} isLoading={documentsLoading} />;
-      case 'general':
-      default:
-        return (
-          <div className="space-y-6" data-testid="general-business-dashboard">
-            <div className="text-center py-12">
-              <h3 className="text-2xl font-semibold mb-4">General Business Dashboard</h3>
-              <p className="text-muted-foreground mb-8">
-                Comprehensive document processing for general business operations. 
-                Process invoices, contracts, reports, and business correspondence with AI-powered analysis.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <div className="p-6 border rounded-lg">
-                  <h4 className="font-semibold mb-2">Document Processing</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Extract key information from business documents with high accuracy
-                  </p>
-                </div>
-                <div className="p-6 border rounded-lg">
-                  <h4 className="font-semibold mb-2">Data Extraction</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically identify contacts, dates, financial data, and entities
-                  </p>
-                </div>
-                <div className="p-6 border rounded-lg">
-                  <h4 className="font-semibold mb-2">Quality Analysis</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Comprehensive quality scoring and processing performance metrics
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-    }
-  };
-
-  const handleNewDocument = () => {
-    // Focus on the upload zone
+  const handleCreateNew = () => {
     const uploadZone = document.getElementById('upload-zone');
     if (uploadZone) {
       uploadZone.scrollIntoView({ behavior: 'smooth' });
-      uploadZone.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
+      uploadZone.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
       setTimeout(() => {
-        uploadZone.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
+        uploadZone.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
       }, 2000);
     }
   };
 
+  const handleTemplateSelect = (industryId: string) => {
+    if (industryId === user.industry) {
+      setActiveView("analytics");
+    } else {
+      setLocation('/industry-selection');
+    }
+  };
+
   return (
-    <div className={`min-h-screen bg-background industry-${user.industry}`}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="flex">
         <Sidebar user={user} currentPage="dashboard" />
 
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Top Bar */}
-          <div className="border-b border-border bg-card px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground" data-testid="text-dashboard-title">
-                  {industryConfig.dashboardTitle}
-                </h1>
-                <p className="text-muted-foreground" data-testid="text-dashboard-subtitle">
-                  {industryConfig.dashboardSubtitle}
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button 
-                  onClick={handleNewDocument}
-                  data-testid="button-new-document"
-                >
-                  <i className="fas fa-plus mr-2"></i>
-                  New Document
-                </Button>
-                <Button variant="ghost" size="icon" data-testid="button-notifications">
-                  <i className="fas fa-bell"></i>
-                </Button>
-              </div>
-            </div>
-          </div>
+        {/* Main Content Area */}
+        <div className="flex-1 min-h-screen">
+          <ModernHeader user={user} onCreateNew={handleCreateNew} />
 
-          {/* Dashboard Content */}
-          <div className="p-6">
-            {/* Connection Status */}
-            {processingUpdates.length > 0 && (
-              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <i className="fas fa-sync-alt animate-spin text-blue-600"></i>
-                    <span className="font-medium text-blue-900 dark:text-blue-100">
-                      {processingUpdates.length} document{processingUpdates.length > 1 ? 's' : ''} processing...
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="bg-white dark:bg-gray-800">
-                    {isConnected ? 'Live Updates' : 'Connecting...'}
-                  </Badge>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {processingUpdates.slice(0, 3).map((update) => (
-                    <div key={update.documentId} className="flex items-center justify-between text-sm">
-                      <span>Document {update.documentId}: {update.message}</span>
-                      <div className="flex items-center space-x-2">
-                        {update.stage && (
-                          <Badge variant="secondary" className="text-xs">
-                            {update.stage.replace('_', ' ')}
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs">
-                          {update.progress}%
-                        </Badge>
+          <div className="px-8 py-8">
+            <div className="max-w-7xl mx-auto space-y-8">
+              
+              {/* Processing Status Banner */}
+              {processingUpdates.length > 0 && (
+                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <i className="fas fa-sync-alt animate-spin text-white"></i>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                            Processing {processingUpdates.length} document{processingUpdates.length > 1 ? 's' : ''}...
+                          </h3>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            AI analysis in progress with real-time updates
+                          </p>
+                        </div>
                       </div>
+                      <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                        <i className="fas fa-circle text-xs mr-1.5 animate-pulse"></i>
+                        {isConnected ? 'Live' : 'Connecting...'}
+                      </Badge>
                     </div>
-                  ))}
-                  {processingUpdates.length > 3 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{processingUpdates.length - 3} more documents processing...
-                    </p>
-                  )}
-                </div>
+                    <div className="mt-4 space-y-2">
+                      {processingUpdates.slice(0, 2).map((update) => (
+                        <div key={update.documentId} className="flex items-center justify-between text-sm bg-white dark:bg-gray-800 px-4 py-2 rounded-lg">
+                          <span className="text-gray-700 dark:text-gray-300">
+                            Document {update.documentId}: {update.message}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {update.stage && (
+                              <Badge variant="outline" className="text-xs">
+                                {update.stage.replace('_', ' ')}
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {update.progress}%
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* View Toggle Navigation */}
+              <div className="flex items-center space-x-1 bg-white dark:bg-gray-900 p-1 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
+                <button
+                  onClick={() => setActiveView("templates")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeView === "templates"
+                      ? "bg-blue-500 text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
+                  data-testid="view-templates"
+                >
+                  <i className="fas fa-layer-group mr-2"></i>
+                  Templates
+                </button>
+                <button
+                  onClick={() => setActiveView("analytics")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeView === "analytics"
+                      ? "bg-blue-500 text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
+                  data-testid="view-analytics"
+                >
+                  <i className="fas fa-chart-line mr-2"></i>
+                  Analytics
+                </button>
+                <button
+                  onClick={() => setActiveView("documents")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeView === "documents"
+                      ? "bg-blue-500 text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
+                  data-testid="view-documents"
+                >
+                  <i className="fas fa-folder-open mr-2"></i>
+                  Documents
+                </button>
               </div>
-            )}
 
-            {/* Main Dashboard Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-                <TabsTrigger value="industry" data-testid="tab-industry">{industryConfig.name} Dashboard</TabsTrigger>
-                <TabsTrigger value="analytics" data-testid="tab-analytics">Advanced Analytics</TabsTrigger>
-                <TabsTrigger value="executive" data-testid="tab-executive">Executive Dashboard</TabsTrigger>
-                <TabsTrigger value="upload" data-testid="tab-upload">Upload Documents</TabsTrigger>
-                <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-6" data-testid="content-overview">
-                {/* Stats Cards */}
-                <DashboardStats 
-                  stats={stats} 
-                  isLoading={statsLoading} 
-                  industry={user.industry || 'general'} 
+              {/* Main Content Based on Active View */}
+              {activeView === "templates" && (
+                <TemplateCards 
+                  currentIndustry={user.industry || 'general'} 
+                  onTemplateSelect={handleTemplateSelect}
                 />
+              )}
 
-                {/* Document Upload and Recent Activity */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <DocumentUploadZone 
+              {activeView === "analytics" && (
+                <div className="space-y-8">
+                  {/* Performance Stats */}
+                  <DashboardStats 
+                    stats={stats} 
+                    isLoading={statsLoading} 
+                    industry={user.industry || 'general'} 
+                  />
+
+                  {/* Modern Analytics Widgets */}
+                  <ModernAnalyticsWidgets 
                     industry={user.industry || 'general'}
-                    onUploadComplete={() => {
-                      // Refresh documents list
-                      window.location.reload();
-                    }}
-                  />
-                  <RecentActivity 
-                    documents={documents || []} 
-                    isLoading={documentsLoading}
-                    onDocumentClick={(documentId) => setLocation(`/document/${documentId}`)}
+                    stats={stats}
+                    isLoading={statsLoading}
                   />
                 </div>
-              </TabsContent>
+              )}
 
-              <TabsContent value="industry" className="space-y-6" data-testid="content-industry">
-                {renderIndustryDashboard()}
-              </TabsContent>
-
-              <TabsContent value="analytics" className="space-y-6">
-                <AdvancedAnalytics 
-                  industry={user.industry || 'general'} 
-                  userId={user.id}
-                />
-              </TabsContent>
-
-              <TabsContent value="executive" className="space-y-6">
-                <ExecutiveDashboard 
-                  industry={user.industry || 'general'} 
-                  userId={user.id}
-                />
-              </TabsContent>
-
-              <TabsContent value="upload" className="space-y-6">
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold mb-2">Upload Documents</h2>
-                    <p className="text-muted-foreground">
-                      Upload documents for AI-powered analysis with {industryConfig.name} optimization
-                    </p>
+              {activeView === "documents" && (
+                <div className="space-y-8">
+                  {/* Upload and Activity */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <DocumentUploadZone 
+                      industry={user.industry || 'general'}
+                      onUploadComplete={() => {
+                        // Refresh documents and switch to analytics view
+                        window.location.reload();
+                      }}
+                    />
+                    <RecentActivity 
+                      documents={documents || []} 
+                      isLoading={documentsLoading}
+                      onDocumentClick={(documentId) => setLocation(`/document/${documentId}`)}
+                    />
                   </div>
-                  <DocumentUploadZone 
-                    industry={user.industry || 'general'}
-                    onUploadComplete={() => {
-                      // Switch to activity tab to see processing
-                      setActiveTab("activity");
-                      window.location.reload();
-                    }}
-                  />
-                </div>
-              </TabsContent>
 
-              <TabsContent value="activity" className="space-y-6">
-                <div className="max-w-6xl mx-auto">
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold mb-2">Document Activity</h2>
-                    <p className="text-muted-foreground">
-                      Track processing status and view completed analysis
-                    </p>
-                  </div>
-                  <RecentActivity 
-                    documents={documents || []} 
-                    isLoading={documentsLoading}
-                    onDocumentClick={(documentId) => setLocation(`/document/${documentId}`)}
-                  />
+                  {/* Document Library */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            {industryConfig.documentLibraryLabel}
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-400 mt-1">
+                            Manage and analyze your {industryConfig.name.toLowerCase()} documents
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <Button variant="outline" size="sm">
+                            <i className="fas fa-filter mr-2"></i>
+                            Filter
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <i className="fas fa-download mr-2"></i>
+                            Export
+                          </Button>
+                        </div>
+                      </div>
+
+                      {documents && documents.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {documents.slice(0, 6).map((document) => (
+                            <div
+                              key={document.id}
+                              className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => setLocation(`/document/${document.id}`)}
+                            >
+                              <div className="flex items-center space-x-3 mb-3">
+                                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                                  <i className="fas fa-file-alt text-gray-500"></i>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                    {document.originalFilename}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {document.status}
+                                  </p>
+                                </div>
+                              </div>
+                              {document.aiConfidence && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {Math.round(document.aiConfidence * 100)}% confidence
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                          <i className="fas fa-inbox text-4xl mb-4 opacity-50"></i>
+                          <p>No documents uploaded yet</p>
+                          <Button 
+                            className="mt-4" 
+                            onClick={handleCreateNew}
+                          >
+                            Upload your first document
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </TabsContent>
-            </Tabs>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -41,12 +41,29 @@
   --font-mono: Menlo, monospace;
   --radius: 8px;
   
-  /* Industry-specific colors */
+  /* Modern industry-specific gradient colors */
   --medical: hsl(168, 76%, 42%);
+  --medical-from: hsl(168, 76%, 42%);
+  --medical-to: hsl(178, 85%, 40%);
   --legal: hsl(222, 84%, 28%);
+  --legal-from: hsl(221, 83%, 53%);
+  --legal-to: hsl(262, 83%, 58%);
   --logistics: hsl(25, 95%, 53%);
+  --logistics-from: hsl(25, 95%, 53%);
+  --logistics-to: hsl(0, 84%, 60%);
   --finance: hsl(142, 76%, 36%);
+  --finance-from: hsl(142, 76%, 36%);
+  --finance-to: hsl(152, 76%, 32%);
   --general: hsl(214, 84%, 56%);
+  --general-from: hsl(220, 13%, 46%);
+  --general-to: hsl(215, 25%, 27%);
+  --real-estate-from: hsl(262, 83%, 58%);
+  --real-estate-to: hsl(292, 76%, 50%);
+  
+  /* Modern shadows and effects */
+  --shadow-sm: 0 1px 2px 0 hsla(220, 13%, 10%, 0.05);
+  --shadow-md: 0 4px 6px -1px hsla(220, 13%, 10%, 0.1), 0 2px 4px -1px hsla(220, 13%, 10%, 0.06);
+  --shadow-lg: 0 10px 15px -3px hsla(220, 13%, 10%, 0.1), 0 4px 6px -2px hsla(220, 13%, 10%, 0.05);
 }
 
 .dark {
@@ -107,5 +124,84 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Modern scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+}
+
+/* Modern utility classes */
+@layer utilities {
+  .glass-effect {
+    backdrop-filter: blur(20px);
+    background: hsla(0, 0%, 100%, 0.8);
+    border: 1px solid hsla(220, 13%, 91%, 0.3);
+  }
+
+  .dark .glass-effect {
+    background: hsla(228, 9%, 10%, 0.8);
+    border: 1px solid hsla(210, 5%, 15%, 0.3);
+  }
+
+  .gradient-medical {
+    background: linear-gradient(135deg, var(--medical-from), var(--medical-to));
+  }
+
+  .gradient-legal {
+    background: linear-gradient(135deg, var(--legal-from), var(--legal-to));
+  }
+
+  .gradient-logistics {
+    background: linear-gradient(135deg, var(--logistics-from), var(--logistics-to));
+  }
+
+  .gradient-finance {
+    background: linear-gradient(135deg, var(--finance-from), var(--finance-to));
+  }
+
+  .gradient-general {
+    background: linear-gradient(135deg, var(--general-from), var(--general-to));
+  }
+
+  .gradient-real-estate {
+    background: linear-gradient(135deg, var(--real-estate-from), var(--real-estate-to));
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hover-lift {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
   }
 }

@@ -746,3 +746,337 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+// =============================================================================
+// ADVANCED SECURITY & COMPLIANCE FRAMEWORK
+// =============================================================================
+
+// Roles and permissions for RBAC system
+export const securityRoles = pgTable("security_roles", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  displayName: varchar("display_name", { length: 200 }).notNull(),
+  description: text("description"),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  level: varchar("level", { length: 50 }).notNull(), // basic, standard, enterprise, executive
+  permissions: jsonb("permissions").notNull().default('{}'),
+  isSystemRole: boolean("is_system_role").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Permission definitions
+export const securityPermissions = pgTable("security_permissions", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  displayName: varchar("display_name", { length: 200 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull(), // document, user, team, system, compliance
+  resource: varchar("resource", { length: 100 }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // create, read, update, delete, share, audit
+  industry: varchar("industry", { length: 50 }),
+  complianceLevel: varchar("compliance_level", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User role assignments
+export const userRoleAssignments = pgTable("user_role_assignments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  roleId: integer("role_id").references(() => securityRoles.id).notNull(),
+  teamId: integer("team_id").references(() => teams.id),
+  assignedBy: varchar("assigned_by").references(() => users.id).notNull(),
+  expiresAt: timestamp("expires_at"),
+  metadata: jsonb("metadata").default('{}'),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Comprehensive audit logs
+export const securityAuditLogs = pgTable("security_audit_logs", {
+  id: serial("id").primaryKey(),
+  eventId: varchar("event_id").notNull().unique(),
+  userId: varchar("user_id").references(() => users.id),
+  documentId: integer("document_id").references(() => documents.id),
+  teamId: integer("team_id").references(() => teams.id),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  resource: varchar("resource", { length: 100 }).notNull(),
+  resourceId: varchar("resource_id", { length: 100 }),
+  outcome: varchar("outcome", { length: 50 }).notNull(), // success, failure, warning
+  severity: varchar("severity", { length: 20 }).default('info'), // low, info, warning, high, critical
+  riskScore: integer("risk_score").default(0),
+  complianceRelevant: boolean("compliance_relevant").default(false),
+  industry: varchar("industry", { length: 50 }),
+  eventData: jsonb("event_data").notNull().default('{}'),
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  sessionId: varchar("session_id"),
+  correlationId: varchar("correlation_id"),
+  parentEventId: varchar("parent_event_id"),
+  isSecurityEvent: boolean("is_security_event").default(false),
+  isTamperProof: boolean("is_tamper_proof").default(false),
+  checksum: varchar("checksum", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_audit_user").on(table.userId),
+  index("idx_audit_document").on(table.documentId),
+  index("idx_audit_event_type").on(table.eventType),
+  index("idx_audit_created_at").on(table.createdAt),
+  index("idx_audit_compliance").on(table.complianceRelevant),
+  index("idx_audit_security").on(table.isSecurityEvent),
+]);
+
+// Document classification and encryption metadata
+export const documentSecurity = pgTable("document_security", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull().unique(),
+  classificationLevel: varchar("classification_level", { length: 50 }).notNull(), // public, internal, confidential, restricted, top_secret
+  sensitivityTags: varchar("sensitivity_tags").array(),
+  encryptionStatus: varchar("encryption_status", { length: 50 }).default('encrypted'),
+  encryptionMethod: varchar("encryption_method", { length: 100 }),
+  keyId: varchar("key_id", { length: 255 }),
+  retentionPolicy: varchar("retention_policy", { length: 100 }),
+  retentionPeriodDays: integer("retention_period_days"),
+  destructionDate: timestamp("destruction_date"),
+  complianceLabels: varchar("compliance_labels").array(),
+  accessRestrictions: jsonb("access_restrictions").default('{}'),
+  watermarkData: jsonb("watermark_data").default('{}'),
+  dlpPolicies: varchar("dlp_policies").array(),
+  isRedacted: boolean("is_redacted").default(false),
+  redactionReason: text("redaction_reason"),
+  originalHash: varchar("original_hash", { length: 255 }),
+  currentHash: varchar("current_hash", { length: 255 }),
+  integrityVerified: boolean("integrity_verified").default(true),
+  lastIntegrityCheck: timestamp("last_integrity_check"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Compliance rules engine
+export const complianceRules = pgTable("compliance_rules", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  standard: varchar("standard", { length: 100 }).notNull(), // HIPAA, SOX, GDPR, etc.
+  ruleType: varchar("rule_type", { length: 50 }).notNull(), // access_control, data_retention, audit_requirement
+  priority: varchar("priority", { length: 20 }).default('medium'), // low, medium, high, critical
+  conditions: jsonb("conditions").notNull(),
+  actions: jsonb("actions").notNull(),
+  violations: jsonb("violations").default('{}'),
+  isActive: boolean("is_active").default(true),
+  effectiveFrom: timestamp("effective_from").notNull(),
+  effectiveTo: timestamp("effective_to"),
+  lastEvaluated: timestamp("last_evaluated"),
+  evaluationCount: integer("evaluation_count").default(0),
+  violationCount: integer("violation_count").default(0),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Compliance monitoring results
+export const complianceMonitoring = pgTable("compliance_monitoring", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id").references(() => complianceRules.id).notNull(),
+  documentId: integer("document_id").references(() => documents.id),
+  userId: varchar("user_id").references(() => users.id),
+  evaluationResult: varchar("evaluation_result", { length: 50 }).notNull(), // compliant, non_compliant, warning, error
+  violationType: varchar("violation_type", { length: 100 }),
+  violationSeverity: varchar("violation_severity", { length: 20 }),
+  violationDetails: jsonb("violation_details").default('{}'),
+  remediation: jsonb("remediation").default('{}'),
+  remediationStatus: varchar("remediation_status", { length: 50 }).default('pending'),
+  alertSent: boolean("alert_sent").default(false),
+  alertLevel: varchar("alert_level", { length: 20 }),
+  reportedTo: varchar("reported_to").array(),
+  evaluatedAt: timestamp("evaluated_at").notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_compliance_rule").on(table.ruleId),
+  index("idx_compliance_document").on(table.documentId),
+  index("idx_compliance_result").on(table.evaluationResult),
+  index("idx_compliance_evaluated").on(table.evaluatedAt),
+]);
+
+// Multi-factor authentication settings
+export const userMFASettings = pgTable("user_mfa_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  isEnabled: boolean("is_enabled").default(false),
+  methods: jsonb("methods").default('{}'), // TOTP, SMS, email, hardware_key
+  backupCodes: varchar("backup_codes").array(),
+  recoveryEmail: varchar("recovery_email"),
+  phoneNumber: varchar("phone_number"),
+  totpSecret: varchar("totp_secret"),
+  lastUsedMethod: varchar("last_used_method"),
+  failedAttempts: integer("failed_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
+  enforcedByPolicy: boolean("enforced_by_policy").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// SSO configuration
+export const ssoConfigurations = pgTable("sso_configurations", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  provider: varchar("provider", { length: 100 }).notNull(), // SAML, OIDC, OAuth
+  domain: varchar("domain", { length: 255 }),
+  industry: varchar("industry", { length: 50 }),
+  configuration: jsonb("configuration").notNull(),
+  metadata: jsonb("metadata").default('{}'),
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// API security monitoring
+export const apiSecurityLogs = pgTable("api_security_logs", {
+  id: serial("id").primaryKey(),
+  apiKeyId: varchar("api_key_id"),
+  userId: varchar("user_id").references(() => users.id),
+  endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: integer("status_code").notNull(),
+  responseTime: integer("response_time"),
+  requestSize: integer("request_size"),
+  responseSize: integer("response_size"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  rateLimitHit: boolean("rate_limit_hit").default(false),
+  suspiciousActivity: boolean("suspicious_activity").default(false),
+  securityFlags: varchar("security_flags").array(),
+  requestPayload: jsonb("request_payload"),
+  errorDetails: jsonb("error_details"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_api_endpoint").on(table.endpoint),
+  index("idx_api_user").on(table.userId),
+  index("idx_api_created").on(table.createdAt),
+  index("idx_api_suspicious").on(table.suspiciousActivity),
+]);
+
+// Security policies
+export const securityPolicies = pgTable("security_policies", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  policyType: varchar("policy_type", { length: 100 }).notNull(), // password, session, access, data_handling
+  rules: jsonb("rules").notNull(),
+  enforcement: varchar("enforcement", { length: 50 }).default('warn'), // warn, block, audit
+  applicableRoles: varchar("applicable_roles").array(),
+  exceptions: jsonb("exceptions").default('{}'),
+  isActive: boolean("is_active").default(true),
+  version: integer("version").default(1),
+  effectiveFrom: timestamp("effective_from").notNull(),
+  effectiveTo: timestamp("effective_to"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Document access tracking
+export const documentAccessLogs = pgTable("document_access_logs", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  accessType: varchar("access_type", { length: 50 }).notNull(), // view, download, edit, share, delete
+  accessMethod: varchar("access_method", { length: 50 }), // web, api, mobile
+  duration: integer("duration"), // in seconds
+  ipAddress: varchar("ip_address", { length: 45 }),
+  location: jsonb("location"),
+  deviceInfo: jsonb("device_info"),
+  wasAuthorized: boolean("was_authorized").default(true),
+  authorizationMethod: varchar("authorization_method", { length: 100 }),
+  complianceFlags: varchar("compliance_flags").array(),
+  sensitiveDataAccessed: boolean("sensitive_data_accessed").default(false),
+  redactionApplied: boolean("redaction_applied").default(false),
+  watermarkApplied: boolean("watermark_applied").default(false),
+  accessedAt: timestamp("accessed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_doc_access_document").on(table.documentId),
+  index("idx_doc_access_user").on(table.userId),
+  index("idx_doc_access_type").on(table.accessType),
+  index("idx_doc_access_time").on(table.accessedAt),
+]);
+
+// Security incidents and threats
+export const securityIncidents = pgTable("security_incidents", {
+  id: serial("id").primaryKey(),
+  incidentId: varchar("incident_id").notNull().unique(),
+  type: varchar("type", { length: 100 }).notNull(), // unauthorized_access, data_breach, malware, phishing
+  severity: varchar("severity", { length: 20 }).notNull(), // low, medium, high, critical
+  status: varchar("status", { length: 50 }).default('open'), // open, investigating, contained, resolved
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  affectedUsers: varchar("affected_users").array(),
+  affectedDocuments: integer("affected_documents").array(),
+  detectionMethod: varchar("detection_method", { length: 100 }),
+  detectedAt: timestamp("detected_at").notNull(),
+  containedAt: timestamp("contained_at"),
+  resolvedAt: timestamp("resolved_at"),
+  investigator: varchar("investigator").references(() => users.id),
+  impactAssessment: jsonb("impact_assessment").default('{}'),
+  remediationSteps: jsonb("remediation_steps").default('{}'),
+  notificationsSent: jsonb("notifications_sent").default('{}'),
+  regulatoryReported: boolean("regulatory_reported").default(false),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Data breach notifications
+export const breachNotifications = pgTable("breach_notifications", {
+  id: serial("id").primaryKey(),
+  incidentId: varchar("incident_id").references(() => securityIncidents.incidentId).notNull(),
+  notificationType: varchar("notification_type", { length: 50 }).notNull(), // regulatory, customer, internal
+  recipient: varchar("recipient", { length: 255 }).notNull(),
+  recipientType: varchar("recipient_type", { length: 50 }).notNull(), // regulator, customer, employee
+  notificationMethod: varchar("notification_method", { length: 50 }), // email, mail, website
+  content: text("content").notNull(),
+  sentAt: timestamp("sent_at"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  isRequired: boolean("is_required").default(true),
+  timelineMet: boolean("timeline_met").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Security framework type exports
+export type SecurityRole = typeof securityRoles.$inferSelect;
+export type InsertSecurityRole = typeof securityRoles.$inferInsert;
+export type SecurityPermission = typeof securityPermissions.$inferSelect;
+export type InsertSecurityPermission = typeof securityPermissions.$inferInsert;
+export type UserRoleAssignment = typeof userRoleAssignments.$inferSelect;
+export type InsertUserRoleAssignment = typeof userRoleAssignments.$inferInsert;
+export type SecurityAuditLog = typeof securityAuditLogs.$inferSelect;
+export type InsertSecurityAuditLog = typeof securityAuditLogs.$inferInsert;
+export type DocumentSecurity = typeof documentSecurity.$inferSelect;
+export type InsertDocumentSecurity = typeof documentSecurity.$inferInsert;
+export type ComplianceRule = typeof complianceRules.$inferSelect;
+export type InsertComplianceRule = typeof complianceRules.$inferInsert;
+export type ComplianceMonitoring = typeof complianceMonitoring.$inferSelect;
+export type InsertComplianceMonitoring = typeof complianceMonitoring.$inferInsert;
+export type UserMFASettings = typeof userMFASettings.$inferSelect;
+export type InsertUserMFASettings = typeof userMFASettings.$inferInsert;
+export type SSOConfiguration = typeof ssoConfigurations.$inferSelect;
+export type InsertSSOConfiguration = typeof ssoConfigurations.$inferInsert;
+export type APISecurityLog = typeof apiSecurityLogs.$inferSelect;
+export type InsertAPISecurityLog = typeof apiSecurityLogs.$inferInsert;
+export type SecurityPolicy = typeof securityPolicies.$inferSelect;
+export type InsertSecurityPolicy = typeof securityPolicies.$inferInsert;
+export type DocumentAccessLog = typeof documentAccessLogs.$inferSelect;
+export type InsertDocumentAccessLog = typeof documentAccessLogs.$inferInsert;
+export type SecurityIncident = typeof securityIncidents.$inferSelect;
+export type InsertSecurityIncident = typeof securityIncidents.$inferInsert;
+export type BreachNotification = typeof breachNotifications.$inferSelect;
+export type InsertBreachNotification = typeof breachNotifications.$inferInsert;

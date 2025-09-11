@@ -14,6 +14,9 @@ import { AgenticProcessingService } from "./services/agenticProcessingService";
 import { AdvancedAnalyticsService } from "./services/advancedAnalyticsService";
 import { EnterpriseIntegrationService } from "./services/enterpriseIntegrationService";
 import { RealTimeCollaborationService } from "./services/realTimeCollaborationService";
+import { AdvancedSecurityService } from "./services/advancedSecurityService";
+import { SecurityInitializer } from "./services/securityInitializer";
+import { createSecurityMiddleware } from "./middleware/securityMiddleware";
 import { 
   industrySelectionSchema, 
   dashboardStatsSchema, 
@@ -72,6 +75,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const advancedAnalyticsService = new AdvancedAnalyticsService(websocketService);
   const enterpriseIntegrationService = new EnterpriseIntegrationService(websocketService, documentProcessor);
   const collaborationService = new RealTimeCollaborationService(websocketService);
+  
+  // Initialize Advanced Security & Compliance Framework
+  const securityService = new AdvancedSecurityService(websocketService);
+  const securityInitializer = new SecurityInitializer(securityService);
+  const securityMiddleware = createSecurityMiddleware(securityService);
+  
+  // Initialize security framework on startup
+  securityInitializer.initializeSecurityFramework().catch(error => {
+    console.error('Failed to initialize security framework:', error);
+  });
 
   // Enterprise API Key Authentication Middleware
   const validateAPIKey = async (req: any, res: any, next: any) => {

@@ -75,6 +75,49 @@ import {
   type InsertActivityLog,
   type Notification,
   type InsertNotification,
+  // Security & Compliance imports
+  securityRoles,
+  securityPermissions,
+  userRoleAssignments,
+  securityAuditLogs,
+  documentSecurity,
+  complianceRules,
+  complianceMonitoring,
+  userMFASettings,
+  ssoConfigurations,
+  apiSecurityLogs,
+  securityPolicies,
+  documentAccessLogs,
+  securityIncidents,
+  breachNotifications,
+  type SecurityRole,
+  type InsertSecurityRole,
+  type SecurityPermission,
+  type InsertSecurityPermission,
+  type UserRoleAssignment,
+  type InsertUserRoleAssignment,
+  type SecurityAuditLog,
+  type InsertSecurityAuditLog,
+  type DocumentSecurity,
+  type InsertDocumentSecurity,
+  type ComplianceRule,
+  type InsertComplianceRule,
+  type ComplianceMonitoring,
+  type InsertComplianceMonitoring,
+  type UserMFASettings,
+  type InsertUserMFASettings,
+  type SSOConfiguration,
+  type InsertSSOConfiguration,
+  type APISecurityLog,
+  type InsertAPISecurityLog,
+  type SecurityPolicy,
+  type InsertSecurityPolicy,
+  type DocumentAccessLog,
+  type InsertDocumentAccessLog,
+  type SecurityIncident,
+  type InsertSecurityIncident,
+  type BreachNotification,
+  type InsertBreachNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, asc, or, isNull } from "drizzle-orm";
@@ -198,6 +241,93 @@ export interface IStorage {
   markNotificationRead(id: number): Promise<Notification>;
   markAllNotificationsRead(userId: string): Promise<void>;
   deleteNotification(id: number): Promise<void>;
+
+  // =============================================================================
+  // ADVANCED SECURITY & COMPLIANCE OPERATIONS
+  // =============================================================================
+  
+  // RBAC Operations
+  createSecurityRole(role: InsertSecurityRole): Promise<SecurityRole>;
+  getSecurityRole(id: number): Promise<SecurityRole | undefined>;
+  getSecurityRolesByIndustry(industry: string): Promise<SecurityRole[]>;
+  assignUserRole(assignment: InsertUserRoleAssignment): Promise<UserRoleAssignment>;
+  getUserRoles(userId: string): Promise<UserRoleAssignment[]>;
+  checkUserPermission(userId: string, resource: string, action: string): Promise<boolean>;
+  revokeUserRole(assignmentId: number): Promise<void>;
+  
+  // Security Permissions
+  createSecurityPermission(permission: InsertSecurityPermission): Promise<SecurityPermission>;
+  getSecurityPermissions(category?: string): Promise<SecurityPermission[]>;
+  
+  // Audit Operations
+  logSecurityEvent(auditLog: InsertSecurityAuditLog): Promise<SecurityAuditLog>;
+  getSecurityAuditLogs(filters: {
+    userId?: string;
+    documentId?: number;
+    eventType?: string;
+    startDate?: Date;
+    endDate?: Date;
+    severity?: string;
+    complianceRelevant?: boolean;
+    limit?: number;
+  }): Promise<SecurityAuditLog[]>;
+  
+  // Document Security Operations
+  createDocumentSecurity(security: InsertDocumentSecurity): Promise<DocumentSecurity>;
+  getDocumentSecurity(documentId: number): Promise<DocumentSecurity | undefined>;
+  updateDocumentClassification(documentId: number, classification: string, sensitivityTags?: string[]): Promise<DocumentSecurity>;
+  updateDocumentEncryption(documentId: number, encryptionData: Partial<DocumentSecurity>): Promise<DocumentSecurity>;
+  
+  // Compliance Operations
+  createComplianceRule(rule: InsertComplianceRule): Promise<ComplianceRule>;
+  getComplianceRules(industry: string): Promise<ComplianceRule[]>;
+  getActiveComplianceRules(industry: string): Promise<ComplianceRule[]>;
+  evaluateCompliance(monitoring: InsertComplianceMonitoring): Promise<ComplianceMonitoring>;
+  getComplianceViolations(filters: {
+    industry?: string;
+    severity?: string;
+    resolved?: boolean;
+    ruleId?: number;
+    documentId?: number;
+    limit?: number;
+  }): Promise<ComplianceMonitoring[]>;
+  updateComplianceViolation(id: number, updates: Partial<ComplianceMonitoring>): Promise<ComplianceMonitoring>;
+  
+  // Authentication & Authorization
+  createMFASettings(settings: InsertUserMFASettings): Promise<UserMFASettings>;
+  getUserMFASettings(userId: string): Promise<UserMFASettings | undefined>;
+  updateMFASettings(userId: string, updates: Partial<UserMFASettings>): Promise<UserMFASettings>;
+  
+  // SSO Configuration
+  createSSOConfiguration(config: InsertSSOConfiguration): Promise<SSOConfiguration>;
+  getSSOConfigurations(domain?: string): Promise<SSOConfiguration[]>;
+  updateSSOConfiguration(id: number, updates: Partial<SSOConfiguration>): Promise<SSOConfiguration>;
+  
+  // Security Monitoring
+  logAPIAccess(log: InsertAPISecurityLog): Promise<APISecurityLog>;
+  logDocumentAccess(log: InsertDocumentAccessLog): Promise<DocumentAccessLog>;
+  getDocumentAccessHistory(documentId: number, limit?: number): Promise<DocumentAccessLog[]>;
+  getUserAccessHistory(userId: string, limit?: number): Promise<DocumentAccessLog[]>;
+  
+  // Security Incidents
+  getSecurityIncidents(filters: { 
+    severity?: string; 
+    status?: string; 
+    type?: string;
+    limit?: number 
+  }): Promise<SecurityIncident[]>;
+  createSecurityIncident(incident: InsertSecurityIncident): Promise<SecurityIncident>;
+  updateSecurityIncident(incidentId: string, updates: Partial<SecurityIncident>): Promise<SecurityIncident>;
+  
+  // Security Policies
+  createSecurityPolicy(policy: InsertSecurityPolicy): Promise<SecurityPolicy>;
+  getSecurityPolicies(industry: string): Promise<SecurityPolicy[]>;
+  getActiveSecurityPolicies(industry: string): Promise<SecurityPolicy[]>;
+  updateSecurityPolicy(id: number, updates: Partial<SecurityPolicy>): Promise<SecurityPolicy>;
+  
+  // Breach Notifications
+  createBreachNotification(notification: InsertBreachNotification): Promise<BreachNotification>;
+  getBreachNotifications(incidentId: string): Promise<BreachNotification[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -974,6 +1104,519 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(notifications)
       .where(eq(notifications.id, id));
+  }
+
+  // =============================================================================
+  // ADVANCED SECURITY & COMPLIANCE STORAGE IMPLEMENTATIONS
+  // =============================================================================
+
+  // RBAC Operations
+  async createSecurityRole(role: InsertSecurityRole): Promise<SecurityRole> {
+    const [result] = await db
+      .insert(securityRoles)
+      .values(role)
+      .returning();
+    return result;
+  }
+
+  async getSecurityRole(id: number): Promise<SecurityRole | undefined> {
+    const [role] = await db
+      .select()
+      .from(securityRoles)
+      .where(eq(securityRoles.id, id));
+    return role;
+  }
+
+  async getSecurityRolesByIndustry(industry: string): Promise<SecurityRole[]> {
+    return await db
+      .select()
+      .from(securityRoles)
+      .where(and(
+        eq(securityRoles.industry, industry),
+        eq(securityRoles.isActive, true)
+      ))
+      .orderBy(securityRoles.level, securityRoles.name);
+  }
+
+  async assignUserRole(assignment: InsertUserRoleAssignment): Promise<UserRoleAssignment> {
+    const [result] = await db
+      .insert(userRoleAssignments)
+      .values(assignment)
+      .returning();
+    return result;
+  }
+
+  async getUserRoles(userId: string): Promise<UserRoleAssignment[]> {
+    return await db
+      .select()
+      .from(userRoleAssignments)
+      .where(and(
+        eq(userRoleAssignments.userId, userId),
+        eq(userRoleAssignments.isActive, true),
+        or(
+          isNull(userRoleAssignments.expiresAt),
+          gte(userRoleAssignments.expiresAt, new Date())
+        )
+      ))
+      .orderBy(desc(userRoleAssignments.createdAt));
+  }
+
+  async checkUserPermission(userId: string, resource: string, action: string): Promise<boolean> {
+    const userRoles = await this.getUserRoles(userId);
+    
+    for (const roleAssignment of userRoles) {
+      const role = await this.getSecurityRole(roleAssignment.roleId);
+      if (role && role.permissions) {
+        const permissions = role.permissions as any;
+        if (permissions[resource] && permissions[resource].includes(action)) {
+          return true;
+        }
+        // Check for wildcard permissions
+        if (permissions['*'] && permissions['*'].includes('*')) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  async revokeUserRole(assignmentId: number): Promise<void> {
+    await db
+      .update(userRoleAssignments)
+      .set({ isActive: false })
+      .where(eq(userRoleAssignments.id, assignmentId));
+  }
+
+  // Security Permissions
+  async createSecurityPermission(permission: InsertSecurityPermission): Promise<SecurityPermission> {
+    const [result] = await db
+      .insert(securityPermissions)
+      .values(permission)
+      .returning();
+    return result;
+  }
+
+  async getSecurityPermissions(category?: string): Promise<SecurityPermission[]> {
+    const query = db
+      .select()
+      .from(securityPermissions)
+      .where(eq(securityPermissions.isActive, true));
+    
+    if (category) {
+      query.where(and(
+        eq(securityPermissions.isActive, true),
+        eq(securityPermissions.category, category)
+      ));
+    }
+    
+    return await query.orderBy(securityPermissions.category, securityPermissions.name);
+  }
+
+  // Audit Operations
+  async logSecurityEvent(auditLog: InsertSecurityAuditLog): Promise<SecurityAuditLog> {
+    const [result] = await db
+      .insert(securityAuditLogs)
+      .values(auditLog)
+      .returning();
+    return result;
+  }
+
+  async getSecurityAuditLogs(filters: {
+    userId?: string;
+    documentId?: number;
+    eventType?: string;
+    startDate?: Date;
+    endDate?: Date;
+    severity?: string;
+    complianceRelevant?: boolean;
+    limit?: number;
+  }): Promise<SecurityAuditLog[]> {
+    const conditions = [];
+    
+    if (filters.userId) {
+      conditions.push(eq(securityAuditLogs.userId, filters.userId));
+    }
+    if (filters.documentId) {
+      conditions.push(eq(securityAuditLogs.documentId, filters.documentId));
+    }
+    if (filters.eventType) {
+      conditions.push(eq(securityAuditLogs.eventType, filters.eventType));
+    }
+    if (filters.startDate) {
+      conditions.push(gte(securityAuditLogs.createdAt, filters.startDate));
+    }
+    if (filters.endDate) {
+      conditions.push(lte(securityAuditLogs.createdAt, filters.endDate));
+    }
+    if (filters.severity) {
+      conditions.push(eq(securityAuditLogs.severity, filters.severity));
+    }
+    if (filters.complianceRelevant !== undefined) {
+      conditions.push(eq(securityAuditLogs.complianceRelevant, filters.complianceRelevant));
+    }
+
+    const query = db
+      .select()
+      .from(securityAuditLogs)
+      .orderBy(desc(securityAuditLogs.createdAt));
+
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+
+    if (filters.limit) {
+      query.limit(filters.limit);
+    }
+
+    return await query;
+  }
+
+  // Document Security Operations
+  async createDocumentSecurity(security: InsertDocumentSecurity): Promise<DocumentSecurity> {
+    const [result] = await db
+      .insert(documentSecurity)
+      .values(security)
+      .returning();
+    return result;
+  }
+
+  async getDocumentSecurity(documentId: number): Promise<DocumentSecurity | undefined> {
+    const [result] = await db
+      .select()
+      .from(documentSecurity)
+      .where(eq(documentSecurity.documentId, documentId));
+    return result;
+  }
+
+  async updateDocumentClassification(
+    documentId: number, 
+    classification: string, 
+    sensitivityTags?: string[]
+  ): Promise<DocumentSecurity> {
+    const updateData: any = {
+      classificationLevel: classification,
+      updatedAt: new Date()
+    };
+    
+    if (sensitivityTags) {
+      updateData.sensitivityTags = sensitivityTags;
+    }
+
+    const [result] = await db
+      .update(documentSecurity)
+      .set(updateData)
+      .where(eq(documentSecurity.documentId, documentId))
+      .returning();
+    return result;
+  }
+
+  async updateDocumentEncryption(
+    documentId: number, 
+    encryptionData: Partial<DocumentSecurity>
+  ): Promise<DocumentSecurity> {
+    const [result] = await db
+      .update(documentSecurity)
+      .set({ ...encryptionData, updatedAt: new Date() })
+      .where(eq(documentSecurity.documentId, documentId))
+      .returning();
+    return result;
+  }
+
+  // Compliance Operations
+  async createComplianceRule(rule: InsertComplianceRule): Promise<ComplianceRule> {
+    const [result] = await db
+      .insert(complianceRules)
+      .values(rule)
+      .returning();
+    return result;
+  }
+
+  async getComplianceRules(industry: string): Promise<ComplianceRule[]> {
+    return await db
+      .select()
+      .from(complianceRules)
+      .where(eq(complianceRules.industry, industry))
+      .orderBy(complianceRules.priority, desc(complianceRules.createdAt));
+  }
+
+  async getActiveComplianceRules(industry: string): Promise<ComplianceRule[]> {
+    return await db
+      .select()
+      .from(complianceRules)
+      .where(and(
+        eq(complianceRules.industry, industry),
+        eq(complianceRules.isActive, true),
+        lte(complianceRules.effectiveFrom, new Date()),
+        or(
+          isNull(complianceRules.effectiveTo),
+          gte(complianceRules.effectiveTo, new Date())
+        )
+      ))
+      .orderBy(complianceRules.priority, desc(complianceRules.createdAt));
+  }
+
+  async evaluateCompliance(monitoring: InsertComplianceMonitoring): Promise<ComplianceMonitoring> {
+    const [result] = await db
+      .insert(complianceMonitoring)
+      .values(monitoring)
+      .returning();
+    return result;
+  }
+
+  async getComplianceViolations(filters: {
+    industry?: string;
+    severity?: string;
+    resolved?: boolean;
+    ruleId?: number;
+    documentId?: number;
+    limit?: number;
+  }): Promise<ComplianceMonitoring[]> {
+    const conditions = [eq(complianceMonitoring.evaluationResult, 'non_compliant')];
+    
+    if (filters.ruleId) {
+      conditions.push(eq(complianceMonitoring.ruleId, filters.ruleId));
+    }
+    if (filters.documentId) {
+      conditions.push(eq(complianceMonitoring.documentId, filters.documentId));
+    }
+    if (filters.severity) {
+      conditions.push(eq(complianceMonitoring.violationSeverity, filters.severity));
+    }
+    if (filters.resolved !== undefined) {
+      if (filters.resolved) {
+        conditions.push(eq(complianceMonitoring.remediationStatus, 'resolved'));
+      } else {
+        conditions.push(eq(complianceMonitoring.remediationStatus, 'pending'));
+      }
+    }
+
+    const query = db
+      .select()
+      .from(complianceMonitoring)
+      .where(and(...conditions))
+      .orderBy(desc(complianceMonitoring.evaluatedAt));
+
+    if (filters.limit) {
+      query.limit(filters.limit);
+    }
+
+    return await query;
+  }
+
+  async updateComplianceViolation(id: number, updates: Partial<ComplianceMonitoring>): Promise<ComplianceMonitoring> {
+    const [result] = await db
+      .update(complianceMonitoring)
+      .set(updates)
+      .where(eq(complianceMonitoring.id, id))
+      .returning();
+    return result;
+  }
+
+  // Authentication & Authorization
+  async createMFASettings(settings: InsertUserMFASettings): Promise<UserMFASettings> {
+    const [result] = await db
+      .insert(userMFASettings)
+      .values(settings)
+      .returning();
+    return result;
+  }
+
+  async getUserMFASettings(userId: string): Promise<UserMFASettings | undefined> {
+    const [result] = await db
+      .select()
+      .from(userMFASettings)
+      .where(eq(userMFASettings.userId, userId));
+    return result;
+  }
+
+  async updateMFASettings(userId: string, updates: Partial<UserMFASettings>): Promise<UserMFASettings> {
+    const [result] = await db
+      .update(userMFASettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userMFASettings.userId, userId))
+      .returning();
+    return result;
+  }
+
+  // SSO Configuration
+  async createSSOConfiguration(config: InsertSSOConfiguration): Promise<SSOConfiguration> {
+    const [result] = await db
+      .insert(ssoConfigurations)
+      .values(config)
+      .returning();
+    return result;
+  }
+
+  async getSSOConfigurations(domain?: string): Promise<SSOConfiguration[]> {
+    const query = db
+      .select()
+      .from(ssoConfigurations)
+      .where(eq(ssoConfigurations.isActive, true));
+    
+    if (domain) {
+      query.where(and(
+        eq(ssoConfigurations.isActive, true),
+        eq(ssoConfigurations.domain, domain)
+      ));
+    }
+    
+    return await query.orderBy(ssoConfigurations.isDefault, ssoConfigurations.name);
+  }
+
+  async updateSSOConfiguration(id: number, updates: Partial<SSOConfiguration>): Promise<SSOConfiguration> {
+    const [result] = await db
+      .update(ssoConfigurations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(ssoConfigurations.id, id))
+      .returning();
+    return result;
+  }
+
+  // Security Monitoring
+  async logAPIAccess(log: InsertAPISecurityLog): Promise<APISecurityLog> {
+    const [result] = await db
+      .insert(apiSecurityLogs)
+      .values(log)
+      .returning();
+    return result;
+  }
+
+  async logDocumentAccess(log: InsertDocumentAccessLog): Promise<DocumentAccessLog> {
+    const [result] = await db
+      .insert(documentAccessLogs)
+      .values(log)
+      .returning();
+    return result;
+  }
+
+  async getDocumentAccessHistory(documentId: number, limit: number = 100): Promise<DocumentAccessLog[]> {
+    return await db
+      .select()
+      .from(documentAccessLogs)
+      .where(eq(documentAccessLogs.documentId, documentId))
+      .orderBy(desc(documentAccessLogs.accessedAt))
+      .limit(limit);
+  }
+
+  async getUserAccessHistory(userId: string, limit: number = 100): Promise<DocumentAccessLog[]> {
+    return await db
+      .select()
+      .from(documentAccessLogs)
+      .where(eq(documentAccessLogs.userId, userId))
+      .orderBy(desc(documentAccessLogs.accessedAt))
+      .limit(limit);
+  }
+
+  // Security Incidents
+  async getSecurityIncidents(filters: { 
+    severity?: string; 
+    status?: string; 
+    type?: string;
+    limit?: number 
+  }): Promise<SecurityIncident[]> {
+    const conditions = [];
+    
+    if (filters.severity) {
+      conditions.push(eq(securityIncidents.severity, filters.severity));
+    }
+    if (filters.status) {
+      conditions.push(eq(securityIncidents.status, filters.status));
+    }
+    if (filters.type) {
+      conditions.push(eq(securityIncidents.type, filters.type));
+    }
+
+    const query = db
+      .select()
+      .from(securityIncidents)
+      .orderBy(desc(securityIncidents.detectedAt));
+
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+
+    if (filters.limit) {
+      query.limit(filters.limit);
+    }
+
+    return await query;
+  }
+
+  async createSecurityIncident(incident: InsertSecurityIncident): Promise<SecurityIncident> {
+    const [result] = await db
+      .insert(securityIncidents)
+      .values(incident)
+      .returning();
+    return result;
+  }
+
+  async updateSecurityIncident(incidentId: string, updates: Partial<SecurityIncident>): Promise<SecurityIncident> {
+    const [result] = await db
+      .update(securityIncidents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(securityIncidents.incidentId, incidentId))
+      .returning();
+    return result;
+  }
+
+  // Security Policies
+  async createSecurityPolicy(policy: InsertSecurityPolicy): Promise<SecurityPolicy> {
+    const [result] = await db
+      .insert(securityPolicies)
+      .values(policy)
+      .returning();
+    return result;
+  }
+
+  async getSecurityPolicies(industry: string): Promise<SecurityPolicy[]> {
+    return await db
+      .select()
+      .from(securityPolicies)
+      .where(eq(securityPolicies.industry, industry))
+      .orderBy(securityPolicies.version, desc(securityPolicies.createdAt));
+  }
+
+  async getActiveSecurityPolicies(industry: string): Promise<SecurityPolicy[]> {
+    return await db
+      .select()
+      .from(securityPolicies)
+      .where(and(
+        eq(securityPolicies.industry, industry),
+        eq(securityPolicies.isActive, true),
+        lte(securityPolicies.effectiveFrom, new Date()),
+        or(
+          isNull(securityPolicies.effectiveTo),
+          gte(securityPolicies.effectiveTo, new Date())
+        )
+      ))
+      .orderBy(securityPolicies.version, desc(securityPolicies.createdAt));
+  }
+
+  async updateSecurityPolicy(id: number, updates: Partial<SecurityPolicy>): Promise<SecurityPolicy> {
+    const [result] = await db
+      .update(securityPolicies)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(securityPolicies.id, id))
+      .returning();
+    return result;
+  }
+
+  // Breach Notifications
+  async createBreachNotification(notification: InsertBreachNotification): Promise<BreachNotification> {
+    const [result] = await db
+      .insert(breachNotifications)
+      .values(notification)
+      .returning();
+    return result;
+  }
+
+  async getBreachNotifications(incidentId: string): Promise<BreachNotification[]> {
+    return await db
+      .select()
+      .from(breachNotifications)
+      .where(eq(breachNotifications.incidentId, incidentId))
+      .orderBy(desc(breachNotifications.createdAt));
   }
 }
 

@@ -13,7 +13,20 @@ import { VisionService } from "./services/visionService";
 import { AgenticProcessingService } from "./services/agenticProcessingService";
 import { AdvancedAnalyticsService } from "./services/advancedAnalyticsService";
 import { EnterpriseIntegrationService } from "./services/enterpriseIntegrationService";
-import { industrySelectionSchema, dashboardStatsSchema, complianceAlertSchema } from "@shared/schema";
+import { RealTimeCollaborationService } from "./services/realTimeCollaborationService";
+import { 
+  industrySelectionSchema, 
+  dashboardStatsSchema, 
+  complianceAlertSchema,
+  type InsertTeam,
+  type InsertTeamMember,
+  type InsertDocumentShare,
+  type InsertDocumentComment,
+  type InsertDocumentVersion,
+  type InsertCollaborationSession,
+  type InsertDocumentAnnotation,
+  type InsertNotification
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import testAIEndpoints from "./test-ai-endpoints";
@@ -58,6 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const agenticProcessingService = new AgenticProcessingService();
   const advancedAnalyticsService = new AdvancedAnalyticsService(websocketService);
   const enterpriseIntegrationService = new EnterpriseIntegrationService(websocketService, documentProcessor);
+  const collaborationService = new RealTimeCollaborationService(websocketService);
 
   // Enterprise API Key Authentication Middleware
   const validateAPIKey = async (req: any, res: any, next: any) => {
@@ -1654,6 +1668,546 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error triggering event:', error);
       res.status(400).json({ message: error instanceof Error ? error.message : 'Event trigger failed' });
+    }
+  });
+
+  // =============================================================================
+  // REAL-TIME COLLABORATION API ENDPOINTS
+  // =============================================================================
+  
+  // Collaboration Zod validation schemas
+  const teamCreateSchema = z.object({
+    name: z.string().min(1, 'Team name required'),
+    description: z.string().optional(),
+    industry: z.string().min(1, 'Industry required'),
+    settings: z.record(z.any()).optional()
+  });
+
+  const teamMemberSchema = z.object({
+    userId: z.string().min(1, 'User ID required'),
+    role: z.enum(['owner', 'admin', 'editor', 'viewer', 'guest']).optional(),
+    permissions: z.record(z.any()).optional()
+  });
+
+  const documentShareSchema = z.object({
+    teamId: z.number().optional(),
+    userId: z.string().optional(),
+    accessLevel: z.enum(['view', 'comment', 'edit', 'manage']).default('view'),
+    permissions: z.record(z.any()).optional(),
+    expiresAt: z.string().datetime().optional()
+  });
+
+  const commentCreateSchema = z.object({
+    content: z.string().min(1, 'Content required'),
+    commentType: z.enum(['general', 'annotation', 'suggestion', 'issue']).default('general'),
+    parentId: z.number().optional(),
+    position: z.object({
+      page: z.number().optional(),
+      coordinates: z.object({ x: z.number(), y: z.number() }).optional(),
+      textRange: z.object({ start: z.number(), end: z.number() }).optional()
+    }).optional(),
+    mentions: z.array(z.string()).optional()
+  });
+
+  const annotationCreateSchema = z.object({
+    annotationType: z.enum(['highlight', 'note', 'bookmark', 'tag']),
+    content: z.string().optional(),
+    position: z.object({
+      page: z.number(),
+      coordinates: z.object({ x: z.number(), y: z.number() }),
+      textRange: z.object({ start: z.number(), end: z.number() }).optional()
+    }),
+    style: z.object({
+      color: z.string().optional(),
+      opacity: z.number().optional()
+    }).optional(),
+    tags: z.array(z.string()).optional(),
+    isPrivate: z.boolean().default(false)
+  });
+
+  const sessionUpdateSchema = z.object({
+    status: z.enum(['active', 'idle', 'disconnected']).optional(),
+    activity: z.enum(['viewing', 'editing', 'commenting']).optional(),
+    cursorPosition: z.object({
+      page: z.number(),
+      x: z.number(),
+      y: z.number()
+    }).optional(),
+    selection: z.object({
+      start: z.number(),
+      end: z.number(),
+      text: z.string()
+    }).optional()
+  });
+
+  // =============================================================================
+  // TEAM MANAGEMENT ENDPOINTS
+  // =============================================================================
+
+  // Create team
+  app.post('/api/teams', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const teamData = teamCreateSchema.parse(req.body);
+
+      const team = await storage.createTeam({
+        name: teamData.name,
+        description: teamData.description || null,
+        industry: teamData.industry,
+        ownerId: userId,
+        settings: teamData.settings || {},
+        isActive: true
+      });
+
+      // Add creator as owner
+      await storage.addTeamMember({
+        teamId: team.id,
+        userId,
+        role: 'owner',
+        permissions: { all: true },
+        invitedBy: userId
+      });
+
+      // Log activity
+      await storage.logActivity({
+        userId,
+        teamId: team.id,
+        activityType: 'team_created',
+        description: `Created team: ${team.name}`,
+        metadata: { teamId: team.id }
+      });
+
+      res.status(201).json(team);
+    } catch (error) {
+      console.error('Error creating team:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Team creation failed' });
+    }
+  });
+
+  // Get user teams
+  app.get('/api/teams', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const teams = await storage.getUserTeams(userId);
+      res.json(teams);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+      res.status(500).json({ message: 'Failed to fetch teams' });
+    }
+  });
+
+  // Get team details
+  app.get('/api/teams/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const teamId = parseInt(req.params.id);
+
+      // Check if user is team member
+      const member = await storage.getTeamMember(teamId, userId);
+      if (!member) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ message: 'Team not found' });
+      }
+
+      const members = await storage.getTeamMembers(teamId);
+      res.json({ ...team, members });
+    } catch (error) {
+      console.error('Error fetching team details:', error);
+      res.status(500).json({ message: 'Failed to fetch team details' });
+    }
+  });
+
+  // Add team member
+  app.post('/api/teams/:id/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const teamId = parseInt(req.params.id);
+      const memberData = teamMemberSchema.parse(req.body);
+
+      // Check if user is team admin/owner
+      const currentMember = await storage.getTeamMember(teamId, userId);
+      if (!currentMember || !['owner', 'admin'].includes(currentMember.role || '')) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      const member = await storage.addTeamMember({
+        teamId,
+        userId: memberData.userId,
+        role: memberData.role || 'member',
+        permissions: memberData.permissions || {},
+        invitedBy: userId
+      });
+
+      // Log activity
+      await storage.logActivity({
+        userId,
+        teamId,
+        activityType: 'member_added',
+        description: `Added team member`,
+        metadata: { targetUserId: memberData.userId, role: memberData.role }
+      });
+
+      res.status(201).json(member);
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Failed to add team member' });
+    }
+  });
+
+  // =============================================================================
+  // DOCUMENT SHARING ENDPOINTS
+  // =============================================================================
+
+  // Share document
+  app.post('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const shareData = documentShareSchema.parse(req.body);
+
+      // Check if user owns the document
+      const document = await storage.getDocument(documentId);
+      if (!document || document.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const share = await storage.shareDocument({
+        documentId,
+        teamId: shareData.teamId || null,
+        userId: shareData.userId || null,
+        sharedBy: userId,
+        accessLevel: shareData.accessLevel,
+        permissions: shareData.permissions || {},
+        expiresAt: shareData.expiresAt ? new Date(shareData.expiresAt) : null,
+        isActive: true
+      });
+
+      // Log activity
+      await storage.logActivity({
+        userId,
+        documentId,
+        activityType: 'document_shared',
+        description: `Shared document with ${shareData.accessLevel} access`,
+        metadata: { shareId: share.id, accessLevel: shareData.accessLevel }
+      });
+
+      res.status(201).json(share);
+    } catch (error) {
+      console.error('Error sharing document:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Document sharing failed' });
+    }
+  });
+
+  // Get document shares
+  app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+
+      // Check if user has access to the document
+      const document = await storage.getDocument(documentId);
+      if (!document || document.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const shares = await storage.getDocumentShares(documentId);
+      res.json(shares);
+    } catch (error) {
+      console.error('Error fetching document shares:', error);
+      res.status(500).json({ message: 'Failed to fetch document shares' });
+    }
+  });
+
+  // =============================================================================
+  // COMMENT SYSTEM ENDPOINTS
+  // =============================================================================
+
+  // Add comment
+  app.post('/api/documents/:id/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const commentData = commentCreateSchema.parse(req.body);
+
+      // Check if user has access to the document
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      const comment = await storage.createComment({
+        documentId,
+        userId,
+        parentId: commentData.parentId || null,
+        content: commentData.content,
+        commentType: commentData.commentType,
+        position: commentData.position || null,
+        metadata: {},
+        isResolved: false,
+        mentions: commentData.mentions || [],
+        reactions: {}
+      });
+
+      // Send notifications to mentioned users
+      if (commentData.mentions && commentData.mentions.length > 0) {
+        for (const mentionedUserId of commentData.mentions) {
+          await storage.createNotification({
+            userId: mentionedUserId,
+            type: 'comment_mention',
+            title: 'You were mentioned in a comment',
+            message: `${userId} mentioned you in a comment on ${document.originalFilename}`,
+            data: { documentId, commentId: comment.id },
+            isRead: false,
+            priority: 'normal'
+          });
+        }
+      }
+
+      // Real-time collaboration event
+      if (websocketService) {
+        await collaborationService.broadcastCollaborationEvent(documentId, {
+          type: 'comment_added',
+          documentId,
+          userId,
+          data: comment,
+          timestamp: new Date()
+        });
+      }
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Comment creation failed' });
+    }
+  });
+
+  // Get document comments
+  app.get('/api/documents/:id/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const includeReplies = req.query.includeReplies !== 'false';
+
+      // Check if user has access to the document
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      const comments = await storage.getDocumentComments(documentId, includeReplies);
+      res.json(comments);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      res.status(500).json({ message: 'Failed to fetch comments' });
+    }
+  });
+
+  // Resolve comment
+  app.patch('/api/comments/:id/resolve', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const commentId = parseInt(req.params.id);
+
+      const comment = await storage.resolveComment(commentId, userId);
+      res.json(comment);
+    } catch (error) {
+      console.error('Error resolving comment:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Comment resolution failed' });
+    }
+  });
+
+  // =============================================================================
+  // ANNOTATION ENDPOINTS
+  // =============================================================================
+
+  // Create annotation
+  app.post('/api/documents/:id/annotations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const annotationData = annotationCreateSchema.parse(req.body);
+
+      const annotation = await storage.createAnnotation({
+        documentId,
+        userId,
+        annotationType: annotationData.annotationType,
+        content: annotationData.content || null,
+        position: annotationData.position,
+        style: annotationData.style || {},
+        tags: annotationData.tags || [],
+        isPrivate: annotationData.isPrivate,
+        metadata: {}
+      });
+
+      // Real-time collaboration event
+      if (websocketService) {
+        await collaborationService.broadcastCollaborationEvent(documentId, {
+          type: 'annotation_added',
+          documentId,
+          userId,
+          data: annotation,
+          timestamp: new Date()
+        });
+      }
+
+      res.status(201).json(annotation);
+    } catch (error) {
+      console.error('Error creating annotation:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Annotation creation failed' });
+    }
+  });
+
+  // Get document annotations
+  app.get('/api/documents/:id/annotations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+
+      const annotations = await storage.getDocumentAnnotations(documentId, userId);
+      res.json(annotations);
+    } catch (error) {
+      console.error('Error fetching annotations:', error);
+      res.status(500).json({ message: 'Failed to fetch annotations' });
+    }
+  });
+
+  // =============================================================================
+  // COLLABORATION SESSION ENDPOINTS
+  // =============================================================================
+
+  // Join collaboration session
+  app.post('/api/documents/:id/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const sessionData = sessionUpdateSchema.parse(req.body);
+
+      // Check if user has existing session
+      let session = await storage.getUserCollaborationSession(documentId, userId);
+
+      if (session) {
+        // Update existing session
+        session = await storage.updateCollaborationSession(session.id, {
+          status: sessionData.status || 'active',
+          activity: sessionData.activity || 'viewing',
+          cursorPosition: sessionData.cursorPosition || null,
+          selection: sessionData.selection || null
+        });
+      } else {
+        // Create new session
+        session = await storage.createCollaborationSession({
+          documentId,
+          userId,
+          sessionId: randomUUID(),
+          status: sessionData.status || 'active',
+          activity: sessionData.activity || 'viewing',
+          cursorPosition: sessionData.cursorPosition || null,
+          selection: sessionData.selection || null,
+          metadata: {}
+        });
+      }
+
+      // Real-time presence update
+      if (websocketService) {
+        await collaborationService.updateUserPresence(documentId, userId, {
+          status: session.status as any,
+          activity: session.activity as any,
+          cursorPosition: session.cursorPosition as any,
+          selection: session.selection as any
+        });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error managing collaboration session:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Session management failed' });
+    }
+  });
+
+  // Get active collaboration sessions
+  app.get('/api/documents/:id/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      
+      const sessions = await storage.getActiveCollaborationSessions(documentId);
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching collaboration sessions:', error);
+      res.status(500).json({ message: 'Failed to fetch collaboration sessions' });
+    }
+  });
+
+  // =============================================================================
+  // NOTIFICATION ENDPOINTS
+  // =============================================================================
+
+  // Get user notifications
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const notifications = await storage.getUserNotifications(userId, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+  });
+
+  // Mark notification as read
+  app.patch('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      
+      const notification = await storage.markNotificationRead(notificationId);
+      res.json(notification);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(400).json({ message: 'Failed to mark notification as read' });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch('/api/notifications/read-all', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await storage.markAllNotificationsRead(userId);
+      res.json({ message: 'All notifications marked as read' });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ message: 'Failed to mark all notifications as read' });
+    }
+  });
+
+  // =============================================================================
+  // ACTIVITY LOG ENDPOINTS
+  // =============================================================================
+
+  // Get activity logs
+  app.get('/api/activity', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = req.query.documentId ? parseInt(req.query.documentId as string) : undefined;
+      const teamId = req.query.teamId ? parseInt(req.query.teamId as string) : undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const activities = await storage.getActivityLogs({
+        userId: req.query.allUsers === 'true' ? undefined : userId,
+        documentId,
+        teamId,
+        limit
+      });
+
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      res.status(500).json({ message: 'Failed to fetch activity logs' });
     }
   });
 

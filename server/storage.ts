@@ -15,6 +15,16 @@ import {
   logisticsDocuments,
   shipmentData,
   customsCompliance,
+  // Collaboration tables
+  teams,
+  teamMembers,
+  documentShares,
+  documentComments,
+  documentVersions,
+  collaborationSessions,
+  documentAnnotations,
+  activityLogs,
+  notifications,
   type User,
   type UpsertUser,
   type Document,
@@ -46,9 +56,28 @@ import {
   type InsertShipmentData,
   type CustomsCompliance,
   type InsertCustomsCompliance,
+  // Collaboration types
+  type Team,
+  type InsertTeam,
+  type TeamMember,
+  type InsertTeamMember,
+  type DocumentShare,
+  type InsertDocumentShare,
+  type DocumentComment,
+  type InsertDocumentComment,
+  type DocumentVersion,
+  type InsertDocumentVersion,
+  type CollaborationSession,
+  type InsertCollaborationSession,
+  type DocumentAnnotation,
+  type InsertDocumentAnnotation,
+  type ActivityLog,
+  type InsertActivityLog,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, asc, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -106,6 +135,69 @@ export interface IStorage {
   createCustomsCompliance(customs: InsertCustomsCompliance): Promise<CustomsCompliance>;
   getShipmentData(documentId: number): Promise<ShipmentData | undefined>;
   getCustomsCompliance(documentId: number): Promise<CustomsCompliance | undefined>;
+  
+  // =============================================================================
+  // COLLABORATION OPERATIONS
+  // =============================================================================
+  
+  // Team operations
+  createTeam(team: InsertTeam): Promise<Team>;
+  getTeam(id: number): Promise<Team | undefined>;
+  getUserTeams(userId: string): Promise<Team[]>;
+  updateTeam(id: number, updates: Partial<Team>): Promise<Team>;
+  deleteTeam(id: number): Promise<void>;
+  
+  // Team member operations
+  addTeamMember(member: InsertTeamMember): Promise<TeamMember>;
+  getTeamMembers(teamId: number): Promise<TeamMember[]>;
+  getTeamMember(teamId: number, userId: string): Promise<TeamMember | undefined>;
+  updateTeamMember(id: number, updates: Partial<TeamMember>): Promise<TeamMember>;
+  removeTeamMember(teamId: number, userId: string): Promise<void>;
+  
+  // Document sharing operations
+  shareDocument(share: InsertDocumentShare): Promise<DocumentShare>;
+  getDocumentShares(documentId: number): Promise<DocumentShare[]>;
+  getUserDocumentShares(userId: string): Promise<DocumentShare[]>;
+  updateDocumentShare(id: number, updates: Partial<DocumentShare>): Promise<DocumentShare>;
+  revokeDocumentShare(id: number): Promise<void>;
+  
+  // Comment operations
+  createComment(comment: InsertDocumentComment): Promise<DocumentComment>;
+  getDocumentComments(documentId: number, includeReplies?: boolean): Promise<DocumentComment[]>;
+  getComment(id: number): Promise<DocumentComment | undefined>;
+  updateComment(id: number, updates: Partial<DocumentComment>): Promise<DocumentComment>;
+  deleteComment(id: number): Promise<void>;
+  resolveComment(id: number, resolvedBy: string): Promise<DocumentComment>;
+  
+  // Version operations
+  createDocumentVersion(version: InsertDocumentVersion): Promise<DocumentVersion>;
+  getDocumentVersions(documentId: number): Promise<DocumentVersion[]>;
+  getDocumentVersion(id: number): Promise<DocumentVersion | undefined>;
+  
+  // Collaboration session operations
+  createCollaborationSession(session: InsertCollaborationSession): Promise<CollaborationSession>;
+  getActiveCollaborationSessions(documentId: number): Promise<CollaborationSession[]>;
+  getUserCollaborationSession(documentId: number, userId: string): Promise<CollaborationSession | undefined>;
+  updateCollaborationSession(id: number, updates: Partial<CollaborationSession>): Promise<CollaborationSession>;
+  endCollaborationSession(sessionId: string): Promise<void>;
+  cleanupInactiveSessions(beforeDate: Date): Promise<void>;
+  
+  // Annotation operations
+  createAnnotation(annotation: InsertDocumentAnnotation): Promise<DocumentAnnotation>;
+  getDocumentAnnotations(documentId: number, userId?: string): Promise<DocumentAnnotation[]>;
+  updateAnnotation(id: number, updates: Partial<DocumentAnnotation>): Promise<DocumentAnnotation>;
+  deleteAnnotation(id: number): Promise<void>;
+  
+  // Activity log operations
+  logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
+  getActivityLogs(filters: { userId?: string; documentId?: number; teamId?: number; limit?: number }): Promise<ActivityLog[]>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+  markNotificationRead(id: number): Promise<Notification>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  deleteNotification(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -446,6 +538,442 @@ export class DatabaseStorage implements IStorage {
       .from(customsCompliance)
       .where(eq(customsCompliance.documentId, documentId));
     return result;
+  }
+
+  // =============================================================================
+  // COLLABORATION OPERATIONS IMPLEMENTATION
+  // =============================================================================
+
+  // Team operations
+  async createTeam(team: InsertTeam): Promise<Team> {
+    const [result] = await db
+      .insert(teams)
+      .values(team)
+      .returning();
+    return result;
+  }
+
+  async getTeam(id: number): Promise<Team | undefined> {
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, id));
+    return team;
+  }
+
+  async getUserTeams(userId: string): Promise<Team[]> {
+    return await db
+      .select()
+      .from(teams)
+      .innerJoin(teamMembers, eq(teams.id, teamMembers.teamId))
+      .where(and(
+        eq(teamMembers.userId, userId),
+        eq(teams.isActive, true)
+      ))
+      .then(results => results.map(result => result.teams));
+  }
+
+  async updateTeam(id: number, updates: Partial<Team>): Promise<Team> {
+    const [team] = await db
+      .update(teams)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(teams.id, id))
+      .returning();
+    return team;
+  }
+
+  async deleteTeam(id: number): Promise<void> {
+    await db
+      .update(teams)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(teams.id, id));
+  }
+
+  // Team member operations
+  async addTeamMember(member: InsertTeamMember): Promise<TeamMember> {
+    const [result] = await db
+      .insert(teamMembers)
+      .values(member)
+      .returning();
+    return result;
+  }
+
+  async getTeamMembers(teamId: number): Promise<TeamMember[]> {
+    return await db
+      .select()
+      .from(teamMembers)
+      .where(eq(teamMembers.teamId, teamId))
+      .orderBy(asc(teamMembers.createdAt));
+  }
+
+  async getTeamMember(teamId: number, userId: string): Promise<TeamMember | undefined> {
+    const [member] = await db
+      .select()
+      .from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+    return member;
+  }
+
+  async updateTeamMember(id: number, updates: Partial<TeamMember>): Promise<TeamMember> {
+    const [member] = await db
+      .update(teamMembers)
+      .set(updates)
+      .where(eq(teamMembers.id, id))
+      .returning();
+    return member;
+  }
+
+  async removeTeamMember(teamId: number, userId: string): Promise<void> {
+    await db
+      .delete(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+  }
+
+  // Document sharing operations
+  async shareDocument(share: InsertDocumentShare): Promise<DocumentShare> {
+    const [result] = await db
+      .insert(documentShares)
+      .values(share)
+      .returning();
+    return result;
+  }
+
+  async getDocumentShares(documentId: number): Promise<DocumentShare[]> {
+    return await db
+      .select()
+      .from(documentShares)
+      .where(and(
+        eq(documentShares.documentId, documentId),
+        eq(documentShares.isActive, true)
+      ))
+      .orderBy(desc(documentShares.createdAt));
+  }
+
+  async getUserDocumentShares(userId: string): Promise<DocumentShare[]> {
+    return await db
+      .select()
+      .from(documentShares)
+      .where(and(
+        or(
+          eq(documentShares.userId, userId),
+          eq(documentShares.sharedBy, userId)
+        ),
+        eq(documentShares.isActive, true)
+      ))
+      .orderBy(desc(documentShares.createdAt));
+  }
+
+  async updateDocumentShare(id: number, updates: Partial<DocumentShare>): Promise<DocumentShare> {
+    const [share] = await db
+      .update(documentShares)
+      .set(updates)
+      .where(eq(documentShares.id, id))
+      .returning();
+    return share;
+  }
+
+  async revokeDocumentShare(id: number): Promise<void> {
+    await db
+      .update(documentShares)
+      .set({ isActive: false })
+      .where(eq(documentShares.id, id));
+  }
+
+  // Comment operations
+  async createComment(comment: InsertDocumentComment): Promise<DocumentComment> {
+    const [result] = await db
+      .insert(documentComments)
+      .values(comment)
+      .returning();
+    return result;
+  }
+
+  async getDocumentComments(documentId: number, includeReplies: boolean = true): Promise<DocumentComment[]> {
+    if (includeReplies) {
+      return await db
+        .select()
+        .from(documentComments)
+        .where(eq(documentComments.documentId, documentId))
+        .orderBy(asc(documentComments.createdAt));
+    } else {
+      return await db
+        .select()
+        .from(documentComments)
+        .where(and(
+          eq(documentComments.documentId, documentId),
+          isNull(documentComments.parentId)
+        ))
+        .orderBy(asc(documentComments.createdAt));
+    }
+  }
+
+  async getComment(id: number): Promise<DocumentComment | undefined> {
+    const [comment] = await db
+      .select()
+      .from(documentComments)
+      .where(eq(documentComments.id, id));
+    return comment;
+  }
+
+  async updateComment(id: number, updates: Partial<DocumentComment>): Promise<DocumentComment> {
+    const [comment] = await db
+      .update(documentComments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentComments.id, id))
+      .returning();
+    return comment;
+  }
+
+  async deleteComment(id: number): Promise<void> {
+    await db
+      .delete(documentComments)
+      .where(eq(documentComments.id, id));
+  }
+
+  async resolveComment(id: number, resolvedBy: string): Promise<DocumentComment> {
+    const [comment] = await db
+      .update(documentComments)
+      .set({
+        isResolved: true,
+        resolvedBy,
+        resolvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(documentComments.id, id))
+      .returning();
+    return comment;
+  }
+
+  // Version operations
+  async createDocumentVersion(version: InsertDocumentVersion): Promise<DocumentVersion> {
+    const [result] = await db
+      .insert(documentVersions)
+      .values(version)
+      .returning();
+    return result;
+  }
+
+  async getDocumentVersions(documentId: number): Promise<DocumentVersion[]> {
+    return await db
+      .select()
+      .from(documentVersions)
+      .where(and(
+        eq(documentVersions.documentId, documentId),
+        eq(documentVersions.isActive, true)
+      ))
+      .orderBy(desc(documentVersions.versionNumber));
+  }
+
+  async getDocumentVersion(id: number): Promise<DocumentVersion | undefined> {
+    const [version] = await db
+      .select()
+      .from(documentVersions)
+      .where(eq(documentVersions.id, id));
+    return version;
+  }
+
+  // Collaboration session operations
+  async createCollaborationSession(session: InsertCollaborationSession): Promise<CollaborationSession> {
+    const [result] = await db
+      .insert(collaborationSessions)
+      .values(session)
+      .returning();
+    return result;
+  }
+
+  async getActiveCollaborationSessions(documentId: number): Promise<CollaborationSession[]> {
+    return await db
+      .select()
+      .from(collaborationSessions)
+      .where(and(
+        eq(collaborationSessions.documentId, documentId),
+        eq(collaborationSessions.status, 'active')
+      ))
+      .orderBy(desc(collaborationSessions.lastActivity));
+  }
+
+  async getUserCollaborationSession(documentId: number, userId: string): Promise<CollaborationSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(collaborationSessions)
+      .where(and(
+        eq(collaborationSessions.documentId, documentId),
+        eq(collaborationSessions.userId, userId),
+        eq(collaborationSessions.status, 'active')
+      ));
+    return session;
+  }
+
+  async updateCollaborationSession(id: number, updates: Partial<CollaborationSession>): Promise<CollaborationSession> {
+    const [session] = await db
+      .update(collaborationSessions)
+      .set({ ...updates, lastActivity: new Date() })
+      .where(eq(collaborationSessions.id, id))
+      .returning();
+    return session;
+  }
+
+  async endCollaborationSession(sessionId: string): Promise<void> {
+    await db
+      .update(collaborationSessions)
+      .set({ 
+        status: 'disconnected',
+        lastActivity: new Date()
+      })
+      .where(eq(collaborationSessions.sessionId, sessionId));
+  }
+
+  async cleanupInactiveSessions(beforeDate: Date): Promise<void> {
+    await db
+      .update(collaborationSessions)
+      .set({ status: 'disconnected' })
+      .where(and(
+        eq(collaborationSessions.status, 'active'),
+        lte(collaborationSessions.lastActivity, beforeDate)
+      ));
+  }
+
+  // Annotation operations
+  async createAnnotation(annotation: InsertDocumentAnnotation): Promise<DocumentAnnotation> {
+    const [result] = await db
+      .insert(documentAnnotations)
+      .values(annotation)
+      .returning();
+    return result;
+  }
+
+  async getDocumentAnnotations(documentId: number, userId?: string): Promise<DocumentAnnotation[]> {
+    const conditions = [eq(documentAnnotations.documentId, documentId)];
+    
+    if (userId) {
+      conditions.push(
+        or(
+          eq(documentAnnotations.userId, userId),
+          eq(documentAnnotations.isPrivate, false)
+        )
+      );
+    } else {
+      conditions.push(eq(documentAnnotations.isPrivate, false));
+    }
+
+    return await db
+      .select()
+      .from(documentAnnotations)
+      .where(and(...conditions))
+      .orderBy(desc(documentAnnotations.createdAt));
+  }
+
+  async updateAnnotation(id: number, updates: Partial<DocumentAnnotation>): Promise<DocumentAnnotation> {
+    const [annotation] = await db
+      .update(documentAnnotations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentAnnotations.id, id))
+      .returning();
+    return annotation;
+  }
+
+  async deleteAnnotation(id: number): Promise<void> {
+    await db
+      .delete(documentAnnotations)
+      .where(eq(documentAnnotations.id, id));
+  }
+
+  // Activity log operations
+  async logActivity(activity: InsertActivityLog): Promise<ActivityLog> {
+    const [result] = await db
+      .insert(activityLogs)
+      .values(activity)
+      .returning();
+    return result;
+  }
+
+  async getActivityLogs(filters: { 
+    userId?: string; 
+    documentId?: number; 
+    teamId?: number; 
+    limit?: number 
+  }): Promise<ActivityLog[]> {
+    const conditions = [];
+    
+    if (filters.userId) {
+      conditions.push(eq(activityLogs.userId, filters.userId));
+    }
+    if (filters.documentId) {
+      conditions.push(eq(activityLogs.documentId, filters.documentId));
+    }
+    if (filters.teamId) {
+      conditions.push(eq(activityLogs.teamId, filters.teamId));
+    }
+
+    const query = db
+      .select()
+      .from(activityLogs)
+      .orderBy(desc(activityLogs.createdAt));
+
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+
+    if (filters.limit) {
+      query.limit(filters.limit);
+    }
+
+    return await query;
+  }
+
+  // Notification operations
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [result] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    return result;
+  }
+
+  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+  }
+
+  async markNotificationRead(id: number): Promise<Notification> {
+    const [notification] = await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    await db
+      .delete(notifications)
+      .where(eq(notifications.id, id));
   }
 }
 

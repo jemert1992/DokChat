@@ -586,3 +586,163 @@ export const realEstateAnalyticsSchema = z.object({
     legalDescriptions: z.number(),
   }),
 });
+
+// =============================================================================
+// REAL-TIME COLLABORATION FEATURES (Task 11)
+// =============================================================================
+
+// Teams for workspace collaboration
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  settings: jsonb("settings").default({}),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Team membership with roles
+export const teamMembers = pgTable("team_members", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").references(() => teams.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: varchar("role", { length: 50 }).default('member'), // owner, admin, editor, viewer, guest
+  permissions: jsonb("permissions").default({}),
+  invitedBy: varchar("invited_by").references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Document sharing and permissions
+export const documentShares = pgTable("document_shares", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  teamId: integer("team_id").references(() => teams.id),
+  userId: varchar("user_id").references(() => users.id),
+  sharedBy: varchar("shared_by").references(() => users.id).notNull(),
+  accessLevel: varchar("access_level", { length: 50 }).default('view'), // view, comment, edit, manage
+  permissions: jsonb("permissions").default({}),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Document comments and annotations
+export const documentComments = pgTable("document_comments", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  parentId: integer("parent_id").references(() => documentComments.id), // for reply threading
+  content: text("content").notNull(),
+  commentType: varchar("comment_type", { length: 50 }).default('general'), // general, annotation, suggestion, issue
+  position: jsonb("position"), // page, coordinates, text selection range
+  metadata: jsonb("metadata").default({}),
+  isResolved: boolean("is_resolved").default(false),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  mentions: varchar("mentions").array(), // array of mentioned user IDs
+  reactions: jsonb("reactions").default({}), // emoji reactions
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Document versions and revision history
+export const documentVersions = pgTable("document_versions", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  versionNumber: integer("version_number").notNull(),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  title: varchar("title", { length: 255 }),
+  description: text("description"),
+  changes: jsonb("changes").notNull(), // diff data
+  extractedText: text("extracted_text"),
+  extractedData: jsonb("extracted_data"),
+  metadata: jsonb("metadata").default({}),
+  fileSnapshot: varchar("file_snapshot", { length: 500 }), // path to version file
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Active collaboration sessions and presence
+export const collaborationSessions = pgTable("collaboration_sessions", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  sessionId: varchar("session_id").notNull(), // WebSocket connection ID
+  status: varchar("status", { length: 50 }).default('active'), // active, idle, disconnected
+  activity: varchar("activity", { length: 50 }).default('viewing'), // viewing, editing, commenting
+  cursorPosition: jsonb("cursor_position"), // current cursor location
+  selection: jsonb("selection"), // current text selection
+  metadata: jsonb("metadata").default({}),
+  lastActivity: timestamp("last_activity").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Document annotations and highlights
+export const documentAnnotations = pgTable("document_annotations", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  annotationType: varchar("annotation_type", { length: 50 }).notNull(), // highlight, note, bookmark, tag
+  content: text("content"),
+  position: jsonb("position").notNull(), // coordinates, page, text range
+  style: jsonb("style").default({}), // color, opacity, etc.
+  tags: varchar("tags").array(), // searchable tags
+  isPrivate: boolean("is_private").default(false),
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Activity logs for collaboration tracking
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  documentId: integer("document_id").references(() => documents.id),
+  teamId: integer("team_id").references(() => teams.id),
+  activityType: varchar("activity_type", { length: 100 }).notNull(), // document_view, comment_add, share_document, etc.
+  description: text("description").notNull(),
+  metadata: jsonb("metadata").default({}),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notification preferences and delivery
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  type: varchar("type", { length: 100 }).notNull(), // comment_mention, document_shared, team_invite, etc.
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  data: jsonb("data").default({}), // notification payload
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  deliveryMethod: varchar("delivery_method", { length: 50 }).default('in_app'), // in_app, email, webhook
+  priority: varchar("priority", { length: 20 }).default('normal'), // low, normal, high, urgent
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Collaboration feature type exports
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = typeof teamMembers.$inferInsert;
+export type DocumentShare = typeof documentShares.$inferSelect;
+export type InsertDocumentShare = typeof documentShares.$inferInsert;
+export type DocumentComment = typeof documentComments.$inferSelect;
+export type InsertDocumentComment = typeof documentComments.$inferInsert;
+export type DocumentVersion = typeof documentVersions.$inferSelect;
+export type InsertDocumentVersion = typeof documentVersions.$inferInsert;
+export type CollaborationSession = typeof collaborationSessions.$inferSelect;
+export type InsertCollaborationSession = typeof collaborationSessions.$inferInsert;
+export type DocumentAnnotation = typeof documentAnnotations.$inferSelect;
+export type InsertDocumentAnnotation = typeof documentAnnotations.$inferInsert;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = typeof activityLogs.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;

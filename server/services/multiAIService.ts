@@ -70,54 +70,62 @@ export class MultiAIService {
     text: string, 
     industry: string, 
     filePath?: string,
-    mimeType?: string
+    mimeType?: string,
+    precomputedOCRResults?: any
   ): Promise<MultiAIResult> {
     const results: Partial<MultiAIResult> = {};
 
     try {
-      // Advanced Multimodal Processing with Vision Language Models for 93%+ accuracy
-      if (filePath && mimeType && this.isImageOrPDF(mimeType)) {
-        // Type assertion since we already checked mimeType exists above
-        const safeMimeType: string = mimeType!;
-        const isPdf = safeMimeType.includes('pdf');
-        // Configure advanced multimodal processing options based on industry
-        const processingOptions: MultimodalProcessingOptions = {
-          enableTableExtraction: true,
-          enableFormDetection: true,
-          enableSignatureDetection: industry === 'legal' || industry === 'finance',
-          enableLogoRecognition: industry === 'finance' || industry === 'logistics',
-          enableHandwritingRecognition: industry === 'medical' || industry === 'legal',
-          enableDocumentStructureAnalysis: true,
-          enableSemanticUnderstanding: true,
-          industry: industry
-        };
-
-        // Perform advanced multimodal analysis for 93%+ accuracy
-        const advancedResult = await this.advancedVisionService.processDocumentAdvanced(
-          filePath!,
-          processingOptions
-        );
-        
+      // Use precomputed OCR results to avoid double processing
+      if (precomputedOCRResults) {
+        console.log('✅ Using precomputed OCR results to avoid double processing');
         results.ocrResults = {
-          text: advancedResult.text,
-          confidence: advancedResult.confidence,
-          language: 'en', // Advanced service detects multiple languages
-          handwritingDetected: advancedResult.visualElements.some(el => el.type === 'signature')
+          text: precomputedOCRResults.text,
+          confidence: precomputedOCRResults.confidence,
+          language: precomputedOCRResults.language,
+          handwritingDetected: precomputedOCRResults.handwritingDetected
         };
+        
+        // Use the OCR text if it's more comprehensive than the passed text
+        if (precomputedOCRResults.text.length > text.length) {
+          text = precomputedOCRResults.text;
+          console.log(`✅ Using precomputed OCR text (${precomputedOCRResults.text.length} chars) over passed text (${text.length} chars)`);
+        }
+      } else if (filePath && mimeType && this.isImageOrPDF(mimeType)) {
+        // Only do OCR if not already provided (fallback for direct API calls)
+        try {
+          console.log('⚠️ Warning: OCR not precomputed, performing OCR in MultiAI (should be avoided)');
+          let ocrResult;
+          const isPdf = mimeType.includes('pdf');
+          
+          if (isPdf) {
+            ocrResult = await this.visionService.extractTextFromPDF(filePath);
+          } else {
+            ocrResult = await this.visionService.extractTextFromImage(filePath);
+          }
+          
+          results.ocrResults = {
+            text: ocrResult.text,
+            confidence: ocrResult.confidence,
+            language: ocrResult.language,
+            handwritingDetected: ocrResult.handwritingDetected
+          };
 
-        // Enhanced results with structured data and visual analysis
-        results.advancedVisionResults = {
-          structuredData: advancedResult.structuredData,
-          visualElements: advancedResult.visualElements,
-          documentStructure: advancedResult.documentStructure,
-          multimodalAnalysis: advancedResult.multimodalAnalysis
-        };
-
-        // Use advanced OCR text for superior accuracy
-        if (advancedResult.text.length > text.length) {
-          text = advancedResult.text;
+          if (ocrResult.text.length > text.length) {
+            text = ocrResult.text;
+          }
+          
+        } catch (ocrError) {
+          console.error('❌ OCR failed in MultiAI, falling back to passed text:', ocrError);
+          results.ocrResults = {
+            text,
+            confidence: 0.5,
+            language: 'en',
+            handwritingDetected: false
+          };
         }
       } else {
+        // For text-only processing, use the passed text
         results.ocrResults = {
           text,
           confidence: 0.95,

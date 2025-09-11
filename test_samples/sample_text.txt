@@ -1,0 +1,23 @@
+SAMPLE DOCUMENT FOR OCR TESTING
+===============================
+
+This is a test document used for verifying OCR functionality.
+It contains various types of text including:
+
+1. Mixed case letters: ABCdefGHI
+2. Numbers: 1234567890
+3. Special characters: !@#$%^&*()
+4. Common business terms: Contract, Agreement, Invoice, Receipt
+5. Date formats: 2025-09-11, September 11, 2025, 09/11/2025
+
+Medical terms: Patient, Diagnosis, Treatment, Prescription
+Legal terms: Plaintiff, Defendant, Jurisdiction, Evidence
+Financial terms: Principal, Interest, Balance, Transaction
+
+This sample helps verify that OCR can successfully extract
+text from documents and that the extracted content maintains
+proper formatting and accuracy.
+
+Test Status: SUCCESSFUL
+Confidence: HIGH
+Language: English

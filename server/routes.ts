@@ -10,6 +10,7 @@ import { IndustryConfigService } from "./services/industryConfig";
 import { DocumentChatService } from "./services/documentChatService";
 import { analyticsService } from "./services/analyticsService";
 import { VisionService } from "./services/visionService";
+import { AgenticProcessingService } from "./services/agenticProcessingService";
 import { industrySelectionSchema, dashboardStatsSchema, complianceAlertSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -52,6 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const industryConfigService = new IndustryConfigService();
   const chatService = new DocumentChatService();
   const visionService = new VisionService();
+  const agenticProcessingService = new AgenticProcessingService();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -208,6 +210,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching document status:", error);
       res.status(500).json({ message: "Failed to fetch document status" });
+    }
+  });
+
+  // Agentic AI Processing endpoint - SECURE with ownership verification
+  app.post('/api/documents/:id/agentic-process', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership to prevent cross-tenant access
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Verify document is in a processable state
+      if (document.status === 'processing') {
+        return res.status(409).json({ message: "Document is already being processed" });
+      }
+
+      if (document.status === 'error') {
+        return res.status(422).json({ message: "Document processing failed, cannot run agentic analysis" });
+      }
+
+      // Start agentic processing asynchronously
+      agenticProcessingService.processDocumentAgentically(documentId).catch(error => {
+        console.error(`Error in agentic processing for document ${documentId}:`, error);
+        storage.updateDocumentStatus(documentId, 'error', 0, `Agentic processing failed: ${error.message}`);
+      });
+
+      res.json({
+        message: "Agentic AI processing initiated",
+        documentId,
+        status: "processing",
+        estimatedTime: "2-5 minutes"
+      });
+    } catch (error) {
+      console.error("Error initiating agentic processing:", error);
+      res.status(500).json({ message: "Failed to start agentic processing" });
     }
   });
 
@@ -879,3 +928,4 @@ async function performRealOCRTest(visionService: VisionService): Promise<{
     };
   }
 }
+

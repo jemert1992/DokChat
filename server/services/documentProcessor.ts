@@ -2,6 +2,7 @@ import { storage } from "../storage";
 import { MultiAIService } from "./multiAIService";
 import { WebSocketService } from "./websocketService";
 import { VisionService } from "./visionService";
+import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -20,11 +21,13 @@ export interface ProcessingResult {
 export class DocumentProcessor {
   private multiAIService: MultiAIService;
   private visionService: VisionService;
+  private templateFreeService: TemplateFreeExtractionService;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
     this.multiAIService = new MultiAIService();
     this.visionService = new VisionService();
+    this.templateFreeService = new TemplateFreeExtractionService();
     this.websocketService = websocketService || null;
   }
 
@@ -60,10 +63,34 @@ export class DocumentProcessor {
         ocrResults // Pass pre-computed OCR results
       );
       
-      // Stage 3: Enhanced Entity Extraction
-      await storage.updateDocumentStatus(documentId, 'processing', 70, 'Extracting enhanced entities...');
-      this.sendWebSocketUpdate(documentId, 'processing', 70, 'Extracting industry-specific entities', 'entity_extraction');
-      const entities = this.combineEntities(multiAIResult);
+      // Stage 3: Template-Free Processing (NEW FEATURE)
+      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running template-free analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Analyzing document without templates using GenAI', 'template_free');
+      
+      let templateFreeResults = null;
+      try {
+        templateFreeResults = await this.templateFreeService.processDocumentWithoutTemplates(
+          document.filePath,
+          extractedText,
+          document.mimeType,
+          document.userId
+        );
+        
+        if (templateFreeResults && templateFreeResults.extractedFindings) {
+          console.log(`✅ Template-free processing discovered ${templateFreeResults.extractedFindings.length} entities with ${templateFreeResults.adaptiveConfidence}% confidence`);
+        } else {
+          console.warn('⚠️ Template-free processing returned empty results');
+        }
+      } catch (error) {
+        console.warn('⚠️ Template-free processing failed, continuing with standard processing:', error instanceof Error ? error.message : error);
+        // Send WebSocket update about template-free processing failure
+        this.sendWebSocketUpdate(documentId, 'processing', 65, 'Template-free analysis failed, using standard processing', 'template_free_error');
+      }
+
+      // Stage 4: Enhanced Entity Extraction
+      await storage.updateDocumentStatus(documentId, 'processing', 75, 'Extracting enhanced entities...');
+      this.sendWebSocketUpdate(documentId, 'processing', 75, 'Extracting industry-specific entities', 'entity_extraction');
+      const entities = this.combineEntities(multiAIResult, templateFreeResults);
       
       // Stage 4: Consensus Analysis
       await storage.updateDocumentStatus(documentId, 'processing', 85, 'Generating consensus analysis...');
@@ -77,8 +104,10 @@ export class DocumentProcessor {
         extractedText: multiAIResult.ocrResults.text,
         extractedData: {
           multiAI: multiAIResult,
+          templateFree: templateFreeResults,
           recommendedModel: multiAIResult.consensus.recommendedModel,
-          processingTime: Date.now() - startTime
+          processingTime: Date.now() - startTime,
+          hasTemplateFreeAnalysis: !!templateFreeResults
         },
         ocrConfidence: multiAIResult.ocrResults.confidence,
         aiConfidence: multiAIResult.consensus.confidence,
@@ -111,6 +140,27 @@ export class DocumentProcessor {
         analysisData: processingResult.extractedData,
         confidenceScore: processingResult.aiConfidence,
       });
+
+      // Create separate template-free analysis record if available
+      if (templateFreeResults) {
+        await storage.createDocumentAnalysis({
+          documentId,
+          analysisType: 'template_free_analysis',
+          analysisData: {
+            documentStructure: templateFreeResults.documentStructure,
+            extractedFindings: templateFreeResults.extractedFindings,
+            intelligentSummary: templateFreeResults.intelligentSummary,
+            suggestedActions: templateFreeResults.suggestedActions,
+            processingStrategy: templateFreeResults.processingStrategy,
+            adaptiveConfidence: templateFreeResults.adaptiveConfidence,
+            discoveredPatterns: templateFreeResults.discoveredPatterns,
+            industryRecommendations: templateFreeResults.industryRecommendations
+          },
+          confidenceScore: templateFreeResults.adaptiveConfidence,
+        });
+
+        console.log(`✅ Template-free analysis saved: ${templateFreeResults.extractedFindings.length} findings, ${templateFreeResults.adaptiveConfidence}% confidence`);
+      }
 
       const totalTime = Date.now() - startTime;
       await storage.updateDocumentStatus(documentId, 'completed', 100, 'Multi-AI processing completed successfully');
@@ -166,7 +216,7 @@ export class DocumentProcessor {
     }
   }
 
-  private combineEntities(multiAIResult: any): Array<{type: string, value: string, confidence: number}> {
+  private combineEntities(multiAIResult: any, templateFreeResults?: any): Array<{type: string, value: string, confidence: number}> {
     const entities: Array<{type: string, value: string, confidence: number}> = [];
     
     // Combine entities from OpenAI analysis
@@ -222,6 +272,51 @@ export class DocumentProcessor {
         value: 'Handwritten text detected',
         confidence: 0.88
       });
+    }
+
+    // Add template-free processing entities
+    if (templateFreeResults?.extractedFindings) {
+      templateFreeResults.extractedFindings.forEach((finding: any) => {
+        entities.push({
+          type: `template_free_${finding.entityType}`,
+          value: finding.entityValue,
+          confidence: finding.confidence
+        });
+      });
+    }
+
+    // Add template-free document structure insights
+    if (templateFreeResults?.documentStructure) {
+      const structure = templateFreeResults.documentStructure;
+      
+      entities.push({
+        type: 'document_category',
+        value: structure.documentCategory,
+        confidence: structure.confidenceScore
+      });
+
+      entities.push({
+        type: 'document_complexity',
+        value: structure.complexity,
+        confidence: 0.9
+      });
+
+      entities.push({
+        type: 'layout_type',
+        value: structure.layoutType,
+        confidence: 0.85
+      });
+
+      // Add discovered patterns as entities
+      if (templateFreeResults.discoveredPatterns) {
+        templateFreeResults.discoveredPatterns.forEach((pattern: string) => {
+          entities.push({
+            type: 'discovered_pattern',
+            value: pattern,
+            confidence: 0.8
+          });
+        });
+      }
     }
     
     return entities;

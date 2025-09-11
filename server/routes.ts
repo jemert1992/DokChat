@@ -260,6 +260,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get template-free analysis results for a document - SECURE with ownership verification
+  app.get('/api/documents/:id/template-free-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership to prevent cross-tenant access
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get template-free analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const templateFreeAnalysis = analyses.find(analysis => analysis.analysisType === 'template_free_analysis');
+
+      if (!templateFreeAnalysis) {
+        return res.status(404).json({ message: "Template-free analysis not found for this document" });
+      }
+
+      res.json({
+        documentId,
+        analysisId: templateFreeAnalysis.id,
+        analysisData: templateFreeAnalysis.analysisData,
+        confidenceScore: templateFreeAnalysis.confidenceScore,
+        createdAt: templateFreeAnalysis.createdAt,
+        hasTemplateFreAnalysis: true
+      });
+    } catch (error) {
+      console.error("Error fetching template-free analysis:", error);
+      res.status(500).json({ message: "Failed to fetch template-free analysis" });
+    }
+  });
+
+  // Manually trigger template-free processing on an existing document - SECURE
+  app.post('/api/documents/:id/template-free-process', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Verify document is in a processable state
+      if (document.status === 'processing') {
+        return res.status(409).json({ message: "Document is already being processed" });
+      }
+
+      if (document.status === 'error') {
+        return res.status(422).json({ message: "Document processing failed, cannot run template-free analysis" });
+      }
+
+      // Check if template-free analysis already exists
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const existingTemplateFreAnalysis = analyses.find(analysis => analysis.analysisType === 'template_free_analysis');
+
+      if (existingTemplateFreAnalysis) {
+        return res.status(200).json({
+          message: "Template-free analysis already exists",
+          documentId,
+          analysisId: existingTemplateFreAnalysis.id,
+          reprocessing: false
+        });
+      }
+
+      // Start template-free processing asynchronously
+      const templateFreeService = new (await import('./services/templateFreeExtractionService')).TemplateFreeExtractionService();
+      templateFreeService.processDocumentWithoutTemplates(
+        document.filePath,
+        document.extractedText || '',
+        document.mimeType || '',
+        userId
+      ).then(async (templateFreeResults) => {
+        // Save the results
+        await storage.createDocumentAnalysis({
+          documentId,
+          analysisType: 'template_free_analysis',
+          analysisData: {
+            documentStructure: templateFreeResults.documentStructure,
+            extractedFindings: templateFreeResults.extractedFindings,
+            intelligentSummary: templateFreeResults.intelligentSummary,
+            suggestedActions: templateFreeResults.suggestedActions,
+            processingStrategy: templateFreeResults.processingStrategy,
+            adaptiveConfidence: templateFreeResults.adaptiveConfidence,
+            discoveredPatterns: templateFreeResults.discoveredPatterns,
+            industryRecommendations: templateFreeResults.industryRecommendations
+          },
+          confidenceScore: templateFreeResults.adaptiveConfidence,
+        });
+
+        console.log(`✅ Template-free processing completed for document ${documentId}`);
+      }).catch(error => {
+        console.error(`Error in template-free processing for document ${documentId}:`, error);
+      });
+
+      res.json({
+        message: "Template-free processing initiated",
+        documentId,
+        status: "processing",
+        estimatedTime: "1-3 minutes"
+      });
+    } catch (error) {
+      console.error("Error initiating template-free processing:", error);
+      res.status(500).json({ message: "Failed to start template-free processing" });
+    }
+  });
+
+  // Get template-free processing insights and recommendations - SECURE
+  app.get('/api/documents/:id/template-free-insights', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get template-free analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const templateFreeAnalysis = analyses.find(analysis => analysis.analysisType === 'template_free_analysis');
+
+      if (!templateFreeAnalysis) {
+        return res.status(404).json({ message: "Template-free analysis not found for this document" });
+      }
+
+      const analysisData = templateFreeAnalysis.analysisData as any;
+
+      // Extract specific insights
+      const insights = {
+        documentId,
+        documentCategory: analysisData.documentStructure?.documentCategory || 'unknown',
+        complexity: analysisData.documentStructure?.complexity || 'unknown',
+        layoutType: analysisData.documentStructure?.layoutType || 'unknown',
+        language: analysisData.documentStructure?.language || 'en',
+        potentialIndustry: analysisData.documentStructure?.potentialIndustry || 'general',
+        confidence: analysisData.adaptiveConfidence || 0,
+        keyFindings: analysisData.extractedFindings?.slice(0, 10) || [],
+        summary: analysisData.intelligentSummary || '',
+        suggestedActions: analysisData.suggestedActions || [],
+        discoveredPatterns: analysisData.discoveredPatterns || [],
+        industryRecommendations: analysisData.industryRecommendations || [],
+        processingStrategy: analysisData.processingStrategy || '',
+        totalFindings: analysisData.extractedFindings?.length || 0
+      };
+
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching template-free insights:", error);
+      res.status(500).json({ message: "Failed to fetch template-free insights" });
+    }
+  });
+
   // Dashboard statistics - now using real analytics
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {

@@ -46,10 +46,8 @@ export default function DocumentChat({ documentId, documentTitle }: DocumentChat
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (question: string) => {
-      return await apiRequest<ChatResponse>(`/api/documents/${documentId}/chat`, {
-        method: 'POST',
-        body: JSON.stringify({ question }),
-      });
+      const response = await apiRequest('POST', `/api/documents/${documentId}/chat`, { question });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${documentId}/chat/history`] });
@@ -67,9 +65,8 @@ export default function DocumentChat({ documentId, documentTitle }: DocumentChat
   // Clear history mutation
   const clearHistoryMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest(`/api/documents/${documentId}/chat/history`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest('DELETE', `/api/documents/${documentId}/chat/history`);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${documentId}/chat/history`] });

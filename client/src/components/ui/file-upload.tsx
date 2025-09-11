@@ -20,7 +20,7 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
     onFileSelect,
     accept = ".pdf,.doc,.docx,.jpg,.jpeg,.png",
     multiple = false,
-    maxSize = 10 * 1024 * 1024, // 10MB default
+    maxSize = 50 * 1024 * 1024, // 50MB default
     disabled = false,
     className,
     children,

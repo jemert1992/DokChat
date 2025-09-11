@@ -1291,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           capabilities: {
             imageFormats: ['PNG', 'JPEG', 'GIF', 'BMP', 'TIFF', 'WEBP'],
             pdfProcessing: true,
-            maxFileSize: '10MB',
+            maxFileSize: '50MB',
             features: ['Text Detection', 'Handwriting Recognition', 'Language Detection']
           },
           timestamp: new Date().toISOString()

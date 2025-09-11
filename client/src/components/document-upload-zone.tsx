@@ -84,11 +84,11 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       return;
     }
 
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
+    // Validate file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "File Too Large",
-        description: "Please upload files smaller than 10MB.",
+        description: "Please upload files smaller than 50MB.",
         variant: "destructive",
       });
       return;
@@ -159,7 +159,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
             {industryConfig.uploadDescription}
           </p>
           <p className="text-xs text-muted-foreground">
-            Supports PDF, DOC, DOCX, JPG, PNG up to 10MB
+            Supports PDF, DOC, DOCX, JPG, PNG up to 50MB
           </p>
         </div>
 

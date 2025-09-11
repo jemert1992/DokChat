@@ -10,6 +10,7 @@ import DashboardStats from "@/components/dashboard-stats";
 import DocumentUploadZone from "@/components/document-upload-zone";
 import RecentActivity from "@/components/recent-activity";
 import AdvancedAnalytics from "@/components/advanced-analytics";
+import ExecutiveDashboard from "@/components/ExecutiveDashboard";
 import MedicalDashboard from "@/components/MedicalDashboard";
 import LegalDashboard from "@/components/LegalDashboard";
 import LogisticsDashboard from "@/components/LogisticsDashboard";
@@ -215,10 +216,11 @@ export default function Dashboard() {
 
             {/* Main Dashboard Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
                 <TabsTrigger value="industry" data-testid="tab-industry">{industryConfig.name} Dashboard</TabsTrigger>
                 <TabsTrigger value="analytics" data-testid="tab-analytics">Advanced Analytics</TabsTrigger>
+                <TabsTrigger value="executive" data-testid="tab-executive">Executive Dashboard</TabsTrigger>
                 <TabsTrigger value="upload" data-testid="tab-upload">Upload Documents</TabsTrigger>
                 <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
               </TabsList>
@@ -254,6 +256,13 @@ export default function Dashboard() {
 
               <TabsContent value="analytics" className="space-y-6">
                 <AdvancedAnalytics 
+                  industry={user.industry || 'general'} 
+                  userId={user.id}
+                />
+              </TabsContent>
+
+              <TabsContent value="executive" className="space-y-6">
+                <ExecutiveDashboard 
                   industry={user.industry || 'general'} 
                   userId={user.id}
                 />

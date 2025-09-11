@@ -3,8 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { getIndustryConfig } from "@/lib/industry-config";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useEffect, useState } from "react";
+import { Activity } from "lucide-react";
 
 interface AdvancedAnalyticsProps {
   industry: string;
@@ -50,11 +54,30 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
 
 export default function AdvancedAnalytics({ industry, userId }: AdvancedAnalyticsProps) {
   const industryConfig = getIndustryConfig(industry);
+  const { isConnected, realtimeAnalytics, subscribeToAnalytics, unsubscribeFromAnalytics } = useWebSocket();
+  const [isRealtimeEnabled, setIsRealtimeEnabled] = useState(false);
 
   const { data: analyticsData, isLoading } = useQuery<AnalyticsData>({
     queryKey: ["/api/analytics/advanced", industry, userId],
     retry: false,
   });
+
+  // Handle real-time analytics subscription
+  useEffect(() => {
+    if (isRealtimeEnabled && isConnected) {
+      subscribeToAnalytics(['processing', 'performance', 'accuracy']);
+    } else if (!isRealtimeEnabled) {
+      unsubscribeFromAnalytics();
+    }
+
+    return () => {
+      unsubscribeFromAnalytics();
+    };
+  }, [isRealtimeEnabled, isConnected, subscribeToAnalytics, unsubscribeFromAnalytics]);
+
+  const toggleRealtime = () => {
+    setIsRealtimeEnabled(!isRealtimeEnabled);
+  };
 
   if (isLoading) {
     return (
@@ -99,6 +122,61 @@ export default function AdvancedAnalytics({ industry, userId }: AdvancedAnalytic
 
   return (
     <div className="space-y-6" data-testid="advanced-analytics">
+      {/* Real-time Analytics Control */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Advanced Analytics</h2>
+        <div className="flex items-center gap-2">
+          <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-sm text-muted-foreground">
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </span>
+          <Button
+            variant={isRealtimeEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={toggleRealtime}
+            disabled={!isConnected}
+            data-testid="toggle-realtime"
+          >
+            <Activity className="h-4 w-4 mr-1" />
+            {isRealtimeEnabled ? 'Live' : 'Static'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Real-time Metrics Display */}
+      {isRealtimeEnabled && realtimeAnalytics && (
+        <Card className="border-green-200 bg-green-50 dark:bg-green-900/10">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Live Throughput:</span>
+                <span className="font-bold ml-2" data-testid="live-throughput">
+                  {realtimeAnalytics.liveMetrics?.currentThroughput?.documentsPerMinute || 0} docs/min
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Live Accuracy:</span>
+                <span className="font-bold ml-2" data-testid="live-accuracy">
+                  {(realtimeAnalytics.liveMetrics?.currentThroughput?.accuracy || 0).toFixed(1)}%
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">System Health:</span>
+                <span className="font-bold ml-2" data-testid="system-health">
+                  {((1 - (realtimeAnalytics.liveMetrics?.systemHealth?.errorRate || 0)) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Queue Depth:</span>
+                <span className="font-bold ml-2" data-testid="queue-depth">
+                  {realtimeAnalytics.liveMetrics?.systemHealth?.queueDepth || 0}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>

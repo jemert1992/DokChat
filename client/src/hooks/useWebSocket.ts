@@ -21,7 +21,7 @@ interface DocumentComplete {
 }
 
 interface WebSocketMessage {
-  type: 'connection' | 'subscribed' | 'processing_update' | 'document_complete' | 'analytics_update' | 'broadcast' | 'pong' | 'cache_invalidation';
+  type: 'connection' | 'subscribed' | 'processing_update' | 'document_complete' | 'analytics_update' | 'realtime_analytics' | 'broadcast' | 'pong' | 'cache_invalidation';
   [key: string]: any;
 }
 
@@ -31,6 +31,7 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [processingUpdates, setProcessingUpdates] = useState<Map<string, ProcessingUpdate>>(new Map());
+  const [realtimeAnalytics, setRealtimeAnalytics] = useState<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
@@ -161,6 +162,18 @@ export function useWebSocket() {
       case 'analytics_update':
         // Handle analytics updates - could trigger dashboard refresh
         console.log('Analytics updated:', message.analytics);
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = Array.isArray(query.queryKey) ? query.queryKey[0] : query.queryKey;
+            return typeof key === 'string' && key.startsWith('/api/analytics');
+          }
+        });
+        break;
+
+      case 'realtime_analytics':
+        // Handle real-time analytics streaming data
+        console.log('Real-time analytics received:', message.data);
+        setRealtimeAnalytics(message.data);
         break;
 
       case 'cache_invalidation':
@@ -217,6 +230,29 @@ export function useWebSocket() {
     
     setIsConnected(false);
     setProcessingUpdates(new Map());
+    setRealtimeAnalytics(null);
+  };
+
+  // Subscribe to real-time analytics
+  const subscribeToAnalytics = (metrics: string[] = ['all']) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'subscribe_analytics',
+        userId: user?.id,
+        metrics
+      }));
+    }
+  };
+
+  // Unsubscribe from real-time analytics
+  const unsubscribeFromAnalytics = (metrics?: string[]) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'unsubscribe_analytics',
+        userId: user?.id,
+        metrics
+      }));
+    }
   };
 
   const getProcessingUpdate = (documentId: string): ProcessingUpdate | undefined => {
@@ -247,8 +283,11 @@ export function useWebSocket() {
   return {
     isConnected,
     processingUpdates: Array.from(processingUpdates.values()),
+    realtimeAnalytics,
     getProcessingUpdate,
     clearProcessingUpdate,
+    subscribeToAnalytics,
+    unsubscribeFromAnalytics,
     reconnect: connect
   };
 }

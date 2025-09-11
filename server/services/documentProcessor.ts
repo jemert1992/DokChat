@@ -3,6 +3,7 @@ import { MultiAIService } from "./multiAIService";
 import { WebSocketService } from "./websocketService";
 import { VisionService } from "./visionService";
 import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
+import { RAGService } from "./ragService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -22,12 +23,14 @@ export class DocumentProcessor {
   private multiAIService: MultiAIService;
   private visionService: VisionService;
   private templateFreeService: TemplateFreeExtractionService;
+  private ragService: RAGService;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
     this.multiAIService = new MultiAIService();
     this.visionService = new VisionService();
     this.templateFreeService = new TemplateFreeExtractionService();
+    this.ragService = new RAGService();
     this.websocketService = websocketService || null;
   }
 
@@ -87,10 +90,28 @@ export class DocumentProcessor {
         this.sendWebSocketUpdate(documentId, 'processing', 65, 'Template-free analysis failed, using standard processing', 'template_free_error');
       }
 
-      // Stage 4: Enhanced Entity Extraction
-      await storage.updateDocumentStatus(documentId, 'processing', 75, 'Extracting enhanced entities...');
-      this.sendWebSocketUpdate(documentId, 'processing', 75, 'Extracting industry-specific entities', 'entity_extraction');
-      const entities = this.combineEntities(multiAIResult, templateFreeResults);
+      // Stage 4: RAG-Enhanced Analysis (NEW FEATURE)
+      await storage.updateDocumentStatus(documentId, 'processing', 65, 'Enhancing analysis with historical context...');
+      this.sendWebSocketUpdate(documentId, 'processing', 65, 'Applying RAG context for improved accuracy', 'rag_enhancement');
+      
+      let ragEnhancedResults = null;
+      try {
+        const query = `${document.documentType || 'document'} ${document.industry} analysis`;
+        ragEnhancedResults = await this.ragService.enhanceAnalysisWithRAG(
+          multiAIResult,
+          query,
+          document.industry,
+          document.documentType
+        );
+        console.log(`✅ RAG enhancement provided ${ragEnhancedResults.confidenceBoost}% confidence boost`);
+      } catch (error) {
+        console.warn('RAG enhancement failed, continuing with standard processing:', error);
+      }
+
+      // Stage 5: Enhanced Entity Extraction  
+      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting enhanced entities...');
+      this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting industry-specific entities', 'entity_extraction');
+      const entities = this.combineEntities(multiAIResult, templateFreeResults, ragEnhancedResults);
       
       // Stage 4: Consensus Analysis
       await storage.updateDocumentStatus(documentId, 'processing', 85, 'Generating consensus analysis...');

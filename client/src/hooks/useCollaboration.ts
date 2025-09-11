@@ -9,7 +9,7 @@ interface CollaborationSession {
   userId: string;
   sessionId: string;
   status: 'active' | 'idle' | 'disconnected';
-  activity: 'viewing' | 'editing' | 'commenting';
+  activity: 'viewing' | 'editing' | 'commenting' | 'idle';
   cursorPosition?: { page: number; x: number; y: number };
   selection?: { start: number; end: number; text: string };
   joinedAt: string;
@@ -56,10 +56,8 @@ export function useCollaboration({
       cursorPosition?: { page: number; x: number; y: number };
       selection?: { start: number; end: number; text: string };
     }) => {
-      return await apiRequest<CollaborationSession>(`/api/documents/${documentId}/sessions`, {
-        method: 'POST',
-        body: JSON.stringify(sessionData),
-      });
+      const response = await apiRequest('POST', `/api/documents/${documentId}/sessions`, sessionData);
+      return response.json();
     },
     onSuccess: (session) => {
       setCurrentSession(session);
@@ -187,7 +185,7 @@ export function useCollaboration({
 
   // Update presence
   const updatePresence = useCallback((updates: {
-    activity?: 'viewing' | 'editing' | 'commenting';
+    activity?: 'viewing' | 'editing' | 'commenting' | 'idle';
     cursorPosition?: { page: number; x: number; y: number };
     selection?: { start: number; end: number; text: string };
   }) => {

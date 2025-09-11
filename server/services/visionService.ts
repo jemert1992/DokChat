@@ -19,11 +19,16 @@ export class VisionService {
   private client: ImageAnnotatorClient;
 
   constructor() {
-    // Use API key authentication for Replit environment
-    this.client = new ImageAnnotatorClient({
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-      apiKey: process.env.GOOGLE_CLOUD_API_KEY,
-    });
+    try {
+      // Enhanced configuration for Google Cloud Vision
+      this.client = new ImageAnnotatorClient({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        apiKey: process.env.GOOGLE_CLOUD_API_KEY,
+      });
+    } catch (error) {
+      console.error('Failed to initialize Google Vision client:', error);
+      throw new Error('Google Vision API initialization failed');
+    }
   }
 
   async extractTextFromImage(imagePath: string): Promise<OCRResult> {

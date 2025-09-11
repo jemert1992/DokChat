@@ -8,9 +8,10 @@ import type { User } from "@shared/schema";
 interface SidebarProps {
   user: User;
   currentPage: string;
+  onNavigate?: (view: string) => void;
 }
 
-export default function Sidebar({ user, currentPage }: SidebarProps) {
+export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps) {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -23,26 +24,42 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
   const handleNavClick = (item: any) => {
     switch (item.action) {
       case 'navigate':
-        if (item.path) setLocation(item.path);
+        if (item.view && onNavigate) {
+          onNavigate(item.view);
+        } else if (item.path) {
+          setLocation(item.path);
+        }
         break;
       case 'focus-upload':
-        const uploadZone = document.getElementById('upload-zone');
-        if (uploadZone) {
-          uploadZone.scrollIntoView({ behavior: 'smooth' });
-          uploadZone.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
-          setTimeout(() => {
-            uploadZone.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
-          }, 2000);
-        }
+        // Switch to documents view and focus upload
+        if (onNavigate) onNavigate('documents');
+        setTimeout(() => {
+          const uploadZone = document.getElementById('upload-zone');
+          if (uploadZone) {
+            uploadZone.scrollIntoView({ behavior: 'smooth' });
+            uploadZone.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
+            setTimeout(() => {
+              uploadZone.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
+            }, 2000);
+          }
+        }, 100);
         break;
       case 'scroll-to-activity':
-        const activitySection = document.querySelector('[data-testid="recent-activity"]');
-        if (activitySection) {
-          activitySection.scrollIntoView({ behavior: 'smooth' });
-        }
+        // Switch to documents view and scroll to activity
+        if (onNavigate) onNavigate('documents');
+        setTimeout(() => {
+          const activitySection = document.querySelector('[data-testid="recent-activity"]');
+          if (activitySection) {
+            activitySection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
         break;
       default:
-        if (item.path) setLocation(item.path);
+        if (item.view && onNavigate) {
+          onNavigate(item.view);
+        } else if (item.path) {
+          setLocation(item.path);
+        }
     }
   };
 
@@ -50,25 +67,24 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
     {
       label: "MAIN",
       items: [
-        { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard', path: '/dashboard', action: 'navigate', badge: null },
-        { id: 'templates', icon: 'fas fa-layer-group', label: 'Templates', path: '/dashboard', action: 'navigate', badge: '6' },
-        { id: 'analytics', icon: 'fas fa-chart-line', label: 'Analytics', path: '/dashboard', action: 'navigate', badge: null },
+        { id: 'templates', icon: 'fas fa-layer-group', label: 'Templates', view: 'templates', action: 'navigate', badge: '6' },
+        { id: 'analytics', icon: 'fas fa-chart-line', label: 'Analytics', view: 'analytics', action: 'navigate', badge: null },
+        { id: 'documents', icon: 'fas fa-folder-open', label: 'Documents', view: 'documents', action: 'navigate', badge: null },
       ]
     },
     {
       label: "DOCUMENT PROCESSING",
       items: [
-        { id: 'upload', icon: 'fas fa-cloud-upload-alt', label: 'Upload Documents', path: '/dashboard', action: 'focus-upload', badge: null },
-        { id: 'library', icon: 'fas fa-folder-open', label: industryConfig.documentLibraryLabel, path: '/dashboard', action: 'scroll-to-activity', badge: null },
-        { id: 'intelligence', icon: 'fas fa-brain', label: 'AI Intelligence', path: '/dashboard', action: 'navigate', badge: 'NEW' },
+        { id: 'upload', icon: 'fas fa-cloud-upload-alt', label: 'Upload Documents', action: 'focus-upload', badge: null },
+        { id: 'library', icon: 'fas fa-folder-open', label: industryConfig.documentLibraryLabel, action: 'scroll-to-activity', badge: null },
+        { id: 'intelligence', icon: 'fas fa-brain', label: 'AI Intelligence', view: 'analytics', action: 'navigate', badge: 'NEW' },
       ]
     },
     {
       label: "SETTINGS",
       items: [
         { id: 'profile', icon: 'fas fa-user-circle', label: 'Profile', path: '/industry-selection', action: 'navigate', badge: null },
-        { id: 'integrations', icon: 'fas fa-plug', label: 'Integrations', path: '/dashboard', action: 'navigate', badge: null },
-        { id: 'settings', icon: 'fas fa-cog', label: 'Settings', path: '/industry-selection', action: 'navigate', badge: null },
+        { id: 'integrations', icon: 'fas fa-plug', label: 'Integrations', view: 'documents', action: 'navigate', badge: null },
       ]
     }
   ];

@@ -95,7 +95,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="flex">
-        <Sidebar user={user} currentPage="dashboard" />
+        <Sidebar 
+          user={user} 
+          currentPage={activeView} 
+          onNavigate={(view: string) => setActiveView(view)}
+        />
 
         {/* Main Content Area */}
         <div className="flex-1 min-h-screen">

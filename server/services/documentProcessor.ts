@@ -4,6 +4,7 @@ import { WebSocketService } from "./websocketService";
 import { VisionService } from "./visionService";
 import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import { RAGService } from "./ragService";
+import { AdvancedConfidenceService } from "./advancedConfidenceService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -24,6 +25,7 @@ export class DocumentProcessor {
   private visionService: VisionService;
   private templateFreeService: TemplateFreeExtractionService;
   private ragService: RAGService;
+  private advancedConfidenceService: AdvancedConfidenceService;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
@@ -31,6 +33,7 @@ export class DocumentProcessor {
     this.visionService = new VisionService();
     this.templateFreeService = new TemplateFreeExtractionService();
     this.ragService = new RAGService();
+    this.advancedConfidenceService = new AdvancedConfidenceService();
     this.websocketService = websocketService || null;
   }
 
@@ -108,6 +111,61 @@ export class DocumentProcessor {
         console.warn('RAG enhancement failed, continuing with standard processing:', error);
       }
 
+      // Stage 6: Advanced Confidence Calculation (NEW FEATURE)
+      await storage.updateDocumentStatus(documentId, 'processing', 75, 'Calculating advanced confidence metrics...');
+      this.sendWebSocketUpdate(documentId, 'processing', 75, 'Computing enterprise-grade confidence scores', 'advanced_confidence');
+      
+      let advancedConfidenceMetrics = null;
+      let finalConfidence = multiAIResult.consensus.confidence; // Fallback to basic confidence
+      
+      try {
+        // Build model predictions data for advanced confidence calculation
+        const modelPredictions = this.buildModelPredictions(
+          multiAIResult,
+          templateFreeResults,
+          ragEnhancedResults,
+          Date.now() - startTime
+        );
+        
+        // Calculate document context for advanced confidence
+        const documentContext = {
+          industry: document.industry,
+          documentType: document.documentType || 'unknown',
+          textQuality: ocrResults.confidence,
+          processingComplexity: this.calculateProcessingComplexity(extractedText, document.mimeType)
+        };
+        
+        // Build RAG context if available
+        const ragContext = ragEnhancedResults ? {
+          similarity: ragEnhancedResults.similarity || 0.7,
+          historicalConfidence: ragEnhancedResults.historicalConfidence || 0.75,
+          sampleSize: ragEnhancedResults.sampleSize || 0
+        } : undefined;
+        
+        // Build template-free context if available
+        const templateFreeContext = templateFreeResults ? {
+          structureConfidence: templateFreeResults.documentStructure?.confidenceScore || 0.8,
+          patternMatch: templateFreeResults.discoveredPatterns ? 0.85 : 0.6,
+          adaptiveConfidence: templateFreeResults.adaptiveConfidence / 100
+        } : undefined;
+        
+        // Calculate advanced confidence metrics
+        advancedConfidenceMetrics = await this.advancedConfidenceService.calculateAdvancedConfidence(
+          modelPredictions,
+          documentContext,
+          ragContext,
+          templateFreeContext
+        );
+        
+        finalConfidence = advancedConfidenceMetrics.overall;
+        
+        console.log(`✅ Advanced confidence calculated: ${Math.round(finalConfidence * 100)}% (components: content=${Math.round(advancedConfidenceMetrics.components.content * 100)}%, consensus=${Math.round(advancedConfidenceMetrics.components.consensus * 100)}%, uncertainty=${Math.round(advancedConfidenceMetrics.uncertainty.total * 100)}%)`);
+        
+      } catch (error) {
+        console.warn('⚠️ Advanced confidence calculation failed, using basic confidence:', error instanceof Error ? error.message : error);
+        this.sendWebSocketUpdate(documentId, 'processing', 77, 'Advanced confidence failed, using standard confidence', 'advanced_confidence_error');
+      }
+
       // Stage 5: Enhanced Entity Extraction  
       await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting enhanced entities...');
       this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting industry-specific entities', 'entity_extraction');
@@ -126,12 +184,16 @@ export class DocumentProcessor {
         extractedData: {
           multiAI: multiAIResult,
           templateFree: templateFreeResults,
+          ragEnhanced: ragEnhancedResults,
+          advancedConfidence: advancedConfidenceMetrics,
           recommendedModel: multiAIResult.consensus.recommendedModel,
           processingTime: Date.now() - startTime,
-          hasTemplateFreeAnalysis: !!templateFreeResults
+          hasTemplateFreeAnalysis: !!templateFreeResults,
+          hasRAGEnhancement: !!ragEnhancedResults,
+          hasAdvancedConfidence: !!advancedConfidenceMetrics
         },
         ocrConfidence: multiAIResult.ocrResults.confidence,
-        aiConfidence: multiAIResult.consensus.confidence,
+        aiConfidence: finalConfidence, // Use advanced confidence or fallback to basic
         entities,
       };
 
@@ -181,6 +243,25 @@ export class DocumentProcessor {
         });
 
         console.log(`✅ Template-free analysis saved: ${templateFreeResults.extractedFindings.length} findings, ${templateFreeResults.adaptiveConfidence}% confidence`);
+      }
+
+      // Create advanced confidence analysis record if available
+      if (advancedConfidenceMetrics) {
+        await storage.createDocumentAnalysis({
+          documentId,
+          analysisType: 'advanced_confidence_analysis',
+          analysisData: {
+            overallConfidence: advancedConfidenceMetrics.overall,
+            componentConfidences: advancedConfidenceMetrics.components,
+            uncertaintyMetrics: advancedConfidenceMetrics.uncertainty,
+            calibrationMetrics: advancedConfidenceMetrics.calibration,
+            confidenceExplanation: advancedConfidenceMetrics.explanation,
+            processingTimestamp: new Date().toISOString()
+          },
+          confidenceScore: advancedConfidenceMetrics.overall,
+        });
+
+        console.log(`✅ Advanced confidence analysis saved: overall=${Math.round(advancedConfidenceMetrics.overall * 100)}%, uncertainty=${Math.round(advancedConfidenceMetrics.uncertainty.total * 100)}%`);
       }
 
       const totalTime = Date.now() - startTime;
@@ -341,6 +422,255 @@ export class DocumentProcessor {
     }
     
     return entities;
+  }
+
+  /**
+   * Build ModelPrediction data for advanced confidence calculation
+   */
+  private buildModelPredictions(
+    multiAIResult: any,
+    templateFreeResults?: any,
+    ragEnhancedResults?: any,
+    processingTime?: number
+  ): Array<{
+    model: string;
+    prediction: any;
+    confidence: number;
+    entropy: number;
+    features: {
+      textQuality: number;
+      structuralClarity: number;
+      domainMatch: number;
+      processingTime: number;
+    };
+  }> {
+    const predictions = [];
+    
+    // Add OpenAI prediction
+    if (multiAIResult.openai) {
+      predictions.push({
+        model: 'openai',
+        prediction: multiAIResult.openai,
+        confidence: multiAIResult.openai.confidence || 0.8,
+        entropy: this.calculateModelEntropy(multiAIResult.openai),
+        features: {
+          textQuality: multiAIResult.ocrResults?.confidence || 0.8,
+          structuralClarity: multiAIResult.openai.keyEntities ? 0.9 : 0.6,
+          domainMatch: multiAIResult.openai.insights ? 0.85 : 0.7,
+          processingTime: processingTime || 5000
+        }
+      });
+    }
+    
+    // Add Gemini prediction
+    if (multiAIResult.gemini) {
+      predictions.push({
+        model: 'gemini',
+        prediction: multiAIResult.gemini,
+        confidence: multiAIResult.gemini.confidence || 0.82,
+        entropy: this.calculateModelEntropy(multiAIResult.gemini),
+        features: {
+          textQuality: multiAIResult.ocrResults?.confidence || 0.8,
+          structuralClarity: multiAIResult.gemini.insights ? 0.87 : 0.65,
+          domainMatch: multiAIResult.gemini.keyFindings ? 0.83 : 0.72,
+          processingTime: processingTime || 4500
+        }
+      });
+    }
+    
+    // Add Anthropic prediction
+    if (multiAIResult.anthropic) {
+      predictions.push({
+        model: 'anthropic',
+        prediction: multiAIResult.anthropic,
+        confidence: multiAIResult.anthropic.confidence || 0.85,
+        entropy: this.calculateModelEntropy(multiAIResult.anthropic),
+        features: {
+          textQuality: multiAIResult.ocrResults?.confidence || 0.8,
+          structuralClarity: multiAIResult.anthropic.analysis ? 0.88 : 0.68,
+          domainMatch: multiAIResult.anthropic.keyInsights ? 0.86 : 0.74,
+          processingTime: processingTime || 5200
+        }
+      });
+    }
+    
+    // Add template-free prediction if available
+    if (templateFreeResults) {
+      predictions.push({
+        model: 'template_free',
+        prediction: templateFreeResults,
+        confidence: templateFreeResults.adaptiveConfidence / 100,
+        entropy: this.calculateTemplateFrameEntropy(templateFreeResults),
+        features: {
+          textQuality: templateFreeResults.documentStructure?.confidenceScore || 0.8,
+          structuralClarity: templateFreeResults.documentStructure ? 0.92 : 0.7,
+          domainMatch: templateFreeResults.industryRecommendations ? 0.88 : 0.75,
+          processingTime: processingTime || 6000
+        }
+      });
+    }
+    
+    // Add RAG-enhanced prediction if available
+    if (ragEnhancedResults) {
+      predictions.push({
+        model: 'rag_enhanced',
+        prediction: ragEnhancedResults,
+        confidence: ragEnhancedResults.enhancedConfidence || 0.87,
+        entropy: this.calculateRAGEntropy(ragEnhancedResults),
+        features: {
+          textQuality: ragEnhancedResults.similarity || 0.8,
+          structuralClarity: ragEnhancedResults.historicalPattern ? 0.85 : 0.7,
+          domainMatch: ragEnhancedResults.contextMatch || 0.82,
+          processingTime: processingTime || 3500
+        }
+      });
+    }
+    
+    return predictions;
+  }
+  
+  /**
+   * Calculate model entropy for confidence scoring
+   */
+  private calculateModelEntropy(modelResult: any): number {
+    let entropy = 0.5; // Base entropy
+    
+    try {
+      // Calculate entropy based on prediction certainty
+      const confidence = modelResult.confidence || 0.8;
+      
+      // Higher confidence = lower entropy (more certain)
+      entropy = 1 - confidence;
+      
+      // Adjust based on number of insights/findings
+      const insightCount = (
+        (modelResult.insights?.length || 0) + 
+        (modelResult.keyFindings?.length || 0) + 
+        (modelResult.keyEntities?.length || 0)
+      );
+      
+      // More insights = lower entropy (more information)
+      if (insightCount > 0) {
+        entropy *= Math.max(0.3, 1 - (insightCount / 20));
+      }
+      
+      // Bound between 0.1 and 0.9
+      return Math.max(0.1, Math.min(0.9, entropy));
+      
+    } catch (error) {
+      console.warn('Entropy calculation failed, using default:', error);
+      return 0.5;
+    }
+  }
+  
+  /**
+   * Calculate entropy for template-free results
+   */
+  private calculateTemplateFrameEntropy(templateFreeResults: any): number {
+    let entropy = 0.4; // Lower base entropy for template-free (more structured)
+    
+    try {
+      const confidence = templateFreeResults.adaptiveConfidence / 100;
+      entropy = 1 - confidence;
+      
+      // Adjust based on findings count
+      const findingsCount = templateFreeResults.extractedFindings?.length || 0;
+      if (findingsCount > 0) {
+        entropy *= Math.max(0.2, 1 - (findingsCount / 15));
+      }
+      
+      // Adjust based on discovered patterns
+      const patternsCount = templateFreeResults.discoveredPatterns?.length || 0;
+      if (patternsCount > 0) {
+        entropy *= Math.max(0.25, 1 - (patternsCount / 10));
+      }
+      
+      return Math.max(0.1, Math.min(0.8, entropy));
+      
+    } catch (error) {
+      return 0.4;
+    }
+  }
+  
+  /**
+   * Calculate entropy for RAG-enhanced results
+   */
+  private calculateRAGEntropy(ragResults: any): number {
+    let entropy = 0.3; // Lower base entropy for RAG (historical context)
+    
+    try {
+      const similarity = ragResults.similarity || 0.7;
+      const historicalConfidence = ragResults.historicalConfidence || 0.75;
+      
+      // Higher similarity and historical confidence = lower entropy
+      entropy = 1 - ((similarity + historicalConfidence) / 2);
+      
+      // Adjust based on sample size
+      const sampleSize = ragResults.sampleSize || 0;
+      if (sampleSize > 0) {
+        const sampleWeight = Math.min(sampleSize / 10, 1);
+        entropy *= (1 - sampleWeight * 0.3);
+      }
+      
+      return Math.max(0.1, Math.min(0.7, entropy));
+      
+    } catch (error) {
+      return 0.3;
+    }
+  }
+  
+  /**
+   * Calculate processing complexity for confidence scoring
+   */
+  private calculateProcessingComplexity(extractedText: string, mimeType?: string): number {
+    let complexity = 0.5; // Base complexity
+    
+    try {
+      // Text length factor
+      const textLength = extractedText.length;
+      if (textLength < 500) {
+        complexity -= 0.2; // Simple document
+      } else if (textLength > 5000) {
+        complexity += 0.2; // Complex document
+      }
+      
+      // File type factor
+      if (mimeType) {
+        if (mimeType.includes('pdf')) {
+          complexity += 0.1; // PDFs are more complex to process
+        } else if (mimeType.includes('image')) {
+          complexity += 0.15; // Images require OCR
+        } else if (mimeType.includes('text')) {
+          complexity -= 0.1; // Plain text is simpler
+        }
+      }
+      
+      // Language and structure complexity
+      const lines = extractedText.split('\n').length;
+      const words = extractedText.split(/\s+/).length;
+      const avgWordsPerLine = words / Math.max(lines, 1);
+      
+      if (avgWordsPerLine > 15) {
+        complexity += 0.1; // Dense text
+      } else if (avgWordsPerLine < 5) {
+        complexity += 0.05; // Fragmented text (could be table/form)
+      }
+      
+      // Check for special characters/formatting
+      const specialChars = (extractedText.match(/[\$\%\#\@\&\*]/g) || []).length;
+      const specialCharRatio = specialChars / Math.max(textLength, 1);
+      
+      if (specialCharRatio > 0.05) {
+        complexity += 0.1; // Document with many special characters
+      }
+      
+      // Bound between 0.1 and 0.9
+      return Math.max(0.1, Math.min(0.9, complexity));
+      
+    } catch (error) {
+      console.warn('Processing complexity calculation failed, using default:', error);
+      return 0.5;
+    }
   }
 
   private async getOCRResults(filePath: string, mimeType?: string, extractedText?: string): Promise<any> {

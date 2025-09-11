@@ -31,7 +31,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Properly construct URL from all queryKey segments, filtering out undefined values
+    const cleanSegments = queryKey.filter(segment => 
+      segment !== undefined && segment !== null && segment !== ''
+    );
+    
+    // Join segments and ensure proper URL formation
+    const url = cleanSegments.join("/").replace(/\/+/g, "/");
+    
+    const res = await fetch(url as string, {
       credentials: "include",
     });
 

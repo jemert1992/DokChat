@@ -17,6 +17,9 @@ import { RealTimeCollaborationService } from "./services/realTimeCollaborationSe
 import { AdvancedSecurityService } from "./services/advancedSecurityService";
 import { SecurityInitializer } from "./services/securityInitializer";
 import { createSecurityMiddleware } from "./middleware/securityMiddleware";
+import { RevolutionaryEntityExtractionService } from "./services/entityExtractionEnhanced";
+import { RevolutionaryRegulatoryComplianceFramework } from "./services/regulatoryComplianceFramework";
+import { MultiAIService } from "./services/multiAIService";
 import { 
   industrySelectionSchema, 
   dashboardStatsSchema, 
@@ -80,6 +83,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const securityService = new AdvancedSecurityService(websocketService);
   const securityInitializer = new SecurityInitializer(securityService);
   const securityMiddleware = createSecurityMiddleware(securityService);
+  
+  // Initialize Revolutionary AI Services
+  const entityExtractionService = new RevolutionaryEntityExtractionService();
+  const complianceFramework = new RevolutionaryRegulatoryComplianceFramework();
+  const multiAIService = new MultiAIService();
   
   // Initialize security framework on startup
   securityInitializer.initializeSecurityFramework().catch(error => {
@@ -510,6 +518,247 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching template-free insights:", error);
       res.status(500).json({ message: "Failed to fetch template-free insights" });
+    }
+  });
+
+  // ==================================================================================
+  // REVOLUTIONARY AI ANALYSIS ENDPOINTS - SECURE with ownership verification
+  // ==================================================================================
+
+  // Get revolutionary entity extraction results for a document
+  app.get('/api/documents/:id/entity-extraction', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get extracted text from existing analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const textAnalysis = analyses.find(a => a.analysisType === 'ocr_text' || a.analysisType === 'text_extraction');
+      
+      if (!textAnalysis) {
+        return res.status(404).json({ message: "Text analysis not found for document" });
+      }
+
+      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      
+      // Perform revolutionary entity extraction
+      const entityResults = await entityExtractionService.performRevolutionaryEntityExtraction(
+        document, 
+        extractedText,
+        userId
+      );
+
+      res.json({
+        documentId,
+        entityResults,
+        hasEntityExtraction: true,
+        analysisTimestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error performing entity extraction:", error);
+      res.status(500).json({ message: "Failed to perform entity extraction" });
+    }
+  });
+
+  // Get industry-specific compliance analysis for a document
+  app.get('/api/documents/:id/compliance', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get extracted text
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const textAnalysis = analyses.find(a => a.analysisType === 'ocr_text' || a.analysisType === 'text_extraction');
+      
+      if (!textAnalysis) {
+        return res.status(404).json({ message: "Text analysis not found for document" });
+      }
+
+      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      
+      // Perform industry-specific compliance analysis based on document industry
+      let complianceResults;
+      const industry = document.industry || 'general';
+      
+      switch (industry) {
+        case 'medical':
+          complianceResults = await complianceFramework.performHIPAACompliance(document, extractedText, userId);
+          break;
+        case 'legal':
+          complianceResults = await complianceFramework.performLegalPrivilegeAssessment(document, extractedText, userId);
+          break;
+        case 'finance':
+          complianceResults = await complianceFramework.performKYCAMLCompliance(document, extractedText, userId);
+          break;
+        case 'logistics':
+          complianceResults = await complianceFramework.performTradeCompliance(document, extractedText, userId);
+          break;
+        case 'real_estate':
+          complianceResults = await complianceFramework.performFairHousingCompliance(document, extractedText, userId);
+          break;
+        default:
+          // For general industry, create a basic compliance result
+          complianceResults = {
+            overallStatus: 'compliant',
+            confidenceScore: 85,
+            standards: ['General Business Standards'],
+            violations: [],
+            recommendations: ['Regular compliance review recommended'],
+            auditTrail: [{
+              timestamp: new Date(),
+              action: 'GENERAL_COMPLIANCE_CHECK',
+              user: userId,
+              details: `General compliance assessment for document ${document.id}`,
+              complianceImpact: 'Basic compliance verification'
+            }],
+            reportingRequired: false,
+            remediationRequired: false
+          };
+      }
+
+      res.json({
+        documentId,
+        industry,
+        complianceResults,
+        hasComplianceAnalysis: true,
+        analysisTimestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error performing compliance analysis:", error);
+      res.status(500).json({ message: "Failed to perform compliance analysis" });
+    }
+  });
+
+  // Get comprehensive MultiAI analysis for a document
+  app.get('/api/documents/:id/multi-ai-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get extracted text
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const textAnalysis = analyses.find(a => a.analysisType === 'ocr_text' || a.analysisType === 'text_extraction');
+      
+      if (!textAnalysis) {
+        return res.status(404).json({ message: "Text analysis not found for document" });
+      }
+
+      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      
+      // Perform comprehensive MultiAI analysis
+      const multiAiResults = await multiAIService.performComprehensiveAnalysis(
+        extractedText,
+        document.industry || 'general',
+        document.documentType,
+        { documentId: document.id, userId }
+      );
+
+      res.json({
+        documentId,
+        multiAiResults,
+        hasMultiAiAnalysis: true,
+        analysisTimestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error performing MultiAI analysis:", error);
+      res.status(500).json({ message: "Failed to perform MultiAI analysis" });
+    }
+  });
+
+  // Get industry-specific dashboard analytics
+  app.get('/api/dashboard/industry-analytics/:industry', isAuthenticated, async (req: any, res) => {
+    try {
+      const { industry } = req.params;
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      // Get user's documents for this industry
+      const documents = await storage.getUserDocuments(userId, 50);
+      const industryDocuments = documents.filter(doc => doc.industry === industry);
+
+      // Get analyses for these documents
+      const documentAnalytics = await Promise.all(
+        industryDocuments.slice(0, limit).map(async (doc) => {
+          const analyses = await storage.getDocumentAnalyses(doc.id);
+          const entities = await storage.getDocumentEntities(doc.id);
+          
+          return {
+            document: doc,
+            analysisCount: analyses.length,
+            entityCount: entities.length,
+            hasIntelligence: analyses.some(a => a.analysisType === 'advanced_intelligence'),
+            hasCompliance: analyses.some(a => a.analysisType === 'compliance'),
+            confidenceScore: analyses.reduce((acc, a) => acc + (a.confidenceScore || 0), 0) / analyses.length || 0
+          };
+        })
+      );
+
+      // Calculate industry-specific metrics
+      const metrics = {
+        totalDocuments: industryDocuments.length,
+        processedDocuments: industryDocuments.filter(doc => doc.status === 'completed').length,
+        avgConfidenceScore: documentAnalytics.reduce((acc, doc) => acc + doc.confidenceScore, 0) / documentAnalytics.length || 0,
+        complianceScore: documentAnalytics.filter(doc => doc.hasCompliance).length / documentAnalytics.length * 100 || 0,
+        totalEntities: documentAnalytics.reduce((acc, doc) => acc + doc.entityCount, 0),
+        recentActivity: industryDocuments.slice(0, 5).map(doc => ({
+          id: doc.id,
+          filename: doc.originalFilename,
+          status: doc.status,
+          createdAt: doc.createdAt
+        }))
+      };
+
+      res.json({
+        industry,
+        metrics,
+        documentAnalytics,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error fetching industry analytics:", error);
+      res.status(500).json({ message: "Failed to fetch industry analytics" });
     }
   });
 

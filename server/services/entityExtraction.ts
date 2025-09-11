@@ -1,5 +1,9 @@
 import { storage } from '../storage';
 import type { Document } from '@shared/schema';
+import { MultiAIService } from './multiAIService';
+import { AdvancedSecurityService } from './advancedSecurityService';
+import { MultiLanguageService } from './multiLanguageService';
+import { getIndustryPrompt } from './industryPrompts';
 
 export interface EntityExtractionResult {
   entityType: string;
@@ -8,12 +12,23 @@ export interface EntityExtractionResult {
   locationData?: any;
   contextData?: any;
   codes?: string[];
+  // Revolutionary AI enhancements
+  aiProcessingUsed?: boolean;
+  regulatoryCompliance?: {
+    status: 'compliant' | 'non_compliant' | 'needs_review';
+    standards: string[];
+    violations: string[];
+  };
 }
 
 export interface MedicalEntityResult extends EntityExtractionResult {
   medicalCode?: string;
   clinicalContext?: string;
   clinicalSignificance?: 'low' | 'medium' | 'high' | 'critical';
+  // HIPAA compliance enhancements
+  phiCategory?: 'name' | 'ssn' | 'phone' | 'email' | 'dob' | 'mrn' | 'account' | 'other';
+  protectionApplied?: boolean;
+  consentRequired?: boolean;
 }
 
 export interface LegalEntityResult extends EntityExtractionResult {
@@ -21,6 +36,10 @@ export interface LegalEntityResult extends EntityExtractionResult {
   jurisdiction?: string;
   caseReferences?: string[];
   privilegeLevel?: string;
+  // Attorney-client privilege enhancements
+  privilegeProtected?: boolean;
+  confidentialityLevel?: 'public' | 'confidential' | 'attorney_client' | 'work_product';
+  ethicsCompliance?: boolean;
 }
 
 export interface LogisticsEntityResult extends EntityExtractionResult {
@@ -28,10 +47,73 @@ export interface LogisticsEntityResult extends EntityExtractionResult {
   countryCode?: string;
   trackingInfo?: string;
   complianceFlags?: string[];
+  // Multi-language and trade compliance enhancements
+  originalLanguage?: string;
+  translatedValue?: string;
+  tradeCompliance?: {
+    ctpatCompliant?: boolean;
+    sanctionsCleared?: boolean;
+    customsReady?: boolean;
+  };
+}
+
+// NEW: Finance industry entity extraction
+export interface FinanceEntityResult extends EntityExtractionResult {
+  financialCategory?: 'account' | 'transaction' | 'amount' | 'routing' | 'swift' | 'iban' | 'credit_score' | 'income' | 'asset' | 'liability';
+  fraudRiskScore?: number;
+  kycStatus?: 'verified' | 'pending' | 'rejected' | 'needs_review';
+  amlFlags?: string[];
+  regulatoryReporting?: {
+    sarRequired?: boolean;
+    ctrRequired?: boolean;
+    sanctionsMatch?: boolean;
+  };
+  currencyCode?: string;
+  institutionCode?: string;
+}
+
+// NEW: Real Estate industry entity extraction
+export interface RealEstateEntityResult extends EntityExtractionResult {
+  propertyCategory?: 'address' | 'apn' | 'price' | 'agent' | 'lender' | 'title_company' | 'buyer' | 'seller' | 'contingency' | 'disclosure';
+  mlsNumber?: string;
+  licenseNumber?: string;
+  complianceStatus?: {
+    fairHousingCompliant?: boolean;
+    disclosureComplete?: boolean;
+    regulatoryApproved?: boolean;
+  };
+  transactionStage?: 'listing' | 'offer' | 'inspection' | 'financing' | 'closing' | 'complete';
+  jurisdiction?: string;
+}
+
+// Enhanced General Business entity extraction
+export interface BusinessEntityResult extends EntityExtractionResult {
+  businessCategory?: 'company' | 'contact' | 'financial' | 'contract' | 'product' | 'service' | 'date' | 'reference';
+  relationshipType?: 'customer' | 'vendor' | 'partner' | 'employee' | 'contractor';
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  actionRequired?: boolean;
+  integrationData?: {
+    crmSyncable?: boolean;
+    erpSyncable?: boolean;
+    workflowTrigger?: boolean;
+  };
 }
 
 export class EntityExtractionService {
-  
+  private multiAIService: MultiAIService;
+  private securityService: AdvancedSecurityService;
+  private multiLanguageService: MultiLanguageService;
+
+  constructor() {
+    this.multiAIService = new MultiAIService();
+    this.securityService = new AdvancedSecurityService();
+    this.multiLanguageService = new MultiLanguageService();
+    console.log('🚀 Revolutionary Entity Extraction Service initialized with industry-specific AI capabilities');
+  }
+
+  /**
+   * Revolutionary Medical Entity Extraction with HIPAA Compliance
+   */
   async extractMedicalEntities(document: Document, extractedText: string): Promise<MedicalEntityResult[]> {
     const entities: MedicalEntityResult[] = [];
     
@@ -96,13 +178,24 @@ export class EntityExtractionService {
         }
       }
 
-      // Enhanced PHI detection
-      entities.push(...await this.detectPHI(extractedText));
+      // REVOLUTIONARY: AI-powered entity extraction with industry intelligence
+      console.log('🏥 Applying revolutionary medical AI entity extraction');
+      const aiEnhancedEntities = await this.enhanceEntitiesWithAI(entities, extractedText, 'medical');
+      entities.push(...aiEnhancedEntities);
+
+      // Enhanced HIPAA-compliant PHI detection
+      const phiEntities = await this.detectAdvancedPHI(extractedText);
+      entities.push(...phiEntities);
+
+      // Medical terminology processing with clinical context
+      const clinicalEntities = await this.extractClinicalEntities(extractedText);
+      entities.push(...clinicalEntities);
 
     } catch (error) {
-      console.error('Error extracting medical entities:', error);
+      console.error('❌ Error in revolutionary medical entity extraction:', error);
     }
 
+    console.log(`✅ Extracted ${entities.length} medical entities with HIPAA compliance`);
     return entities;
   }
 

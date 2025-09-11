@@ -12,6 +12,7 @@ import { analyticsService } from "./services/analyticsService";
 import { VisionService } from "./services/visionService";
 import { AgenticProcessingService } from "./services/agenticProcessingService";
 import { AdvancedAnalyticsService } from "./services/advancedAnalyticsService";
+import { EnterpriseIntegrationService } from "./services/enterpriseIntegrationService";
 import { industrySelectionSchema, dashboardStatsSchema, complianceAlertSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -56,6 +57,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const visionService = new VisionService();
   const agenticProcessingService = new AgenticProcessingService();
   const advancedAnalyticsService = new AdvancedAnalyticsService(websocketService);
+  const enterpriseIntegrationService = new EnterpriseIntegrationService(websocketService, documentProcessor);
+
+  // Enterprise API Key Authentication Middleware
+  const validateAPIKey = async (req: any, res: any, next: any) => {
+    try {
+      const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+      
+      if (!apiKey) {
+        return res.status(401).json({ message: 'API key required' });
+      }
+      
+      const validation = await enterpriseIntegrationService.validateAPIKey(apiKey, req.path);
+      
+      if (!validation.valid) {
+        return res.status(401).json({ message: 'Invalid or expired API key' });
+      }
+      
+      if (validation.rateLimited) {
+        return res.status(429).json({ message: 'Rate limit exceeded' });
+      }
+      
+      req.apiKey = validation.apiKey;
+      req.user = { claims: { sub: validation.apiKey?.userId } };
+      next();
+    } catch (error) {
+      console.error('API key validation error:', error);
+      res.status(401).json({ message: 'Authentication failed' });
+    }
+  };
+
+  // Dual auth middleware (user session OR API key)
+  const dualAuth = async (req: any, res: any, next: any) => {
+    // Try API key first
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+    
+    if (apiKey) {
+      return validateAPIKey(req, res, next);
+    }
+    
+    // Fallback to user session auth
+    return isAuthenticated(req, res, next);
+  };
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -1280,6 +1323,337 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       });
+    }
+  });
+
+  // =============================================================================
+  // ENTERPRISE INTEGRATION API ENDPOINTS
+  // =============================================================================
+
+  // Webhook Management Endpoints
+  const webhookSchema = z.object({
+    url: z.string().url('Invalid webhook URL'),
+    events: z.array(z.string()).min(1, 'At least one event type required'),
+    metadata: z.record(z.any()).optional()
+  });
+
+  app.post('/api/enterprise/webhooks', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { url, events, metadata } = webhookSchema.parse(req.body);
+      
+      const webhook = await enterpriseIntegrationService.registerWebhook(userId, url, events, metadata);
+      res.json(webhook);
+    } catch (error) {
+      console.error('Error registering webhook:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Webhook registration failed' });
+    }
+  });
+
+  app.get('/api/enterprise/webhooks', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const webhooks = await enterpriseIntegrationService.getUserWebhooks(userId);
+      res.json({ webhooks, total: webhooks.length });
+    } catch (error) {
+      console.error('Error fetching webhooks:', error);
+      res.status(500).json({ message: 'Failed to fetch webhooks' });
+    }
+  });
+
+  app.put('/api/enterprise/webhooks/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const webhookId = req.params.id;
+      const updates = req.body;
+      
+      const webhook = await enterpriseIntegrationService.updateWebhook(userId, webhookId, updates);
+      res.json(webhook);
+    } catch (error) {
+      console.error('Error updating webhook:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Webhook update failed' });
+    }
+  });
+
+  app.delete('/api/enterprise/webhooks/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const webhookId = req.params.id;
+      
+      await enterpriseIntegrationService.deleteWebhook(userId, webhookId);
+      res.json({ message: 'Webhook deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting webhook:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Webhook deletion failed' });
+    }
+  });
+
+  // API Key Management Endpoints
+  const apiKeySchema = z.object({
+    keyName: z.string().min(1, 'Key name required'),
+    permissions: z.array(z.string()).min(1, 'At least one permission required'),
+    rateLimit: z.number().min(1).max(10000).default(1000),
+    expiresAt: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
+    metadata: z.record(z.any()).optional()
+  });
+
+  app.post('/api/enterprise/api-keys', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { keyName, permissions, rateLimit, expiresAt, metadata } = apiKeySchema.parse(req.body);
+      
+      const apiKey = await enterpriseIntegrationService.generateAPIKey(
+        userId, keyName, permissions, rateLimit, expiresAt, metadata
+      );
+      res.json(apiKey);
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'API key generation failed' });
+    }
+  });
+
+  app.get('/api/enterprise/api-keys', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const apiKeys = await enterpriseIntegrationService.getUserAPIKeys(userId);
+      
+      // Remove sensitive key values from response
+      const sanitizedKeys = apiKeys.map(key => ({
+        ...key,
+        keyValue: key.keyValue.substring(0, 8) + '...' // Show only first 8 chars
+      }));
+      
+      res.json({ apiKeys: sanitizedKeys, total: apiKeys.length });
+    } catch (error) {
+      console.error('Error fetching API keys:', error);
+      res.status(500).json({ message: 'Failed to fetch API keys' });
+    }
+  });
+
+  app.delete('/api/enterprise/api-keys/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const keyId = req.params.id;
+      
+      await enterpriseIntegrationService.revokeAPIKey(userId, keyId);
+      res.json({ message: 'API key revoked successfully' });
+    } catch (error) {
+      console.error('Error revoking API key:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'API key revocation failed' });
+    }
+  });
+
+  // Platform Integration Endpoints
+  const platformSchema = z.object({
+    platform: z.enum(['salesforce', 'microsoft365', 'sap', 'slack', 'teams', 'googledrive', 'dropbox', 'box']),
+    accessToken: z.string().min(1, 'Access token required'),
+    refreshToken: z.string().optional(),
+    configuration: z.record(z.any()).optional()
+  });
+
+  app.post('/api/enterprise/platforms', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platform, accessToken, refreshToken, configuration } = platformSchema.parse(req.body);
+      
+      const integration = await enterpriseIntegrationService.connectPlatform(
+        userId, platform, accessToken, refreshToken, configuration
+      );
+      res.json(integration);
+    } catch (error) {
+      console.error('Error connecting platform:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Platform connection failed' });
+    }
+  });
+
+  app.get('/api/enterprise/platforms', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const integrations = await enterpriseIntegrationService.getUserPlatformIntegrations(userId);
+      
+      // Sanitize sensitive tokens
+      const sanitizedIntegrations = integrations.map(int => ({
+        ...int,
+        accessToken: int.accessToken.substring(0, 8) + '...',
+        refreshToken: int.refreshToken ? int.refreshToken.substring(0, 8) + '...' : undefined
+      }));
+      
+      res.json({ integrations: sanitizedIntegrations, total: integrations.length });
+    } catch (error) {
+      console.error('Error fetching platform integrations:', error);
+      res.status(500).json({ message: 'Failed to fetch platform integrations' });
+    }
+  });
+
+  app.post('/api/enterprise/platforms/:id/sync', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const integrationId = req.params.id;
+      const { syncType = 'documents' } = req.body;
+      
+      const result = await enterpriseIntegrationService.syncWithPlatform(userId, integrationId, syncType);
+      res.json(result);
+    } catch (error) {
+      console.error('Error syncing with platform:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Platform sync failed' });
+    }
+  });
+
+  app.delete('/api/enterprise/platforms/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const integrationId = req.params.id;
+      
+      await enterpriseIntegrationService.disconnectPlatform(userId, integrationId);
+      res.json({ message: 'Platform disconnected successfully' });
+    } catch (error) {
+      console.error('Error disconnecting platform:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Platform disconnection failed' });
+    }
+  });
+
+  // Bulk Operations Endpoints
+  const bulkUploadSchema = z.object({
+    documents: z.array(z.object({
+      filename: z.string(),
+      content: z.string(), // base64 encoded
+      mimeType: z.string(),
+      industry: z.string().optional(),
+      documentType: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    })).min(1, 'At least one document required')
+  });
+
+  app.post('/api/enterprise/bulk/upload', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { documents } = bulkUploadSchema.parse(req.body);
+      
+      // Convert base64 content to buffers
+      const processedDocs = documents.map(doc => ({
+        ...doc,
+        content: Buffer.from(doc.content, 'base64')
+      }));
+      
+      const operation = await enterpriseIntegrationService.startBulkUpload(userId, processedDocs);
+      res.json(operation);
+    } catch (error) {
+      console.error('Error starting bulk upload:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Bulk upload failed' });
+    }
+  });
+
+  const exportSchema = z.object({
+    format: z.enum(['json', 'csv', 'xml', 'pdf', 'excel']),
+    includeFields: z.array(z.string()).min(1, 'At least one field required'),
+    filters: z.record(z.any()).optional(),
+    compression: z.enum(['none', 'zip', 'gzip']).default('none'),
+    encryption: z.object({
+      enabled: z.boolean(),
+      algorithm: z.enum(['aes-256-gcm']),
+      keyId: z.string()
+    }).optional()
+  });
+
+  app.post('/api/enterprise/bulk/export', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const exportConfig = exportSchema.parse(req.body);
+      
+      const operation = await enterpriseIntegrationService.startBulkExport(userId, exportConfig);
+      res.json(operation);
+    } catch (error) {
+      console.error('Error starting bulk export:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Bulk export failed' });
+    }
+  });
+
+  app.get('/api/enterprise/bulk/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const operationId = req.params.id;
+      
+      const operation = await enterpriseIntegrationService.getBulkOperationStatus(userId, operationId);
+      res.json(operation);
+    } catch (error) {
+      console.error('Error fetching bulk operation status:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Operation not found' });
+    }
+  });
+
+  app.delete('/api/enterprise/bulk/:id', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const operationId = req.params.id;
+      
+      await enterpriseIntegrationService.cancelBulkOperation(userId, operationId);
+      res.json({ message: 'Bulk operation cancelled successfully' });
+    } catch (error) {
+      console.error('Error cancelling bulk operation:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Operation cancellation failed' });
+    }
+  });
+
+  // Data Export/Import Endpoints
+  app.get('/api/enterprise/export', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const exportConfig = exportSchema.parse(req.query);
+      
+      const exportResult = await enterpriseIntegrationService.exportUserData(userId, exportConfig);
+      
+      res.setHeader('Content-Type', exportResult.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
+      res.setHeader('X-Export-Metadata', JSON.stringify(exportResult.metadata));
+      
+      res.send(exportResult.data);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Data export failed' });
+    }
+  });
+
+  // System Health and Metrics Endpoints
+  app.get('/api/enterprise/health', dualAuth, async (req: any, res) => {
+    try {
+      const health = await enterpriseIntegrationService.getSystemHealth();
+      
+      const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503;
+      res.status(statusCode).json(health);
+    } catch (error) {
+      console.error('Error fetching system health:', error);
+      res.status(500).json({ message: 'Health check failed' });
+    }
+  });
+
+  app.get('/api/enterprise/metrics', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const metrics = await enterpriseIntegrationService.getAPIUsageMetrics(userId);
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      res.status(500).json({ message: 'Metrics fetch failed' });
+    }
+  });
+
+  // Event Webhook Triggering Endpoint
+  const eventSchema = z.object({
+    eventType: z.string().min(1, 'Event type required'),
+    data: z.record(z.any()),
+    metadata: z.record(z.any()).optional()
+  });
+
+  app.post('/api/enterprise/events/trigger', dualAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventType, data, metadata } = eventSchema.parse(req.body);
+      
+      const event = await enterpriseIntegrationService.triggerWebhooks(userId, eventType, data, metadata);
+      res.json(event);
+    } catch (error) {
+      console.error('Error triggering event:', error);
+      res.status(400).json({ message: error instanceof Error ? error.message : 'Event trigger failed' });
     }
   });
 

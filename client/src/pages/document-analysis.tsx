@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import type { Document, DocumentAnalysis, ExtractedEntity } from "@shared/schema";
 import ExtractedDataDisplay from "@/components/ExtractedDataDisplay";
 import DocumentChat from '@/components/DocumentChat';
-import CollaborationPanel from '@/components/collaboration/CollaborationPanel';
-import { useCollaboration } from '@/hooks/useCollaboration';
+// import CollaborationPanel from '@/components/collaboration/CollaborationPanel'; // Temporarily disabled
+// import { useCollaboration } from '@/hooks/useCollaboration'; // Temporarily disabled
 
 interface DocumentAnalysisProps {
   params: { id: string };
@@ -24,33 +24,10 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
   const [, setLocation] = useLocation();
   const documentId = params.id;
 
-  // Initialize collaboration for real-time features
-  const {
-    isConnected,
-    currentSession,
-    updatePresence,
-  } = useCollaboration({
-    documentId: parseInt(documentId),
-    enabled: isAuthenticated && !!documentId,
-    onUserJoined: (userId) => {
-      toast({
-        title: "User Joined",
-        description: `A user joined the document collaboration`,
-      });
-    },
-    onUserLeft: (userId) => {
-      toast({
-        title: "User Left", 
-        description: `A user left the document collaboration`,
-      });
-    },
-    onCommentAdded: (comment) => {
-      toast({
-        title: "New Comment",
-        description: `New comment added to the document`,
-      });
-    },
-  });
+  // Collaboration temporarily disabled to prevent infinite loops during document processing
+  const isConnected = false;
+  const currentSession = null;
+  const updatePresence = () => {};
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -420,13 +397,13 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
         />
       )}
 
-      {/* Real-Time Collaboration Panel - Only show for completed documents */}
-      {document && document.status === 'completed' && (
+      {/* Real-Time Collaboration Panel - Temporarily disabled to prevent infinite loops */}
+      {/* {document && document.status === 'completed' && (
         <CollaborationPanel
           documentId={parseInt(documentId)}
           documentTitle={document.originalFilename}
         />
-      )}
+      )} */}
     </div>
   );
 }

@@ -65,17 +65,15 @@ export function useCollaboration({
       queryClient.invalidateQueries({ queryKey: ['/api/documents', documentId, 'sessions'] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Collaboration Error",
-        description: "Failed to join collaboration session",
-        variant: "destructive",
-      });
+      console.warn('Collaboration session failed:', error);
+      // Don't show error toast for collaboration issues during document processing
+      // The user just wants to process documents, not necessarily collaborate
     },
   });
 
   // Initialize WebSocket connection
   const initializeWebSocket = useCallback(() => {
-    if (!enabled || !documentId) return;
+    if (!enabled || !documentId || wsRef.current) return;
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -111,18 +109,16 @@ export function useCollaboration({
       wsRef.current.onclose = () => {
         console.log('📡 WebSocket disconnected');
         setIsConnected(false);
+        wsRef.current = null;
         
-        // Attempt to reconnect after a delay
-        if (enabled) {
-          setTimeout(() => {
-            initializeWebSocket();
-          }, 3000);
-        }
+        // Don't automatically reconnect to prevent loops
+        // User can refresh if they need collaboration features
       };
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
         setIsConnected(false);
+        wsRef.current = null;
       };
 
     } catch (error) {
@@ -230,20 +226,34 @@ export function useCollaboration({
     if (enabled && documentId) {
       initializeWebSocket();
       
-      // Auto-join session
-      joinSession();
+      // Auto-join session - but only once
+      joinSessionMutation.mutate({
+        status: 'active',
+        activity: 'viewing',
+      });
     }
 
     // Cleanup on unmount
     return () => {
-      leaveSession();
+      if (wsRef.current && isConnected) {
+        wsRef.current.send(JSON.stringify({
+          type: 'unsubscribe_document',
+          documentId,
+          sessionId: sessionIdRef.current,
+          timestamp: new Date().toISOString()
+        }));
+      }
+      
+      setCurrentSession(null);
+      sessionIdRef.current = null;
+      
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
       setIsConnected(false);
     };
-  }, [enabled, documentId, initializeWebSocket, joinSession, leaveSession]);
+  }, [enabled, documentId]); // Remove unstable dependencies
 
   // Handle page visibility changes
   useEffect(() => {

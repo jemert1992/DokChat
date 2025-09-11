@@ -441,6 +441,216 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get advanced intelligence analysis results for a document - SECURE with ownership verification
+  app.get('/api/documents/:id/intelligence', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership to prevent cross-tenant access
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get advanced intelligence analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const intelligenceAnalysis = analyses.find(analysis => analysis.analysisType === 'advanced_intelligence');
+
+      if (!intelligenceAnalysis) {
+        return res.status(404).json({ 
+          message: "Advanced intelligence analysis not found for this document",
+          hasIntelligenceAnalysis: false
+        });
+      }
+
+      const analysisData = intelligenceAnalysis.analysisData as any;
+
+      // Format response with comprehensive intelligence data
+      const intelligenceResults = {
+        documentId,
+        analysisId: intelligenceAnalysis.id,
+        hasIntelligenceAnalysis: true,
+        processingTimestamp: analysisData.processingTimestamp,
+        overallIntelligenceScore: analysisData.overallIntelligenceScore || 0.85,
+        confidenceScore: intelligenceAnalysis.confidenceScore,
+        
+        // Document relationships and connections
+        documentRelationships: analysisData.documentRelationships || [],
+        totalRelationships: analysisData.documentRelationships?.length || 0,
+        
+        // Compliance and regulatory analysis
+        complianceResults: analysisData.complianceResults || [],
+        complianceStatus: analysisData.complianceResults?.reduce((acc: any, result: any) => {
+          acc[result.status] = (acc[result.status] || 0) + 1;
+          return acc;
+        }, {}),
+        criticalComplianceIssues: analysisData.complianceResults?.filter((result: any) => result.rule?.severity === 'critical') || [],
+        
+        // Temporal patterns and trends
+        temporalPatterns: analysisData.temporalPatterns || [],
+        significantPatterns: analysisData.temporalPatterns?.filter((pattern: any) => pattern.significance === 'critical' || pattern.significance === 'high') || [],
+        
+        // Risk assessment
+        riskAssessment: {
+          overallRiskScore: analysisData.riskAssessment?.overallRiskScore || 0,
+          riskCategories: analysisData.riskAssessment?.riskCategories || {},
+          criticalRisks: analysisData.riskAssessment?.criticalRisks || [],
+          totalRiskFactors: analysisData.riskAssessment?.riskFactors?.length || 0,
+          highRiskFactors: analysisData.riskAssessment?.riskFactors?.filter((risk: any) => risk.severity === 'critical' || risk.severity === 'high') || []
+        },
+        
+        // Intelligence insights and recommendations
+        intelligenceInsights: analysisData.intelligenceInsights || [],
+        urgentInsights: analysisData.intelligenceInsights?.filter((insight: any) => insight.priority === 'urgent') || [],
+        highPriorityInsights: analysisData.intelligenceInsights?.filter((insight: any) => insight.priority === 'high') || [],
+        
+        // Cross-document analysis if available
+        crossDocumentAnalysis: analysisData.crossDocumentAnalysis || null,
+        hasRelatedDocuments: !!(analysisData.crossDocumentAnalysis?.relatedDocuments?.length),
+        
+        // Quality assessment metrics
+        qualityAssessment: analysisData.qualityAssessment || {
+          completeness: 0,
+          consistency: 0,
+          accuracy: 0,
+          timeliness: 0,
+          overallQuality: 0
+        },
+        
+        // Smart recommendations
+        smartRecommendations: analysisData.smartRecommendations || [],
+        priorityRecommendations: analysisData.smartRecommendations?.filter((rec: any) => rec.priority === 'urgent' || rec.priority === 'high') || [],
+        
+        // Summary metrics
+        summary: {
+          totalInsights: analysisData.intelligenceInsights?.length || 0,
+          totalComplianceChecks: analysisData.complianceResults?.length || 0,
+          totalRiskFactors: analysisData.riskAssessment?.riskFactors?.length || 0,
+          totalRecommendations: analysisData.smartRecommendations?.length || 0,
+          totalRelationships: analysisData.documentRelationships?.length || 0,
+          processingComplete: true
+        }
+      };
+
+      res.json(intelligenceResults);
+    } catch (error) {
+      console.error("Error fetching advanced intelligence analysis:", error);
+      res.status(500).json({ message: "Failed to fetch advanced intelligence analysis" });
+    }
+  });
+
+  // Get specific intelligence insights for a document - SECURE
+  app.get('/api/documents/:id/intelligence/insights', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get intelligence analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const intelligenceAnalysis = analyses.find(analysis => analysis.analysisType === 'advanced_intelligence');
+
+      if (!intelligenceAnalysis) {
+        return res.status(404).json({ message: "Advanced intelligence analysis not found for this document" });
+      }
+
+      const analysisData = intelligenceAnalysis.analysisData as any;
+      const insights = analysisData.intelligenceInsights || [];
+
+      // Categorize insights by priority and type
+      const categorizedInsights = {
+        urgent: insights.filter((insight: any) => insight.priority === 'urgent'),
+        high: insights.filter((insight: any) => insight.priority === 'high'),
+        medium: insights.filter((insight: any) => insight.priority === 'medium'),
+        low: insights.filter((insight: any) => insight.priority === 'low'),
+        byType: insights.reduce((acc: any, insight: any) => {
+          if (!acc[insight.type]) acc[insight.type] = [];
+          acc[insight.type].push(insight);
+          return acc;
+        }, {})
+      };
+
+      res.json({
+        documentId,
+        totalInsights: insights.length,
+        insights: categorizedInsights,
+        hasInsights: insights.length > 0
+      });
+    } catch (error) {
+      console.error("Error fetching intelligence insights:", error);
+      res.status(500).json({ message: "Failed to fetch intelligence insights" });
+    }
+  });
+
+  // Get risk assessment results for a document - SECURE
+  app.get('/api/documents/:id/intelligence/risks', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get intelligence analysis
+      const analyses = await storage.getDocumentAnalyses(documentId);
+      const intelligenceAnalysis = analyses.find(analysis => analysis.analysisType === 'advanced_intelligence');
+
+      if (!intelligenceAnalysis) {
+        return res.status(404).json({ message: "Advanced intelligence analysis not found for this document" });
+      }
+
+      const analysisData = intelligenceAnalysis.analysisData as any;
+      const riskAssessment = analysisData.riskAssessment || {};
+
+      res.json({
+        documentId,
+        overallRiskScore: riskAssessment.overallRiskScore || 0,
+        riskCategories: riskAssessment.riskCategories || {},
+        criticalRisks: riskAssessment.criticalRisks || [],
+        riskFactors: riskAssessment.riskFactors || [],
+        highRiskFactors: riskAssessment.riskFactors?.filter((risk: any) => risk.severity === 'critical' || risk.severity === 'high') || [],
+        totalRiskFactors: riskAssessment.riskFactors?.length || 0,
+        hasRiskAssessment: true
+      });
+    } catch (error) {
+      console.error("Error fetching risk assessment:", error);
+      res.status(500).json({ message: "Failed to fetch risk assessment" });
+    }
+  });
+
   // Dashboard statistics - now using real analytics
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {

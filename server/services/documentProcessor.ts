@@ -5,6 +5,7 @@ import { VisionService } from "./visionService";
 import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import { RAGService } from "./ragService";
 import { AdvancedConfidenceService } from "./advancedConfidenceService";
+import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntelligenceService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -26,6 +27,7 @@ export class DocumentProcessor {
   private templateFreeService: TemplateFreeExtractionService;
   private ragService: RAGService;
   private advancedConfidenceService: AdvancedConfidenceService;
+  private advancedIntelligenceService: AdvancedDocumentIntelligenceService;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
@@ -34,6 +36,7 @@ export class DocumentProcessor {
     this.templateFreeService = new TemplateFreeExtractionService();
     this.ragService = new RAGService();
     this.advancedConfidenceService = new AdvancedConfidenceService();
+    this.advancedIntelligenceService = new AdvancedDocumentIntelligenceService();
     this.websocketService = websocketService || null;
   }
 
@@ -166,7 +169,47 @@ export class DocumentProcessor {
         this.sendWebSocketUpdate(documentId, 'processing', 77, 'Advanced confidence failed, using standard confidence', 'advanced_confidence_error');
       }
 
-      // Stage 5: Enhanced Entity Extraction  
+      // Stage 7: Advanced Document Intelligence Analysis (NEW INTEGRATION)
+      await storage.updateDocumentStatus(documentId, 'processing', 78, 'Running advanced document intelligence...');
+      this.sendWebSocketUpdate(documentId, 'processing', 78, 'Analyzing document relationships, compliance, and risk factors', 'advanced_intelligence');
+      
+      let advancedIntelligenceResult = null;
+      try {
+        // First, prepare entities for advanced intelligence
+        const preliminaryEntities = this.combineEntities(multiAIResult, templateFreeResults, ragEnhancedResults);
+        
+        // Build document context for advanced intelligence
+        const documentContext = {
+          industry: document.industry,
+          documentType: document.documentType || 'unknown',
+          extractedText,
+          metadata: {
+            fileSize: document.fileSize,
+            mimeType: document.mimeType,
+            processingTime: Date.now() - startTime,
+            ocrConfidence: multiAIResult.ocrResults.confidence,
+            aiConfidence: finalConfidence
+          }
+        };
+        
+        // Call advanced intelligence service
+        advancedIntelligenceResult = await this.advancedIntelligenceService.analyzeDocumentIntelligence(
+          documentId,
+          multiAIResult,
+          templateFreeResults,
+          ragEnhancedResults,
+          preliminaryEntities,
+          documentContext
+        );
+        
+        console.log(`✅ Advanced intelligence analysis completed: ${advancedIntelligenceResult.intelligenceInsights.length} insights, ${advancedIntelligenceResult.complianceResults.length} compliance checks, ${advancedIntelligenceResult.riskAssessment.riskFactors.length} risk factors`);
+        
+      } catch (error) {
+        console.warn('⚠️ Advanced document intelligence failed, continuing with standard processing:', error instanceof Error ? error.message : error);
+        this.sendWebSocketUpdate(documentId, 'processing', 79, 'Advanced intelligence failed, using standard analysis', 'advanced_intelligence_error');
+      }
+
+      // Stage 8: Enhanced Entity Extraction  
       await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting enhanced entities...');
       this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting industry-specific entities', 'entity_extraction');
       const entities = this.combineEntities(multiAIResult, templateFreeResults, ragEnhancedResults);
@@ -186,11 +229,13 @@ export class DocumentProcessor {
           templateFree: templateFreeResults,
           ragEnhanced: ragEnhancedResults,
           advancedConfidence: advancedConfidenceMetrics,
+          advancedIntelligence: advancedIntelligenceResult, // NEW: Include advanced intelligence
           recommendedModel: multiAIResult.consensus.recommendedModel,
           processingTime: Date.now() - startTime,
           hasTemplateFreeAnalysis: !!templateFreeResults,
           hasRAGEnhancement: !!ragEnhancedResults,
-          hasAdvancedConfidence: !!advancedConfidenceMetrics
+          hasAdvancedConfidence: !!advancedConfidenceMetrics,
+          hasAdvancedIntelligence: !!advancedIntelligenceResult // NEW: Track intelligence availability
         },
         ocrConfidence: multiAIResult.ocrResults.confidence,
         aiConfidence: finalConfidence, // Use advanced confidence or fallback to basic
@@ -262,6 +307,29 @@ export class DocumentProcessor {
         });
 
         console.log(`✅ Advanced confidence analysis saved: overall=${Math.round(advancedConfidenceMetrics.overall * 100)}%, uncertainty=${Math.round(advancedConfidenceMetrics.uncertainty.total * 100)}%`);
+      }
+
+      // Create advanced intelligence analysis record if available (NEW FEATURE)
+      if (advancedIntelligenceResult) {
+        await storage.createDocumentAnalysis({
+          documentId,
+          analysisType: 'advanced_intelligence',
+          analysisData: {
+            documentRelationships: advancedIntelligenceResult.documentRelationships,
+            complianceResults: advancedIntelligenceResult.complianceResults,
+            temporalPatterns: advancedIntelligenceResult.temporalPatterns,
+            riskAssessment: advancedIntelligenceResult.riskAssessment,
+            intelligenceInsights: advancedIntelligenceResult.intelligenceInsights,
+            crossDocumentAnalysis: advancedIntelligenceResult.crossDocumentAnalysis,
+            qualityAssessment: advancedIntelligenceResult.qualityAssessment,
+            smartRecommendations: advancedIntelligenceResult.smartRecommendations,
+            processingTimestamp: advancedIntelligenceResult.processingTimestamp,
+            overallIntelligenceScore: advancedIntelligenceResult.qualityAssessment?.overallQuality || 0.85
+          },
+          confidenceScore: advancedIntelligenceResult.qualityAssessment?.overallQuality || 0.85,
+        });
+
+        console.log(`✅ Advanced intelligence analysis saved: ${advancedIntelligenceResult.intelligenceInsights.length} insights, ${advancedIntelligenceResult.complianceResults.length} compliance checks, risk score: ${Math.round((advancedIntelligenceResult.riskAssessment.overallRiskScore || 0) * 100)}%`);
       }
 
       const totalTime = Date.now() - startTime;

@@ -290,7 +290,7 @@ export class DocumentIntelligenceService {
     if (behaviorAnalysis.eventCounts.upload && behaviorAnalysis.completionRate > 0.8) {
       // User is actively uploading and successfully processing documents
       const mostProcessedType = Object.entries(behaviorAnalysis.documentTypeCounts)
-        .sort(([,a], [,b]) => b - a)[0];
+        .sort(([,a], [,b]) => (b as number) - (a as number))[0];
 
       if (mostProcessedType) {
         const [docType] = mostProcessedType;
@@ -418,7 +418,8 @@ export class DocumentIntelligenceService {
     const recommendations: InsertDocumentRecommendation[] = [];
 
     // Time-based recommendations
-    if (context.timeOfDay >= 9 && context.timeOfDay <= 17 && context.dayOfWeek >= 1 && context.dayOfWeek <= 5) {
+    if (context.timeOfDay != null && context.dayOfWeek != null && 
+        context.timeOfDay >= 9 && context.timeOfDay <= 17 && context.dayOfWeek >= 1 && context.dayOfWeek <= 5) {
       // Business hours - suggest productivity optimizations
       const hasHighVolume = context.userProfile?.documentVolume === 'high' || context.userProfile?.documentVolume === 'very_high';
       

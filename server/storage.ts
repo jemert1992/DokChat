@@ -882,11 +882,11 @@ export class DatabaseStorage implements IStorage {
 
   // Comment operations
   async createComment(comment: InsertDocumentComment): Promise<DocumentComment> {
-    const [result] = await db
+    const results = await db
       .insert(documentComments)
       .values(comment)
       .returning();
-    return result;
+    return results[0]!;
   }
 
   async getDocumentComments(documentId: number, includeReplies: boolean = true): Promise<DocumentComment[]> {
@@ -1051,7 +1051,7 @@ export class DatabaseStorage implements IStorage {
         or(
           eq(documentAnnotations.userId, userId),
           eq(documentAnnotations.isPrivate, false)
-        )
+        )!
       );
     } else {
       conditions.push(eq(documentAnnotations.isPrivate, false));
@@ -1263,19 +1263,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSecurityPermissions(category?: string): Promise<SecurityPermission[]> {
-    const query = db
-      .select()
-      .from(securityPermissions)
-      .where(eq(securityPermissions.isActive, true));
-    
     if (category) {
-      query.where(and(
-        eq(securityPermissions.isActive, true),
-        eq(securityPermissions.category, category)
-      ));
+      return await db
+        .select()
+        .from(securityPermissions)
+        .where(and(
+          eq(securityPermissions.isActive, true),
+          eq(securityPermissions.category, category)
+        ))
+        .orderBy(securityPermissions.category, securityPermissions.name);
     }
     
-    return await query.orderBy(securityPermissions.category, securityPermissions.name);
+    return await db
+      .select()
+      .from(securityPermissions)
+      .where(eq(securityPermissions.isActive, true))
+      .orderBy(securityPermissions.category, securityPermissions.name);
   }
 
   // Audit Operations
@@ -1514,19 +1517,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSSOConfigurations(domain?: string): Promise<SSOConfiguration[]> {
-    const query = db
-      .select()
-      .from(ssoConfigurations)
-      .where(eq(ssoConfigurations.isActive, true));
-    
     if (domain) {
-      query.where(and(
-        eq(ssoConfigurations.isActive, true),
-        eq(ssoConfigurations.domain, domain)
-      ));
+      return await db
+        .select()
+        .from(ssoConfigurations)
+        .where(and(
+          eq(ssoConfigurations.isActive, true),
+          eq(ssoConfigurations.domain, domain)
+        ))
+        .orderBy(ssoConfigurations.isDefault, ssoConfigurations.name);
     }
     
-    return await query.orderBy(ssoConfigurations.isDefault, ssoConfigurations.name);
+    return await db
+      .select()
+      .from(ssoConfigurations)
+      .where(eq(ssoConfigurations.isActive, true))
+      .orderBy(ssoConfigurations.isDefault, ssoConfigurations.name);
   }
 
   async updateSSOConfiguration(id: number, updates: Partial<SSOConfiguration>): Promise<SSOConfiguration> {

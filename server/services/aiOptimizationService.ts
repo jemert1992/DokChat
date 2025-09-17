@@ -458,7 +458,7 @@ export class SmartAnalyticsService {
       for (const template of industryTemplates) {
         const customizedConfig = this.customizeTemplateForUser(template, {
           user,
-          profile,
+          profile: profile ?? null,
           documents
         });
 
@@ -469,13 +469,13 @@ export class SmartAnalyticsService {
           dashboardLayout: customizedConfig.dashboardLayout,
           preferredMetrics: customizedConfig.preferredMetrics,
           alertThresholds: customizedConfig.alertThresholds,
-          reportingFrequency: this.getReportingFrequency(profile),
+          reportingFrequency: this.getReportingFrequency(profile ?? null),
           complianceTracking: customizedConfig.complianceTracking,
           customKPIs: customizedConfig.customKPIs,
-          visualizationPreferences: this.getVisualizationPreferences(profile),
-          dataRetentionSettings: this.getDataRetentionSettings(user.industry, profile),
-          sharingSettings: this.getSharingSettings(profile),
-          automationRules: this.getAutomationRules(profile),
+          visualizationPreferences: this.getVisualizationPreferences(profile ?? null),
+          dataRetentionSettings: this.getDataRetentionSettings(user.industry, profile ?? null),
+          sharingSettings: this.getSharingSettings(profile ?? null),
+          automationRules: this.getAutomationRules(profile ?? null),
           isDefault: configs.length === 0 // First config is default
         });
       }
@@ -510,8 +510,8 @@ export class SmartAnalyticsService {
     if (profile?.experienceLevel === 'beginner') {
       // Simplify dashboard - fewer widgets, larger sizes
       customized.dashboardLayout.widgets = customized.dashboardLayout.widgets
-        .filter(w => w.type !== 'table') // Remove complex tables
-        .map(w => ({ ...w, position: { ...w.position, height: w.position.height + 1 } })); // Make widgets taller
+        .filter((w: any) => w.type !== 'table') // Remove complex tables
+        .map((w: any) => ({ ...w, position: { ...w.position, height: w.position.height + 1 } })); // Make widgets taller
     } else if (profile?.experienceLevel === 'expert') {
       // Add advanced widgets
       customized.dashboardLayout.widgets.push({
@@ -680,7 +680,7 @@ export class SmartAnalyticsService {
       const analyticsData: Record<string, any> = {};
 
       // Generate data for each preferred metric
-      for (const metric of userConfig.preferredMetrics) {
+      for (const metric of userConfig.preferredMetrics || []) {
         analyticsData[metric] = this.calculateMetric(metric, {
           documents,
           behaviorAnalysis,
@@ -779,7 +779,7 @@ export class SmartAnalyticsService {
       case 'table':
         return {
           headers: ['Type', 'Count', 'Accuracy', 'Avg Time'],
-          rows: documents.slice(0, 10).map(d => [
+          rows: documents.slice(0, 10).map((d: any) => [
             d.documentType || 'Unknown',
             '1',
             `${(Math.random() * 0.2 + 0.8).toFixed(2)}`,

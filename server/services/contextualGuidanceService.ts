@@ -386,7 +386,7 @@ export class ContextualGuidanceService {
 
       // Document types
       if (conditions.documentTypes && documents.length > 0) {
-        const userDocTypes = documents.map(d => d.documentType).filter(Boolean);
+        const userDocTypes = documents.map((d: any) => d.documentType).filter(Boolean);
         const hasMatchingType = conditions.documentTypes.some(type => 
           userDocTypes.includes(type)
         );

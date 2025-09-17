@@ -178,7 +178,7 @@ export class MultiAIService {
       ]);
 
       // Generate industry-specific insights
-      const insights = this.generateIndustryInsights(text, industry, 'gemini');
+      const insights = this.generateAdvancedIndustryInsights(text, industry, 'gemini', getIndustryPrompt(industry));
 
       return {
         summary,
@@ -303,7 +303,7 @@ Respond with JSON format:
     console.log(`✨ Revolutionary ${industry} consensus: confidence=${industryWeightedConfidence.toFixed(3)}, accuracy=${industryAccuracyScore.toFixed(3)}, model=${recommendedModel}`);
 
     return {
-      summary: primarySummary,
+      summary: primarySummary || 'Analysis completed',
       confidence: Math.round(industryWeightedConfidence * 100) / 100,
       keyFindings: industryKeyFindings,
       recommendedModel,
@@ -794,7 +794,8 @@ Respond with JSON format:
       const complianceResult = {
         status: 'compliant' as const,
         standards: ['Industry_Standards'],
-        violations: [] as string[]
+        violations: [] as string[],
+        issues: [] as string[]
       };
       
       // Industry-specific compliance checks would be implemented here

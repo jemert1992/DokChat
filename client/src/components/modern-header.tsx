@@ -2,6 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { getIndustryConfig } from "@/lib/industry-config";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { User } from "@shared/schema";
 
 interface ModernHeaderProps {
@@ -17,6 +25,16 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
     const first = user.firstName?.[0] || '';
     const last = user.lastName?.[0] || '';
     return first + last || user.email?.[0] || 'U';
+  };
+
+  const isAdmin = user.email === 'admin@emert.ai';
+
+  const handleLogout = () => {
+    window.location.href = '/api/logout';
+  };
+
+  const handleSwitchIndustry = () => {
+    setLocation('/industry-selection');
   };
 
   const breadcrumbItems = [
@@ -53,23 +71,18 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
 
           {/* User Actions and Avatars */}
           <div className="flex items-center space-x-4">
-            {/* User Avatar Group */}
-            <div className="flex items-center -space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-950 shadow-sm">
-                <span className="text-white text-xs font-semibold">
-                  {getUserInitials(user)}
-                </span>
-              </div>
-              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-950 shadow-sm">
-                <i className="fas fa-robot text-white text-xs"></i>
-              </div>
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-950 shadow-sm">
-                <i className="fas fa-chart-line text-white text-xs"></i>
-              </div>
-              <button className="w-8 h-8 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <i className="fas fa-plus text-gray-400 dark:text-gray-500 text-xs"></i>
-              </button>
-            </div>
+            {/* Admin Quick Switch Button (Visible for Admin Only) */}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="border-purple-500 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                onClick={handleSwitchIndustry}
+                data-testid="button-admin-switch-industry"
+              >
+                <i className="fas fa-sync-alt mr-2"></i>
+                Admin: Switch Industry
+              </Button>
+            )}
 
             {/* Create New Button */}
             <Button 
@@ -80,6 +93,81 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
               <i className="fas fa-plus mr-2"></i>
               Create New
             </Button>
+
+            {/* User Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
+                  <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-950 shadow-sm">
+                    <span className="text-white text-sm font-semibold">
+                      {getUserInitials(user)}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {isAdmin && (
+                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
+                        ADMIN
+                      </Badge>
+                    )}
+                    <i className="fas fa-chevron-down text-gray-400 text-xs group-hover:text-gray-600 dark:group-hover:text-gray-200"></i>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">
+                        {getUserInitials(user)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                      {isAdmin && (
+                        <Badge className="mt-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
+                          Administrator
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem className="cursor-pointer">
+                  <i className="fas fa-user-cog mr-2 text-gray-500"></i>
+                  Profile Settings
+                </DropdownMenuItem>
+                
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-purple-600 dark:text-purple-400">
+                      Admin Tools
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem 
+                      className="cursor-pointer text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                      onClick={handleSwitchIndustry}
+                    >
+                      <i className="fas fa-sync-alt mr-2"></i>
+                      Switch Industry
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  onClick={handleLogout}
+                  data-testid="button-logout"
+                >
+                  <i className="fas fa-sign-out-alt mr-2"></i>
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

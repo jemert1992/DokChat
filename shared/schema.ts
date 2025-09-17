@@ -635,7 +635,7 @@ export const documentComments = pgTable("document_comments", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").references(() => documents.id).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
-  parentId: integer("parent_id").references(() => documentComments.id), // for reply threading
+  parentId: integer("parent_id"), // for reply threading - self-reference handled later
   content: text("content").notNull(),
   commentType: varchar("comment_type", { length: 50 }).default('general'), // general, annotation, suggestion, issue
   position: jsonb("position"), // page, coordinates, text selection range

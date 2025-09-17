@@ -405,7 +405,7 @@ export class SmartOnboardingService {
       // Initialize interface adaptations
       await storage.createInterfaceAdaptation({
         userId,
-        industry: profile.preferences?.industry || 'general',
+        industry: (profile.preferences as any)?.industry || 'general',
         adaptationLevel: this.getAdaptationLevel(profile.experienceLevel),
         hiddenFeatures: this.getHiddenFeatures(profile),
         emphasizedFeatures: this.getEmphasizedFeatures(profile),

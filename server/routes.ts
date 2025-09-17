@@ -553,14 +553,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Text analysis not found for document" });
       }
 
-      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      const extractedText = (textAnalysis.analysisData as any)?.text || (textAnalysis.analysisData as any)?.extractedText || '';
       
-      // Perform revolutionary entity extraction
-      const entityResults = await entityExtractionService.performRevolutionaryEntityExtraction(
-        document, 
-        extractedText,
-        userId
-      );
+      // Perform revolutionary entity extraction based on industry
+      let entityResults;
+      const industry = document.industry || 'general';
+      
+      switch (industry) {
+        case 'medical':
+          entityResults = await (entityExtractionService as any).extractMedicalEntities(document, extractedText);
+          break;
+        case 'legal':
+          entityResults = await (entityExtractionService as any).extractLegalEntities(document, extractedText);
+          break;
+        case 'logistics':
+          entityResults = await (entityExtractionService as any).extractLogisticsEntities(document, extractedText);
+          break;
+        default:
+          entityResults = { entities: [], confidenceScore: 0.5, extractionMethods: ['basic'] };
+      }
 
       res.json({
         documentId,
@@ -602,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Text analysis not found for document" });
       }
 
-      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      const extractedText = (textAnalysis.analysisData as any)?.text || (textAnalysis.analysisData as any)?.extractedText || '';
       
       // Perform industry-specific compliance analysis based on document industry
       let complianceResults;
@@ -613,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           complianceResults = await complianceFramework.performHIPAACompliance(document, extractedText, userId);
           break;
         case 'legal':
-          complianceResults = await complianceFramework.performLegalPrivilegeAssessment(document, extractedText, userId);
+          complianceResults = await complianceFramework.performLegalPrivilegeCompliance(document, extractedText, userId);
           break;
         case 'finance':
           complianceResults = await complianceFramework.performKYCAMLCompliance(document, extractedText, userId);
@@ -685,14 +696,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Text analysis not found for document" });
       }
 
-      const extractedText = textAnalysis.analysisData?.text || textAnalysis.analysisData?.extractedText || '';
+      const extractedText = (textAnalysis.analysisData as any)?.text || (textAnalysis.analysisData as any)?.extractedText || '';
       
       // Perform comprehensive MultiAI analysis
-      const multiAiResults = await multiAIService.performComprehensiveAnalysis(
+      const multiAiResults = await multiAIService.analyzeDocument(
         extractedText,
         document.industry || 'general',
-        document.documentType,
-        { documentId: document.id, userId }
+        undefined, // filePath
+        undefined, // mimeType
+        undefined, // precomputedOCRResults
+        userId
       );
 
       res.json({

@@ -80,17 +80,6 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
               <i className="fas fa-plus mr-2"></i>
               Create New
             </Button>
-
-            {/* Settings Menu */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-2 h-9 w-9 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setLocation('/industry-selection')}
-              data-testid="button-settings-menu"
-            >
-              <i className="fas fa-ellipsis-v"></i>
-            </Button>
           </div>
         </div>
 

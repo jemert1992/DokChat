@@ -67,7 +67,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
     {
       label: "MAIN",
       items: [
-        { id: 'templates', icon: 'fas fa-layer-group', label: 'Templates', view: 'templates', action: 'navigate', badge: '6' },
+        { id: 'capabilities', icon: 'fas fa-layer-group', label: 'Capabilities', view: 'capabilities', action: 'navigate', badge: '6' },
         { id: 'analytics', icon: 'fas fa-chart-line', label: 'Analytics', view: 'analytics', action: 'navigate', badge: null },
         { id: 'documents', icon: 'fas fa-folder-open', label: 'Documents', view: 'documents', action: 'navigate', badge: null },
       ]
@@ -83,7 +83,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
     {
       label: "SETTINGS",
       items: [
-        { id: 'profile', icon: 'fas fa-user-circle', label: 'Profile', path: '/industry-selection', action: 'navigate', badge: null },
+        { id: 'profile', icon: 'fas fa-user-circle', label: 'Profile', view: 'profile', action: 'navigate', badge: null },
         { id: 'integrations', icon: 'fas fa-plug', label: 'Integrations', view: 'documents', action: 'navigate', badge: null },
       ]
     }
@@ -248,7 +248,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
                 variant="outline" 
                 size="sm" 
                 className="h-9 text-xs font-medium border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-                onClick={() => setLocation('/industry-selection')}
+                onClick={() => handleNavClick({ view: 'profile', action: 'navigate' })}
               >
                 <i className="fas fa-cog mr-1.5"></i>
                 Settings

@@ -23,7 +23,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { isConnected, processingUpdates } = useWebSocket();
-  const [activeView, setActiveView] = useState("templates"); // templates, analytics, documents
+  const [activeView, setActiveView] = useState("capabilities"); // capabilities, analytics, documents
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -160,16 +160,16 @@ export default function Dashboard() {
               {/* View Toggle Navigation */}
               <div className="flex items-center space-x-1 bg-white dark:bg-gray-900 p-1 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
                 <button
-                  onClick={() => setActiveView("templates")}
+                  onClick={() => setActiveView("capabilities")}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeView === "templates"
+                    activeView === "capabilities"
                       ? "bg-blue-500 text-white shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                   }`}
-                  data-testid="view-templates"
+                  data-testid="view-capabilities"
                 >
                   <i className="fas fa-layer-group mr-2"></i>
-                  Templates
+                  Capabilities
                 </button>
                 <button
                   onClick={() => setActiveView("analytics")}
@@ -198,7 +198,7 @@ export default function Dashboard() {
               </div>
 
               {/* Main Content Based on Active View */}
-              {activeView === "templates" && (
+              {activeView === "capabilities" && (
                 <IndustryCapabilities 
                   userIndustry={user.industry || 'general'} 
                   onStartProcessing={handleStartProcessing}

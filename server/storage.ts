@@ -118,6 +118,28 @@ import {
   type InsertSecurityIncident,
   type BreachNotification,
   type InsertBreachNotification,
+  // Intelligent Customization imports
+  userOnboardingProfiles,
+  userBehaviorPatterns,
+  documentRecommendations,
+  contextualGuidance,
+  aiModelOptimizations,
+  smartAnalyticsConfigs,
+  interfaceAdaptations,
+  type UserOnboardingProfile,
+  type InsertUserOnboardingProfile,
+  type UserBehaviorPattern,
+  type InsertUserBehaviorPattern,
+  type DocumentRecommendation,
+  type InsertDocumentRecommendation,
+  type ContextualGuidance,
+  type InsertContextualGuidance,
+  type AIModelOptimization,
+  type InsertAIModelOptimization,
+  type SmartAnalyticsConfig,
+  type InsertSmartAnalyticsConfig,
+  type InterfaceAdaptation,
+  type InsertInterfaceAdaptation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, asc, or, isNull } from "drizzle-orm";
@@ -328,6 +350,49 @@ export interface IStorage {
   // Breach Notifications
   createBreachNotification(notification: InsertBreachNotification): Promise<BreachNotification>;
   getBreachNotifications(incidentId: string): Promise<BreachNotification[]>;
+
+  // =============================================================================
+  // INTELLIGENT CUSTOMIZATION OPERATIONS
+  // =============================================================================
+  
+  // User Onboarding Profile Operations
+  createOnboardingProfile(profile: InsertUserOnboardingProfile): Promise<UserOnboardingProfile>;
+  getOnboardingProfile(userId: string): Promise<UserOnboardingProfile | undefined>;
+  updateOnboardingProfile(userId: string, updates: Partial<UserOnboardingProfile>): Promise<UserOnboardingProfile>;
+  completeOnboarding(userId: string): Promise<UserOnboardingProfile>;
+  
+  // Behavior Pattern Operations
+  trackBehaviorPattern(pattern: InsertUserBehaviorPattern): Promise<UserBehaviorPattern>;
+  getUserBehaviorPatterns(userId: string, limit?: number): Promise<UserBehaviorPattern[]>;
+  analyzeUserPatterns(userId: string, timeframeHours?: number): Promise<any>;
+  
+  // Document Recommendation Operations
+  createDocumentRecommendation(recommendation: InsertDocumentRecommendation): Promise<DocumentRecommendation>;
+  getUserRecommendations(userId: string, active?: boolean): Promise<DocumentRecommendation[]>;
+  dismissRecommendation(recommendationId: number, userId: string): Promise<void>;
+  actOnRecommendation(recommendationId: number, userId: string): Promise<void>;
+  
+  // Contextual Guidance Operations
+  createContextualGuidance(guidance: InsertContextualGuidance): Promise<ContextualGuidance>;
+  getContextualGuidance(userId: string, pageContext: string): Promise<ContextualGuidance[]>;
+  markGuidanceViewed(guidanceId: number, userId: string): Promise<void>;
+  markGuidanceCompleted(guidanceId: number, userId: string): Promise<void>;
+  rateGuidanceHelpfulness(guidanceId: number, userId: string, rating: number): Promise<void>;
+  
+  // AI Model Optimization Operations
+  createAIOptimization(optimization: InsertAIModelOptimization): Promise<AIModelOptimization>;
+  getAIOptimizations(userId?: string, industry?: string): Promise<AIModelOptimization[]>;
+  updateAIOptimization(id: number, updates: Partial<AIModelOptimization>): Promise<AIModelOptimization>;
+  
+  // Smart Analytics Configuration Operations
+  createAnalyticsConfig(config: InsertSmartAnalyticsConfig): Promise<SmartAnalyticsConfig>;
+  getUserAnalyticsConfigs(userId: string): Promise<SmartAnalyticsConfig[]>;
+  updateAnalyticsConfig(id: number, updates: Partial<SmartAnalyticsConfig>): Promise<SmartAnalyticsConfig>;
+  
+  // Interface Adaptation Operations
+  createInterfaceAdaptation(adaptation: InsertInterfaceAdaptation): Promise<InterfaceAdaptation>;
+  getInterfaceAdaptation(userId: string): Promise<InterfaceAdaptation | undefined>;
+  updateInterfaceAdaptation(userId: string, updates: Partial<InterfaceAdaptation>): Promise<InterfaceAdaptation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1617,6 +1682,323 @@ export class DatabaseStorage implements IStorage {
       .from(breachNotifications)
       .where(eq(breachNotifications.incidentId, incidentId))
       .orderBy(desc(breachNotifications.createdAt));
+  }
+
+  // =============================================================================
+  // INTELLIGENT CUSTOMIZATION OPERATIONS IMPLEMENTATION
+  // =============================================================================
+  
+  // User Onboarding Profile Operations
+  async createOnboardingProfile(profile: InsertUserOnboardingProfile): Promise<UserOnboardingProfile> {
+    const [result] = await db
+      .insert(userOnboardingProfiles)
+      .values(profile)
+      .returning();
+    return result;
+  }
+
+  async getOnboardingProfile(userId: string): Promise<UserOnboardingProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(userOnboardingProfiles)
+      .where(eq(userOnboardingProfiles.userId, userId));
+    return profile;
+  }
+
+  async updateOnboardingProfile(userId: string, updates: Partial<UserOnboardingProfile>): Promise<UserOnboardingProfile> {
+    const [result] = await db
+      .update(userOnboardingProfiles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userOnboardingProfiles.userId, userId))
+      .returning();
+    return result;
+  }
+
+  async completeOnboarding(userId: string): Promise<UserOnboardingProfile> {
+    const [result] = await db
+      .update(userOnboardingProfiles)
+      .set({ 
+        onboardingCompleted: true,
+        updatedAt: new Date(),
+        lastActive: new Date()
+      })
+      .where(eq(userOnboardingProfiles.userId, userId))
+      .returning();
+    return result;
+  }
+  
+  // Behavior Pattern Operations
+  async trackBehaviorPattern(pattern: InsertUserBehaviorPattern): Promise<UserBehaviorPattern> {
+    const [result] = await db
+      .insert(userBehaviorPatterns)
+      .values(pattern)
+      .returning();
+    return result;
+  }
+
+  async getUserBehaviorPatterns(userId: string, limit: number = 100): Promise<UserBehaviorPattern[]> {
+    return await db
+      .select()
+      .from(userBehaviorPatterns)
+      .where(eq(userBehaviorPatterns.userId, userId))
+      .orderBy(desc(userBehaviorPatterns.createdAt))
+      .limit(limit);
+  }
+
+  async analyzeUserPatterns(userId: string, timeframeHours: number = 24): Promise<any> {
+    const timeframe = new Date(Date.now() - timeframeHours * 60 * 60 * 1000);
+    
+    const patterns = await db
+      .select()
+      .from(userBehaviorPatterns)
+      .where(and(
+        eq(userBehaviorPatterns.userId, userId),
+        gte(userBehaviorPatterns.createdAt, timeframe)
+      ))
+      .orderBy(desc(userBehaviorPatterns.createdAt));
+
+    // Analyze patterns for insights
+    const eventCounts: Record<string, number> = {};
+    const documentTypeCounts: Record<string, number> = {};
+    let totalTimeSpent = 0;
+    let completedActions = 0;
+    let abandonedActions = 0;
+
+    patterns.forEach(pattern => {
+      eventCounts[pattern.eventType] = (eventCounts[pattern.eventType] || 0) + 1;
+      
+      if (pattern.documentType) {
+        documentTypeCounts[pattern.documentType] = (documentTypeCounts[pattern.documentType] || 0) + 1;
+      }
+
+      if (pattern.timeSpent) {
+        totalTimeSpent += pattern.timeSpent;
+      }
+
+      if (pattern.completionStatus === 'completed') {
+        completedActions++;
+      } else if (pattern.completionStatus === 'abandoned') {
+        abandonedActions++;
+      }
+    });
+
+    return {
+      totalPatterns: patterns.length,
+      eventCounts,
+      documentTypeCounts,
+      totalTimeSpent,
+      completedActions,
+      abandonedActions,
+      completionRate: patterns.length > 0 ? (completedActions / patterns.length) * 100 : 0,
+      averageTimeSpent: patterns.length > 0 ? totalTimeSpent / patterns.length : 0,
+      timeframe: timeframeHours
+    };
+  }
+  
+  // Document Recommendation Operations
+  async createDocumentRecommendation(recommendation: InsertDocumentRecommendation): Promise<DocumentRecommendation> {
+    const [result] = await db
+      .insert(documentRecommendations)
+      .values(recommendation)
+      .returning();
+    return result;
+  }
+
+  async getUserRecommendations(userId: string, active: boolean = true): Promise<DocumentRecommendation[]> {
+    const conditions = [eq(documentRecommendations.userId, userId)];
+    
+    if (active) {
+      conditions.push(
+        eq(documentRecommendations.dismissed, false),
+        eq(documentRecommendations.acted, false)
+      );
+    }
+
+    return await db
+      .select()
+      .from(documentRecommendations)
+      .where(and(...conditions))
+      .orderBy(desc(documentRecommendations.priority), desc(documentRecommendations.createdAt));
+  }
+
+  async dismissRecommendation(recommendationId: number, userId: string): Promise<void> {
+    await db
+      .update(documentRecommendations)
+      .set({ 
+        dismissed: true,
+        dismissedAt: new Date()
+      })
+      .where(and(
+        eq(documentRecommendations.id, recommendationId),
+        eq(documentRecommendations.userId, userId)
+      ));
+  }
+
+  async actOnRecommendation(recommendationId: number, userId: string): Promise<void> {
+    await db
+      .update(documentRecommendations)
+      .set({ 
+        acted: true,
+        actedAt: new Date()
+      })
+      .where(and(
+        eq(documentRecommendations.id, recommendationId),
+        eq(documentRecommendations.userId, userId)
+      ));
+  }
+  
+  // Contextual Guidance Operations
+  async createContextualGuidance(guidance: InsertContextualGuidance): Promise<ContextualGuidance> {
+    const [result] = await db
+      .insert(contextualGuidance)
+      .values(guidance)
+      .returning();
+    return result;
+  }
+
+  async getContextualGuidance(userId: string, pageContext: string): Promise<ContextualGuidance[]> {
+    return await db
+      .select()
+      .from(contextualGuidance)
+      .where(and(
+        eq(contextualGuidance.userId, userId),
+        eq(contextualGuidance.pageContext, pageContext),
+        eq(contextualGuidance.dismissed, false)
+      ))
+      .orderBy(contextualGuidance.guidanceType);
+  }
+
+  async markGuidanceViewed(guidanceId: number, userId: string): Promise<void> {
+    await db
+      .update(contextualGuidance)
+      .set({ 
+        viewed: true,
+        viewedAt: new Date()
+      })
+      .where(and(
+        eq(contextualGuidance.id, guidanceId),
+        eq(contextualGuidance.userId, userId)
+      ));
+  }
+
+  async markGuidanceCompleted(guidanceId: number, userId: string): Promise<void> {
+    await db
+      .update(contextualGuidance)
+      .set({ 
+        completed: true,
+        completedAt: new Date()
+      })
+      .where(and(
+        eq(contextualGuidance.id, guidanceId),
+        eq(contextualGuidance.userId, userId)
+      ));
+  }
+
+  async rateGuidanceHelpfulness(guidanceId: number, userId: string, rating: number): Promise<void> {
+    await db
+      .update(contextualGuidance)
+      .set({ 
+        helpfulness: rating,
+        interacted: true,
+        interactedAt: new Date()
+      })
+      .where(and(
+        eq(contextualGuidance.id, guidanceId),
+        eq(contextualGuidance.userId, userId)
+      ));
+  }
+  
+  // AI Model Optimization Operations
+  async createAIOptimization(optimization: InsertAIModelOptimization): Promise<AIModelOptimization> {
+    const [result] = await db
+      .insert(aiModelOptimizations)
+      .values(optimization)
+      .returning();
+    return result;
+  }
+
+  async getAIOptimizations(userId?: string, industry?: string): Promise<AIModelOptimization[]> {
+    const conditions = [];
+    
+    if (userId) {
+      conditions.push(eq(aiModelOptimizations.userId, userId));
+    }
+    
+    if (industry) {
+      conditions.push(eq(aiModelOptimizations.industry, industry));
+    }
+
+    conditions.push(eq(aiModelOptimizations.isActive, true));
+
+    return await db
+      .select()
+      .from(aiModelOptimizations)
+      .where(and(...conditions))
+      .orderBy(desc(aiModelOptimizations.lastOptimized));
+  }
+
+  async updateAIOptimization(id: number, updates: Partial<AIModelOptimization>): Promise<AIModelOptimization> {
+    const [result] = await db
+      .update(aiModelOptimizations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(aiModelOptimizations.id, id))
+      .returning();
+    return result;
+  }
+  
+  // Smart Analytics Configuration Operations
+  async createAnalyticsConfig(config: InsertSmartAnalyticsConfig): Promise<SmartAnalyticsConfig> {
+    const [result] = await db
+      .insert(smartAnalyticsConfigs)
+      .values(config)
+      .returning();
+    return result;
+  }
+
+  async getUserAnalyticsConfigs(userId: string): Promise<SmartAnalyticsConfig[]> {
+    return await db
+      .select()
+      .from(smartAnalyticsConfigs)
+      .where(and(
+        eq(smartAnalyticsConfigs.userId, userId),
+        eq(smartAnalyticsConfigs.isActive, true)
+      ))
+      .orderBy(desc(smartAnalyticsConfigs.isDefault), desc(smartAnalyticsConfigs.createdAt));
+  }
+
+  async updateAnalyticsConfig(id: number, updates: Partial<SmartAnalyticsConfig>): Promise<SmartAnalyticsConfig> {
+    const [result] = await db
+      .update(smartAnalyticsConfigs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(smartAnalyticsConfigs.id, id))
+      .returning();
+    return result;
+  }
+  
+  // Interface Adaptation Operations
+  async createInterfaceAdaptation(adaptation: InsertInterfaceAdaptation): Promise<InterfaceAdaptation> {
+    const [result] = await db
+      .insert(interfaceAdaptations)
+      .values(adaptation)
+      .returning();
+    return result;
+  }
+
+  async getInterfaceAdaptation(userId: string): Promise<InterfaceAdaptation | undefined> {
+    const [adaptation] = await db
+      .select()
+      .from(interfaceAdaptations)
+      .where(eq(interfaceAdaptations.userId, userId));
+    return adaptation;
+  }
+
+  async updateInterfaceAdaptation(userId: string, updates: Partial<InterfaceAdaptation>): Promise<InterfaceAdaptation> {
+    const [result] = await db
+      .update(interfaceAdaptations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(interfaceAdaptations.userId, userId))
+      .returning();
+    return result;
   }
 }
 

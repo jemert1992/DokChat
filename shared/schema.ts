@@ -1080,3 +1080,197 @@ export type SecurityIncident = typeof securityIncidents.$inferSelect;
 export type InsertSecurityIncident = typeof securityIncidents.$inferInsert;
 export type BreachNotification = typeof breachNotifications.$inferSelect;
 export type InsertBreachNotification = typeof breachNotifications.$inferInsert;
+
+// =============================================================================
+// INDUSTRY-INTELLIGENT CUSTOMIZATION TABLES
+// =============================================================================
+
+// User onboarding profiles for smart customization
+export const userOnboardingProfiles = pgTable("user_onboarding_profiles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  industrySpecificRole: varchar("industry_specific_role", { length: 100 }),
+  organizationSize: varchar("organization_size", { length: 50 }), // small, medium, large, enterprise
+  documentVolume: varchar("document_volume", { length: 50 }), // low, medium, high, very_high
+  primaryUseCases: varchar("primary_use_cases").array(),
+  complianceRequirements: varchar("compliance_requirements").array(),
+  integrationNeeds: varchar("integration_needs").array(),
+  experienceLevel: varchar("experience_level", { length: 50 }), // beginner, intermediate, advanced, expert
+  preferredWorkflow: varchar("preferred_workflow", { length: 50 }), // batch, real_time, hybrid
+  priorityFeatures: varchar("priority_features").array(),
+  painPoints: varchar("pain_points").array(),
+  successMetrics: varchar("success_metrics").array(),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  onboardingStep: integer("onboarding_step").default(1),
+  lastActive: timestamp("last_active").defaultNow(),
+  preferences: jsonb("preferences").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User behavior tracking for adaptive intelligence
+export const userBehaviorPatterns = pgTable("user_behavior_patterns", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  sessionId: varchar("session_id", { length: 100 }),
+  eventType: varchar("event_type", { length: 100 }).notNull(), // upload, analyze, download, chat, etc.
+  eventDetails: jsonb("event_details").default('{}'),
+  documentType: varchar("document_type", { length: 100 }),
+  timeSpent: integer("time_spent"), // seconds
+  actionSequence: varchar("action_sequence").array(),
+  completionStatus: varchar("completion_status", { length: 50 }), // completed, abandoned, error
+  frustrationIndicators: varchar("frustration_indicators").array(),
+  successIndicators: varchar("success_indicators").array(),
+  contextualData: jsonb("contextual_data").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_behavior_user").on(table.userId),
+  index("idx_behavior_event").on(table.eventType),
+  index("idx_behavior_document").on(table.documentType),
+  index("idx_behavior_time").on(table.createdAt),
+]);
+
+// Industry-specific document recommendations
+export const documentRecommendations = pgTable("document_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  recommendationType: varchar("recommendation_type", { length: 100 }).notNull(), // upload_suggestion, analysis_type, workflow_optimization
+  documentType: varchar("document_type", { length: 100 }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  reason: text("reason").notNull(),
+  priority: varchar("priority", { length: 20 }).default('medium'), // low, medium, high, urgent
+  relevanceScore: real("relevance_score").default(0.5),
+  actionRequired: boolean("action_required").default(false),
+  dismissed: boolean("dismissed").default(false),
+  acted: boolean("acted").default(false),
+  contextualData: jsonb("contextual_data").default('{}'),
+  expiresAt: timestamp("expires_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  actedAt: timestamp("acted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_recommendations_user").on(table.userId),
+  index("idx_recommendations_industry").on(table.industry),
+  index("idx_recommendations_priority").on(table.priority),
+  index("idx_recommendations_active").on(table.dismissed, table.acted),
+]);
+
+// Contextual help and guidance tracking
+export const contextualGuidance = pgTable("contextual_guidance", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  guidanceType: varchar("guidance_type", { length: 100 }).notNull(), // tooltip, help_card, tutorial, suggestion
+  pageContext: varchar("page_context", { length: 100 }).notNull(),
+  elementContext: varchar("element_context", { length: 200 }),
+  industrySpecific: boolean("industry_specific").default(true),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  actionSuggested: varchar("action_suggested", { length: 500 }),
+  helpfulness: integer("helpfulness"), // 1-5 rating
+  viewed: boolean("viewed").default(false),
+  interacted: boolean("interacted").default(false),
+  completed: boolean("completed").default(false),
+  dismissed: boolean("dismissed").default(false),
+  viewedAt: timestamp("viewed_at"),
+  interactedAt: timestamp("interacted_at"),
+  completedAt: timestamp("completed_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_guidance_user").on(table.userId),
+  index("idx_guidance_context").on(table.pageContext),
+  index("idx_guidance_type").on(table.guidanceType),
+]);
+
+// AI model optimization settings per industry/user
+export const aiModelOptimizations = pgTable("ai_model_optimizations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  documentType: varchar("document_type", { length: 100 }),
+  modelType: varchar("model_type", { length: 50 }).notNull(), // ocr, nlp, classification, extraction
+  optimizationLevel: varchar("optimization_level", { length: 50 }).default('standard'), // basic, standard, advanced, custom
+  confidenceThreshold: real("confidence_threshold").default(0.7),
+  customPrompts: jsonb("custom_prompts").default('{}'),
+  processingPreferences: jsonb("processing_preferences").default('{}'),
+  accuracyWeighting: real("accuracy_weighting").default(0.8),
+  speedWeighting: real("speed_weighting").default(0.2),
+  costWeighting: real("cost_weighting").default(0.1),
+  complianceMode: boolean("compliance_mode").default(false),
+  retentionPolicy: varchar("retention_policy", { length: 100 }),
+  performanceMetrics: jsonb("performance_metrics").default('{}'),
+  lastOptimized: timestamp("last_optimized"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_ai_opt_industry").on(table.industry),
+  index("idx_ai_opt_user").on(table.userId),
+  index("idx_ai_opt_document_type").on(table.documentType),
+]);
+
+// Smart analytics configurations
+export const smartAnalyticsConfigs = pgTable("smart_analytics_configs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  configName: varchar("config_name", { length: 200 }).notNull(),
+  dashboardLayout: jsonb("dashboard_layout").default('{}'),
+  preferredMetrics: varchar("preferred_metrics").array(),
+  alertThresholds: jsonb("alert_thresholds").default('{}'),
+  reportingFrequency: varchar("reporting_frequency", { length: 50 }).default('weekly'),
+  complianceTracking: jsonb("compliance_tracking").default('{}'),
+  customKPIs: jsonb("custom_kpis").default('{}'),
+  visualizationPreferences: jsonb("visualization_preferences").default('{}'),
+  dataRetentionSettings: jsonb("data_retention_settings").default('{}'),
+  sharingSettings: jsonb("sharing_settings").default('{}'),
+  automationRules: jsonb("automation_rules").default('{}'),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_analytics_user").on(table.userId),
+  index("idx_analytics_industry").on(table.industry),
+]);
+
+// Interface adaptation settings
+export const interfaceAdaptations = pgTable("interface_adaptations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  adaptationLevel: varchar("adaptation_level", { length: 50 }).default('medium'), // minimal, medium, aggressive, expert
+  hiddenFeatures: varchar("hidden_features").array(),
+  emphasizedFeatures: varchar("emphasized_features").array(),
+  customTerminology: jsonb("custom_terminology").default('{}'),
+  layoutPreferences: jsonb("layout_preferences").default('{}'),
+  colorSchemeOverrides: jsonb("color_scheme_overrides").default('{}'),
+  accessibilitySettings: jsonb("accessibility_settings").default('{}'),
+  workflowShortcuts: jsonb("workflow_shortcuts").default('{}'),
+  notificationPreferences: jsonb("notification_preferences").default('{}'),
+  automationLevel: varchar("automation_level", { length: 50 }).default('medium'), // minimal, medium, high, full
+  learningMode: boolean("learning_mode").default(true),
+  lastAdaptation: timestamp("last_adaptation"),
+  adaptationScore: real("adaptation_score").default(0.5),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Type exports for intelligent customization
+export type UserOnboardingProfile = typeof userOnboardingProfiles.$inferSelect;
+export type InsertUserOnboardingProfile = typeof userOnboardingProfiles.$inferInsert;
+export type UserBehaviorPattern = typeof userBehaviorPatterns.$inferSelect;
+export type InsertUserBehaviorPattern = typeof userBehaviorPatterns.$inferInsert;
+export type DocumentRecommendation = typeof documentRecommendations.$inferSelect;
+export type InsertDocumentRecommendation = typeof documentRecommendations.$inferInsert;
+export type ContextualGuidance = typeof contextualGuidance.$inferSelect;
+export type InsertContextualGuidance = typeof contextualGuidance.$inferInsert;
+export type AIModelOptimization = typeof aiModelOptimizations.$inferSelect;
+export type InsertAIModelOptimization = typeof aiModelOptimizations.$inferInsert;
+export type SmartAnalyticsConfig = typeof smartAnalyticsConfigs.$inferSelect;
+export type InsertSmartAnalyticsConfig = typeof smartAnalyticsConfigs.$inferInsert;
+export type InterfaceAdaptation = typeof interfaceAdaptations.$inferSelect;
+export type InsertInterfaceAdaptation = typeof interfaceAdaptations.$inferInsert;

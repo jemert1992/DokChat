@@ -54,6 +54,9 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
           }
         }, 100);
         break;
+      case 'profile':
+        if (onNavigate) onNavigate('profile');
+        break;
       default:
         if (item.view && onNavigate) {
           onNavigate(item.view);
@@ -63,31 +66,12 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
     }
   };
 
-  const navSections = [
-    {
-      label: "MAIN",
-      items: [
-        { id: 'capabilities', icon: 'fas fa-layer-group', label: 'Capabilities', view: 'capabilities', action: 'navigate', badge: '6' },
-        { id: 'analytics', icon: 'fas fa-chart-line', label: 'Analytics', view: 'analytics', action: 'navigate', badge: null },
-        { id: 'documents', icon: 'fas fa-folder-open', label: 'Documents', view: 'documents', action: 'navigate', badge: null },
-      ]
-    },
-    {
-      label: "DOCUMENT PROCESSING",
-      items: [
-        { id: 'upload', icon: 'fas fa-cloud-upload-alt', label: 'Upload Documents', action: 'focus-upload', badge: null },
-        { id: 'library', icon: 'fas fa-folder-open', label: industryConfig.documentLibraryLabel, action: 'scroll-to-activity', badge: null },
-        { id: 'intelligence', icon: 'fas fa-brain', label: 'AI Intelligence', view: 'analytics', action: 'navigate', badge: 'NEW' },
-      ]
-    },
-    {
-      label: "SETTINGS",
-      items: [
-        { id: 'profile', icon: 'fas fa-user-circle', label: 'Profile', view: 'profile', action: 'navigate', badge: null },
-        { id: 'integrations', icon: 'fas fa-plug', label: 'Integrations', view: 'documents', action: 'navigate', badge: null },
-      ]
-    }
-  ];
+  const handleQuickAction = (action: any) => {
+    handleNavClick(action);
+  };
+
+  // Use industry-specific navigation sections
+  const navSections = industryConfig.navigationSections.sort((a, b) => a.priority - b.priority);
 
   const getUserInitials = (user: User) => {
     const first = user.firstName?.[0] || '';
@@ -109,13 +93,13 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
       <div className="p-6 pb-4">
         <div className="flex items-center justify-between mb-6">
           <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <i className="fas fa-brain text-white text-lg"></i>
+            <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-xl flex items-center justify-center shadow-lg`}>
+              <i className={`${industryConfig.branding.logoIcon} text-white text-lg`}></i>
             </div>
             {!isCollapsed && (
               <div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">DOKTECH</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block -mt-1">v3.0 AI Platform</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{industryConfig.branding.logoText}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block -mt-1">{industryConfig.branding.logoSubtext}</span>
               </div>
             )}
           </div>
@@ -135,10 +119,10 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
               <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
               <Input
                 type="text"
-                placeholder="Ask anything..."
+                placeholder={industryConfig.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-3 w-full bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                className={`pl-10 pr-4 py-3 w-full bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-${industryConfig.branding.primaryColor} focus:border-transparent placeholder-gray-400`}
                 data-testid="search-input"
               />
             </div>
@@ -170,13 +154,13 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
                   onClick={() => handleNavClick(item)}
                   className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-3 py-3'} rounded-xl transition-all duration-200 group relative ${
                     currentPage === item.id
-                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 shadow-sm'
+                      ? `bg-${industryConfig.branding.secondaryColor} dark:bg-${industryConfig.branding.primaryColor}/20 text-${industryConfig.branding.primaryColor} dark:text-${industryConfig.branding.accentColor} shadow-sm`
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}
                   data-testid={`nav-${item.id}`}
                 >
                   <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} w-full`}>
-                    <i className={`${item.icon} ${isCollapsed ? 'text-lg' : 'text-base'} ${currentPage === item.id ? 'text-blue-600 dark:text-blue-400' : ''}`}></i>
+                    <i className={`${item.icon} ${isCollapsed ? 'text-lg' : 'text-base'} ${currentPage === item.id ? `text-${industryConfig.branding.primaryColor} dark:text-${industryConfig.branding.accentColor}` : ''}`}></i>
                     {!isCollapsed && (
                       <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
                     )}
@@ -209,7 +193,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
         {!isCollapsed ? (
           <>
             <div className="flex items-center space-x-3 mb-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-sm">
+              <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-full flex items-center justify-center shadow-sm`}>
                 <span className="text-white text-sm font-semibold" data-testid="text-user-initials">
                   {getUserInitials(user)}
                 </span>
@@ -233,31 +217,30 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
               </Button>
             </div>
             
-            {/* Quick Actions */}
+            {/* Industry-Specific Quick Actions */}
             <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-9 text-xs font-medium border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-                onClick={() => handleNavClick({ action: 'focus-upload' })}
-              >
-                <i className="fas fa-plus mr-1.5"></i>
-                Upload
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-9 text-xs font-medium border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-                onClick={() => handleNavClick({ view: 'profile', action: 'navigate' })}
-              >
-                <i className="fas fa-cog mr-1.5"></i>
-                Settings
-              </Button>
+              {industryConfig.quickActions.slice(0, 4).map((quickAction, index) => (
+                <Button 
+                  key={quickAction.id}
+                  variant={quickAction.primary ? "default" : "outline"} 
+                  size="sm" 
+                  className={`h-9 text-xs font-medium ${
+                    quickAction.primary 
+                      ? `bg-${industryConfig.branding.primaryColor} hover:bg-${industryConfig.branding.primaryColor}/90 text-white border-${industryConfig.branding.primaryColor}`
+                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={() => handleQuickAction(quickAction)}
+                  data-testid={`quick-action-${quickAction.id}`}
+                >
+                  <i className={`${quickAction.icon} mr-1.5`}></i>
+                  {quickAction.label}
+                </Button>
+              ))}
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center space-y-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-sm group relative">
+            <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-full flex items-center justify-center shadow-sm group relative`}>
               <span className="text-white text-sm font-semibold" data-testid="text-user-initials">
                 {getUserInitials(user)}
               </span>

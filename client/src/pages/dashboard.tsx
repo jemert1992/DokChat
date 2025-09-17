@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Sidebar from "@/components/sidebar";
 import ModernHeader from "@/components/modern-header";
-import TemplateCards from "@/components/template-cards";
+import IndustryCapabilities from "@/components/template-cards";
 import ModernAnalyticsWidgets from "@/components/modern-analytics-widgets";
 import DashboardStats from "@/components/dashboard-stats";
 import DocumentUploadZone from "@/components/document-upload-zone";
@@ -84,11 +84,14 @@ export default function Dashboard() {
     }
   };
 
-  const handleTemplateSelect = (industryId: string) => {
-    if (industryId === user.industry) {
-      setActiveView("analytics");
-    } else {
-      setLocation('/industry-selection');
+  const handleStartProcessing = () => {
+    const uploadZone = document.getElementById('upload-zone');
+    if (uploadZone) {
+      uploadZone.scrollIntoView({ behavior: 'smooth' });
+      uploadZone.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+      setTimeout(() => {
+        uploadZone.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+      }, 2000);
     }
   };
 
@@ -196,9 +199,9 @@ export default function Dashboard() {
 
               {/* Main Content Based on Active View */}
               {activeView === "templates" && (
-                <TemplateCards 
-                  currentIndustry={user.industry || 'general'} 
-                  onTemplateSelect={handleTemplateSelect}
+                <IndustryCapabilities 
+                  userIndustry={user.industry || 'general'} 
+                  onStartProcessing={handleStartProcessing}
                 />
               )}
 

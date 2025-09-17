@@ -1,229 +1,243 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getIndustryConfig } from "@/lib/industry-config";
-import { useLocation } from "wouter";
+import { FileText, Zap, Shield, Brain, CheckCircle, ArrowRight, Sparkles } from "lucide-react";
 
-interface TemplateCardsProps {
-  currentIndustry: string;
-  onTemplateSelect: (industryId: string) => void;
+interface IndustryCapabilitiesProps {
+  userIndustry: string;
+  onStartProcessing: () => void;
 }
 
-export default function TemplateCards({ currentIndustry, onTemplateSelect }: TemplateCardsProps) {
-  const [, setLocation] = useLocation();
+export default function IndustryCapabilities({ userIndustry, onStartProcessing }: IndustryCapabilitiesProps) {
+  const industryConfig = getIndustryConfig(userIndustry);
 
-  const industryTemplates = [
-    {
-      id: 'medical',
-      name: 'Medical Dashboard',
-      description: 'Healthcare document analysis with HIPAA compliance',
-      icon: 'fas fa-heartbeat',
-      color: 'bg-gradient-to-br from-teal-500 to-cyan-600',
-      iconColor: 'text-white',
-      features: ['Patient Records', 'Lab Reports', 'Clinical Analysis', 'HIPAA Compliance'],
-      stats: { documents: '2.3K', accuracy: '99.2%', speed: '1.8s' },
-      chartCount: 8,
-      isActive: currentIndustry === 'medical'
-    },
-    {
-      id: 'legal',
-      name: 'Legal Dashboard',
-      description: 'Contract analysis and legal document processing',
-      icon: 'fas fa-gavel',
-      color: 'bg-gradient-to-br from-blue-600 to-indigo-700',
-      iconColor: 'text-white',
-      features: ['Contract Review', 'Legal Briefs', 'Compliance Check', 'Risk Analysis'],
-      stats: { documents: '1.8K', accuracy: '97.5%', speed: '2.1s' },
-      chartCount: 6,
-      isActive: currentIndustry === 'legal'
-    },
-    {
-      id: 'finance',
-      name: 'Finance Dashboard',
-      description: 'Financial document analysis and fraud detection',
-      icon: 'fas fa-chart-line',
-      color: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      iconColor: 'text-white',
-      features: ['Financial Statements', 'Risk Assessment', 'Fraud Detection', 'Compliance'],
-      stats: { documents: '3.1K', accuracy: '98.7%', speed: '1.5s' },
-      chartCount: 12,
-      isActive: currentIndustry === 'finance'
-    },
-    {
-      id: 'logistics',
-      name: 'Logistics Dashboard',
-      description: 'Shipping documents and customs form processing',
-      icon: 'fas fa-truck',
-      color: 'bg-gradient-to-br from-orange-500 to-red-600',
-      iconColor: 'text-white',
-      features: ['Bills of Lading', 'Customs Forms', 'Invoices', 'Tracking'],
-      stats: { documents: '4.2K', accuracy: '96.8%', speed: '2.3s' },
-      chartCount: 7,
-      isActive: currentIndustry === 'logistics'
-    },
-    {
-      id: 'real_estate',
-      name: 'Real Estate Dashboard',
-      description: 'Property documents and transaction analysis',
-      icon: 'fas fa-home',
-      color: 'bg-gradient-to-br from-purple-500 to-pink-600',
-      iconColor: 'text-white',
-      features: ['Property Contracts', 'Leases', 'Inspections', 'Closings'],
-      stats: { documents: '1.5K', accuracy: '98.1%', speed: '1.9s' },
-      chartCount: 9,
-      isActive: currentIndustry === 'real_estate'
-    },
-    {
-      id: 'general',
-      name: 'General Business',
-      description: 'Universal document processing for all business needs',
-      icon: 'fas fa-briefcase',
-      color: 'bg-gradient-to-br from-gray-600 to-slate-700',
-      iconColor: 'text-white',
-      features: ['Invoices', 'Contracts', 'Reports', 'Correspondence'],
-      stats: { documents: '5.7K', accuracy: '95.4%', speed: '2.0s' },
-      chartCount: 15,
-      isActive: currentIndustry === 'general'
-    }
-  ];
-
-  const handleCardClick = (template: any) => {
-    if (template.id !== currentIndustry) {
-      // Switch industry
-      setLocation('/industry-selection');
-    } else {
-      // View current industry dashboard
-      onTemplateSelect(template.id);
-    }
+  // Get industry-specific capabilities and smart recommendations
+  const getIndustryCapabilities = (industry: string) => {
+    const capabilities = {
+      medical: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Patient Records Analysis', description: 'Extract patient data, medical history, and treatment plans with HIPAA compliance', confidence: '99.3%' },
+          { icon: Shield, title: 'Lab Report Processing', description: 'Analyze lab results, flag critical values, and track patient trends', confidence: '98.7%' },
+          { icon: Brain, title: 'Clinical Decision Support', description: 'AI-powered insights for diagnosis assistance and treatment recommendations', confidence: '97.2%' },
+        ],
+        smartRecommendations: [
+          'Upload patient intake forms to extract demographics and insurance information',
+          'Process lab reports to identify critical values and trends',
+          'Analyze clinical notes to extract symptoms and treatment plans',
+        ],
+        complianceFeatures: ['HIPAA Privacy Protection', 'Medical Data Encryption', 'Audit Trail Logging'],
+        processingStats: { avgTime: '1.8s', accuracy: '99.2%', documentsProcessed: '2.3K+' }
+      },
+      legal: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Contract Analysis', description: 'Extract key terms, clauses, obligations, and identify risks in legal agreements', confidence: '98.1%' },
+          { icon: Shield, title: 'Legal Brief Processing', description: 'Analyze case documents, extract precedents, and identify legal arguments', confidence: '97.5%' },
+          { icon: Brain, title: 'Risk Assessment', description: 'AI-powered legal risk analysis and compliance verification', confidence: '96.8%' },
+        ],
+        smartRecommendations: [
+          'Upload contracts to extract key terms, dates, and obligations',
+          'Process legal briefs to identify case precedents and arguments',
+          'Analyze discovery documents for relevant evidence and facts',
+        ],
+        complianceFeatures: ['Attorney-Client Privilege Protection', 'Legal Document Security', 'Court Filing Standards'],
+        processingStats: { avgTime: '2.1s', accuracy: '97.5%', documentsProcessed: '1.8K+' }
+      },
+      finance: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Financial Statement Analysis', description: 'Extract financial data, ratios, and identify anomalies in reports', confidence: '98.9%' },
+          { icon: Shield, title: 'Fraud Detection', description: 'AI-powered fraud pattern recognition and risk assessment', confidence: '97.3%' },
+          { icon: Brain, title: 'Compliance Monitoring', description: 'Automated regulatory compliance checking and reporting', confidence: '98.5%' },
+        ],
+        smartRecommendations: [
+          'Upload bank statements to detect unusual transactions and patterns',
+          'Process invoices to extract payment terms and vendor information',
+          'Analyze tax documents to ensure compliance and identify deductions',
+        ],
+        complianceFeatures: ['SOX Compliance', 'AML/KYC Verification', 'Financial Data Security'],
+        processingStats: { avgTime: '1.5s', accuracy: '98.7%', documentsProcessed: '3.1K+' }
+      },
+      logistics: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Shipping Document Processing', description: 'Extract shipment details, tracking info, and customs data', confidence: '97.8%' },
+          { icon: Shield, title: 'Customs Compliance', description: 'Verify customs forms and international shipping requirements', confidence: '96.4%' },
+          { icon: Brain, title: 'Supply Chain Intelligence', description: 'AI-powered logistics optimization and route analysis', confidence: '95.9%' },
+        ],
+        smartRecommendations: [
+          'Upload bills of lading to extract shipment and cargo details',
+          'Process customs forms to ensure international compliance',
+          'Analyze delivery receipts to track shipment performance',
+        ],
+        complianceFeatures: ['International Shipping Standards', 'Customs Documentation', 'Multi-Language Support'],
+        processingStats: { avgTime: '2.3s', accuracy: '96.8%', documentsProcessed: '4.2K+' }
+      },
+      real_estate: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Property Document Analysis', description: 'Extract property details, terms, and financial information from contracts', confidence: '98.3%' },
+          { icon: Shield, title: 'Transaction Processing', description: 'Analyze closing documents, titles, and legal requirements', confidence: '97.1%' },
+          { icon: Brain, title: 'Market Intelligence', description: 'AI-powered property valuation and market trend analysis', confidence: '96.5%' },
+        ],
+        smartRecommendations: [
+          'Upload purchase agreements to extract terms and conditions',
+          'Process lease agreements to identify key clauses and obligations',
+          'Analyze property inspections to identify issues and recommendations',
+        ],
+        complianceFeatures: ['Real Estate Law Compliance', 'Title Verification', 'Escrow Documentation'],
+        processingStats: { avgTime: '1.9s', accuracy: '98.1%', documentsProcessed: '1.5K+' }
+      },
+      general: {
+        primaryCapabilities: [
+          { icon: FileText, title: 'Document Analysis', description: 'Extract text, tables, and structured data from any document type', confidence: '97.5%' },
+          { icon: Shield, title: 'Data Security', description: 'Enterprise-grade security with end-to-end encryption', confidence: '99.1%' },
+          { icon: Brain, title: 'AI Intelligence', description: 'Multi-model AI analysis with confidence scoring', confidence: '96.8%' },
+        ],
+        smartRecommendations: [
+          'Upload business documents to extract key information and data',
+          'Process forms and applications to automate data entry',
+          'Analyze reports to identify insights and trends',
+        ],
+        complianceFeatures: ['Enterprise Security', 'Data Privacy Protection', 'Flexible Processing'],
+        processingStats: { avgTime: '2.0s', accuracy: '97.2%', documentsProcessed: '5.7K+' }
+      }
+    };
+    return capabilities[industry as keyof typeof capabilities] || capabilities.general;
   };
 
+  const capabilities = getIndustryCapabilities(userIndustry);
+  const industryDisplayName = industryConfig.name;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Industry Templates
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Choose from specialized AI-powered document analysis templates
-          </p>
+    <div className="space-y-8">
+      {/* Industry-Focused Header */}
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center space-x-3">
+          <div className={`w-16 h-16 bg-gradient-to-br from-${industryConfig.color}-500 to-${industryConfig.color}-600 rounded-2xl flex items-center justify-center shadow-lg`}>
+            <i className={`${industryConfig.icon} text-white text-2xl`}></i>
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {industryDisplayName} Intelligence
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              AI-powered document processing specialized for your industry
+            </p>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          className="text-sm"
-          onClick={() => setLocation('/industry-selection')}
-          data-testid="button-switch-industry"
-        >
-          <i className="fas fa-exchange-alt mr-2"></i>
-          Switch Industry
-        </Button>
+        
+        {/* Performance Stats Banner */}
+        <div className="flex items-center justify-center space-x-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{capabilities.processingStats.accuracy}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{capabilities.processingStats.avgTime}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Avg Time</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{capabilities.processingStats.documentsProcessed}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Processed</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-        {industryTemplates.map((template) => (
-          <Card
-            key={template.id}
-            className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${
-              template.isActive 
-                ? 'ring-2 ring-blue-500 shadow-lg bg-blue-50/50 dark:bg-blue-950/30' 
-                : 'hover:shadow-xl border-gray-200 dark:border-gray-700'
-            }`}
-            onClick={() => handleCardClick(template)}
-            data-testid={`template-card-${template.id}`}
-          >
-            <CardContent className="p-6">
-              {/* Header with Icon and Badge */}
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 ${template.color} rounded-xl flex items-center justify-center shadow-lg`}>
-                  <i className={`${template.icon} ${template.iconColor} text-xl`}></i>
+      {/* Primary Capabilities */}
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          <Sparkles className="w-5 h-5 text-blue-500" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            What DOKTECH can do for you
+          </h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {capabilities.primaryCapabilities.map((capability, index) => (
+            <Card key={index} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+              <CardContent className="p-6">
+                <div className="flex items-start space-x-3">
+                  <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                    <capability.icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">
+                      {capability.title}
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      {capability.description}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {capability.confidence} confidence
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                {template.isActive && (
-                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                    Current
-                  </Badge>
-                )}
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
 
-              {/* Title and Description */}
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                {template.name}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                {template.description}
-              </p>
+      {/* Smart Recommendations */}
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          <Brain className="w-5 h-5 text-green-500" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Smart recommendations for your documents
+          </h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {capabilities.smartRecommendations.map((recommendation, index) => (
+            <Card key={index} className="hover:shadow-md transition-all duration-200 border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+              <CardContent className="p-4">
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{recommendation}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
 
-              {/* Features */}
-              <div className="space-y-2 mb-4">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Key Features
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {template.features.slice(0, 2).map((feature, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md"
-                    >
-                      {feature}
-                    </span>
-                  ))}
-                  {template.features.length > 2 && (
-                    <span className="inline-flex items-center px-2 py-1 text-xs text-gray-500 dark:text-gray-400">
-                      +{template.features.length - 2} more
-                    </span>
-                  )}
-                </div>
-              </div>
+      {/* Compliance Features */}
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          <Shield className="w-5 h-5 text-purple-500" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Built-in compliance & security
+          </h3>
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          {capabilities.complianceFeatures.map((feature, index) => (
+            <Badge key={index} variant="outline" className="px-3 py-1 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+              <Shield className="w-3 h-3 mr-1" />
+              {feature}
+            </Badge>
+          ))}
+        </div>
+      </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
-                    {template.stats.documents}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Docs</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
-                    {template.stats.accuracy}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Accuracy</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
-                    {template.stats.speed}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Speed</p>
-                </div>
-              </div>
-
-              {/* Chart Count and Action */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                  <i className="fas fa-chart-bar mr-2"></i>
-                  {template.chartCount} charts available
-                </div>
-                <Button
-                  size="sm"
-                  variant={template.isActive ? "default" : "ghost"}
-                  className="text-xs"
-                  data-testid={`button-select-${template.id}`}
-                >
-                  {template.isActive ? (
-                    <>
-                      <i className="fas fa-eye mr-1"></i>
-                      View
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-arrow-right mr-1"></i>
-                      Select
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Call to Action */}
+      <div className="text-center space-y-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl p-8 border border-blue-200 dark:border-blue-800">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Ready to transform your document workflow?
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          Upload your {industryDisplayName.toLowerCase()} documents and let DOKTECH's AI analyze them with industry-specific intelligence and compliance built-in.
+        </p>
+        <Button 
+          size="lg" 
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3"
+          onClick={onStartProcessing}
+          data-testid="button-start-processing"
+        >
+          <FileText className="w-5 h-5 mr-2" />
+          Start Processing Documents
+          <ArrowRight className="w-5 h-5 ml-2" />
+        </Button>
       </div>
     </div>
   );

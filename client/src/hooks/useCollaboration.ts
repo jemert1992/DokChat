@@ -65,7 +65,7 @@ export function useCollaboration({
       queryClient.invalidateQueries({ queryKey: ['/api/documents', documentId, 'sessions'] });
     },
     onError: (error: Error) => {
-      console.warn('Collaboration session failed:', error);
+      // Silent fail for collaboration sessions during document processing
       // Don't show error toast for collaboration issues during document processing
       // The user just wants to process documents, not necessarily collaborate
     },
@@ -84,7 +84,7 @@ export function useCollaboration({
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('📡 WebSocket connected for collaboration');
+        // WebSocket connected for collaboration
         setIsConnected(true);
         
         // Subscribe to document collaboration events
@@ -102,12 +102,12 @@ export function useCollaboration({
           const message = JSON.parse(event.data);
           handleCollaborationEvent(message);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          // Error parsing WebSocket message
         }
       };
 
       wsRef.current.onclose = () => {
-        console.log('📡 WebSocket disconnected');
+        // WebSocket disconnected
         setIsConnected(false);
         wsRef.current = null;
         
@@ -116,13 +116,13 @@ export function useCollaboration({
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // WebSocket error occurred
         setIsConnected(false);
         wsRef.current = null;
       };
 
     } catch (error) {
-      console.error('Failed to initialize WebSocket:', error);
+      // Failed to initialize WebSocket
     }
   }, [enabled, documentId]);
 

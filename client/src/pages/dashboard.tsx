@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import DocumentCardSkeleton from "@/components/DocumentCardSkeleton";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import Sidebar from "@/components/sidebar";
 import ModernHeader from "@/components/modern-header";
 import IndustryCapabilities from "@/components/template-cards";
@@ -58,11 +60,12 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400 text-lg">Loading your dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <LoadingSpinner 
+          fullScreen 
+          size="lg" 
+          message="Loading your dashboard..." 
+        />
       </div>
     );
   }
@@ -103,7 +106,7 @@ export default function Dashboard() {
               
               {/* Processing Status Banner */}
               {processingUpdates.length > 0 && (
-                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 animate-slideIn shadow-medium">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -159,7 +162,7 @@ export default function Dashboard() {
               />
               
               {/* Recent Documents Grid */}
-              <div className="space-y-6" data-testid="recent-documents">
+              <div className="space-y-6 animate-fadeIn" data-testid="recent-documents">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -175,12 +178,18 @@ export default function Dashboard() {
                   </Badge>
                 </div>
 
-                {documents && documents.length > 0 ? (
+                {documentsLoading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <DocumentCardSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : documents && documents.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 stagger-animation">
                     {documents.map((document) => (
                       <Card 
                         key={document.id}
-                        className="hover:shadow-lg transition-all cursor-pointer group"
+                        className="hover:shadow-lg transition-all cursor-pointer group card-hover animate-scaleIn"
                         onClick={() => setLocation(`/document/${document.id}`)}
                       >
                         <CardContent className="p-5">

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getIndustryConfig } from "@/lib/industry-config";
@@ -133,7 +134,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   };
 
   return (
-    <Card className="shadow-lg border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-gray-950">
+    <Card className="shadow-lg border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-gray-950 animate-fadeIn hover-lift">
       <CardContent className="p-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Your Documents</h2>
@@ -142,10 +143,10 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         
         <div
           id="upload-zone"
-          className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer min-h-[300px] flex flex-col items-center justify-center ${
+          className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer min-h-[300px] flex flex-col items-center justify-center ${
             isDragOver 
-              ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105' 
-              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20'
+              ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105 shadow-lg' 
+              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:shadow-md'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -153,7 +154,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
           onClick={handleClick}
           data-testid="upload-zone"
         >
-          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg animate-float">
             <i className="fas fa-cloud-upload-alt text-blue-600 dark:text-blue-400 text-4xl"></i>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
@@ -192,12 +193,15 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
 
         {/* Upload Progress */}
         {isUploading && (
-          <div className="mt-4" data-testid="upload-progress">
+          <div className="mt-4 animate-slideIn" data-testid="upload-progress">
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-              <span>Uploading document...</span>
-              <span data-testid="progress-percentage">{Math.round(uploadProgress)}%</span>
+              <span className="flex items-center">
+                <LoadingSpinner size="sm" className="mr-2" />
+                Uploading document<span className="loading-dots"></span>
+              </span>
+              <span data-testid="progress-percentage" className="font-semibold">{Math.round(uploadProgress)}%</span>
             </div>
-            <Progress value={uploadProgress} className="h-2" />
+            <Progress value={uploadProgress} className="h-2 transition-all duration-300" />
           </div>
         )}
       </CardContent>

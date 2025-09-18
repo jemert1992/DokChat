@@ -48,7 +48,7 @@ export function useWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        // WebSocket connected
         setIsConnected(true);
         
         // Subscribe to user's updates
@@ -70,12 +70,12 @@ export function useWebSocket() {
           const message: WebSocketMessage = JSON.parse(event.data);
           handleMessage(message);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          // Error parsing WebSocket message
         }
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        // WebSocket disconnected
         setIsConnected(false);
         
         // Clear heartbeat
@@ -92,23 +92,23 @@ export function useWebSocket() {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // WebSocket error occurred
         setIsConnected(false);
       };
 
     } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
+      // Error creating WebSocket connection
     }
   };
 
   const handleMessage = (message: WebSocketMessage) => {
     switch (message.type) {
       case 'connection':
-        console.log('WebSocket connection confirmed:', message.message);
+        // WebSocket connection confirmed
         break;
 
       case 'subscribed':
-        console.log('Subscribed to updates for user:', message.userId);
+        // Subscribed to updates for user
         break;
 
       case 'processing_update':
@@ -163,7 +163,7 @@ export function useWebSocket() {
 
       case 'analytics_update':
         // Handle analytics updates - could trigger dashboard refresh
-        console.log('Analytics updated:', message.analytics);
+        // Analytics updated
         queryClient.invalidateQueries({ 
           predicate: (query) => {
             const key = Array.isArray(query.queryKey) ? query.queryKey[0] : query.queryKey;
@@ -174,13 +174,13 @@ export function useWebSocket() {
 
       case 'realtime_analytics':
         // Handle real-time analytics streaming data
-        console.log('Real-time analytics received:', message.data);
+        // Real-time analytics received
         setRealtimeAnalytics(message.data);
         break;
 
       case 'cache_invalidation':
         // Handle cache invalidation for react-query
-        console.log('Invalidating caches:', message.queryKeys);
+        // Invalidating caches
         if (message.queryKeys && Array.isArray(message.queryKeys)) {
           message.queryKeys.forEach((queryKey: string) => {
             // For hierarchical keys, invalidate by prefix
@@ -212,7 +212,7 @@ export function useWebSocket() {
         break;
 
       default:
-        console.log('Unknown WebSocket message type:', message.type);
+        // Unknown WebSocket message type
     }
   };
 

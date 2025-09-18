@@ -85,9 +85,9 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 stagger-animation">
       {/* Document Processing Analytics */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-all duration-300 hover-lift animate-scaleIn">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -128,7 +128,7 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
       </Card>
 
       {/* Live Processing Status */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-all duration-300 hover-lift animate-scaleIn">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -197,7 +197,7 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
       </Card>
 
       {/* Industry Performance */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-all duration-300 hover-lift animate-scaleIn">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -242,7 +242,7 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
       </Card>
 
       {/* Quick Actions */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-all duration-300 hover-lift animate-scaleIn">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions

@@ -31,28 +31,22 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
         }
         break;
       case 'focus-upload':
-        // Switch to documents view and focus upload
-        if (onNavigate) onNavigate('documents');
-        setTimeout(() => {
-          const uploadZone = document.getElementById('upload-zone');
-          if (uploadZone) {
-            uploadZone.scrollIntoView({ behavior: 'smooth' });
-            uploadZone.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
-            setTimeout(() => {
-              uploadZone.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
-            }, 2000);
-          }
-        }, 100);
+        // Scroll to upload zone on dashboard
+        const uploadZone = document.getElementById('upload-zone');
+        if (uploadZone) {
+          uploadZone.scrollIntoView({ behavior: 'smooth' });
+          uploadZone.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'scale-105', 'transition-all');
+          setTimeout(() => {
+            uploadZone.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-75', 'scale-105');
+          }, 3000);
+        }
         break;
       case 'scroll-to-activity':
-        // Switch to documents view and scroll to activity
-        if (onNavigate) onNavigate('documents');
-        setTimeout(() => {
-          const activitySection = document.querySelector('[data-testid="recent-activity"]');
-          if (activitySection) {
-            activitySection.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 100);
+        // Scroll to recent documents section
+        const activitySection = document.querySelector('[data-testid="recent-documents"]');
+        if (activitySection) {
+          activitySection.scrollIntoView({ behavior: 'smooth' });
+        }
         break;
       case 'profile':
         if (onNavigate) onNavigate('profile');

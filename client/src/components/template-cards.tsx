@@ -232,10 +232,10 @@ export default function IndustryCapabilities({ userIndustry, onStartProcessing }
           size="lg" 
           className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3"
           onClick={onStartProcessing}
-          data-testid="button-start-processing"
+          data-testid="button-upload-documents-cta"
         >
-          <FileText className="w-5 h-5 mr-2" />
-          Start Processing Documents
+          <i className="fas fa-upload mr-2"></i>
+          Upload Documents
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
       </div>

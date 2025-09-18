@@ -84,14 +84,14 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
               </Button>
             )}
 
-            {/* Create New Button */}
+            {/* Upload Documents Button - Primary CTA */}
             <Button 
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 font-medium shadow-sm"
               onClick={onCreateNew}
-              data-testid="button-create-new"
+              data-testid="button-upload-documents"
             >
-              <i className="fas fa-plus mr-2"></i>
-              Create New
+              <i className="fas fa-upload mr-2"></i>
+              Upload Documents
             </Button>
 
             {/* User Dropdown Menu */}

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -132,16 +133,19 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   };
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Upload Documents</h3>
+    <Card className="shadow-lg border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-gray-950">
+      <CardContent className="p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Your Documents</h2>
+          <p className="text-gray-600 dark:text-gray-400">Powerful AI analysis for {industry} documents</p>
+        </div>
         
         <div
           id="upload-zone"
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+          className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer min-h-[300px] flex flex-col items-center justify-center ${
             isDragOver 
-              ? 'border-primary bg-primary/5' 
-              : 'border-border hover:border-primary/50'
+              ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105' 
+              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -149,18 +153,32 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
           onClick={handleClick}
           data-testid="upload-zone"
         >
-          <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <i className="fas fa-cloud-upload-alt text-primary text-2xl"></i>
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <i className="fas fa-cloud-upload-alt text-blue-600 dark:text-blue-400 text-4xl"></i>
           </div>
-          <h4 className="text-lg font-medium text-foreground mb-2">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
             Drop files here or click to browse
-          </h4>
-          <p className="text-muted-foreground text-sm mb-4" data-testid="upload-description">
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 text-lg mb-4 max-w-md" data-testid="upload-description">
             {industryConfig.uploadDescription}
           </p>
-          <p className="text-xs text-muted-foreground">
-            Supports PDF, DOC, DOCX, JPG, PNG up to 50MB
-          </p>
+          <div className="flex flex-wrap gap-3 justify-center mt-4">
+            <Badge variant="secondary" className="px-3 py-1">
+              <i className="fas fa-file-pdf mr-2 text-red-500"></i>
+              PDF
+            </Badge>
+            <Badge variant="secondary" className="px-3 py-1">
+              <i className="fas fa-file-word mr-2 text-blue-500"></i>
+              DOC/DOCX
+            </Badge>
+            <Badge variant="secondary" className="px-3 py-1">
+              <i className="fas fa-file-image mr-2 text-green-500"></i>
+              JPG/PNG
+            </Badge>
+            <Badge variant="outline" className="px-3 py-1">
+              Max 50MB
+            </Badge>
+          </div>
         </div>
 
         <input

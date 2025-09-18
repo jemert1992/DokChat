@@ -242,7 +242,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Document Library */}
-                  <Card>
+                  <Card data-testid="document-library">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <div>
@@ -254,14 +254,10 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Button variant="outline" size="sm">
-                            <i className="fas fa-filter mr-2"></i>
-                            Filter
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <i className="fas fa-download mr-2"></i>
-                            Export
-                          </Button>
+                          <Badge variant="outline" className="px-3 py-1">
+                            <i className="fas fa-database mr-1.5"></i>
+                            {documents?.length || 0} documents
+                          </Badge>
                         </div>
                       </div>
 
@@ -274,23 +270,50 @@ export default function Dashboard() {
                               onClick={() => setLocation(`/document/${document.id}`)}
                             >
                               <div className="flex items-center space-x-3 mb-3">
-                                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                                  <i className="fas fa-file-alt text-gray-500"></i>
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  document.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : 
+                                  document.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/30' : 
+                                  'bg-gray-100 dark:bg-gray-800'
+                                }`}>
+                                  <i className={`fas fa-file-alt ${
+                                    document.status === 'completed' ? 'text-green-600 dark:text-green-400' : 
+                                    document.status === 'processing' ? 'text-blue-600 dark:text-blue-400' : 
+                                    'text-gray-500'
+                                  }`}></i>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                     {document.originalFilename}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {document.status}
+                                    <Badge variant="secondary" className="text-xs">
+                                      {document.status === 'completed' ? 'Ready' : 
+                                       document.status === 'processing' ? 'Processing' : 
+                                       document.status || 'Unknown'}
+                                    </Badge>
                                   </p>
                                 </div>
                               </div>
-                              {document.aiConfidence && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {Math.round(document.aiConfidence * 100)}% confidence
-                                </div>
-                              )}
+                              <div className="flex items-center justify-between mt-3">
+                                {document.aiConfidence && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    <i className="fas fa-brain mr-1"></i>
+                                    {Math.round(document.aiConfidence * 100)}% AI confidence
+                                  </div>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-xs h-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLocation(`/document/${document.id}`);
+                                  }}
+                                  data-testid={`view-document-${document.id}`}
+                                >
+                                  View <i className="fas fa-arrow-right ml-1"></i>
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>

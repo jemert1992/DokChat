@@ -93,9 +93,10 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Document Processing
             </h3>
-            <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700" data-testid="button-document-options">
-              <i className="fas fa-ellipsis-h"></i>
-            </Button>
+            <Badge variant="outline" className="text-xs">
+              <i className="fas fa-chart-line mr-1"></i>
+              Real-time
+            </Badge>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -150,9 +151,29 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
 
           <div className="space-y-3">
             {[
-              { user: 'Medical AI Agent', status: 'Processing lab results', progress: 78 },
-              { user: 'Legal Assistant', status: 'Analyzing contracts', progress: 45 },
-              { user: 'Finance Bot', status: 'Risk assessment', progress: 92 }
+              { 
+                user: industry === 'medical' ? 'Clinical AI Agent' : 
+                      industry === 'legal' ? 'Legal Assistant' : 
+                      industry === 'finance' ? 'Financial Analyst' : 
+                      industry === 'logistics' ? 'Logistics AI' : 
+                      industry === 'real_estate' ? 'Property Analyst' : 'Document AI',
+                status: industry === 'medical' ? 'Processing patient records' : 
+                        industry === 'legal' ? 'Analyzing contracts' : 
+                        industry === 'finance' ? 'Risk assessment' : 
+                        industry === 'logistics' ? 'Tracking shipments' : 
+                        industry === 'real_estate' ? 'Property analysis' : 'Document extraction',
+                progress: Math.floor(Math.random() * 40) + 60
+              },
+              { 
+                user: 'Compliance Engine', 
+                status: `Verifying ${industry} standards`, 
+                progress: Math.floor(Math.random() * 30) + 70 
+              },
+              { 
+                user: 'Data Extractor', 
+                status: 'Processing metadata', 
+                progress: Math.floor(Math.random() * 20) + 80 
+              }
             ].map((session, index) => (
               <div key={index} className="flex items-center space-x-3" data-testid={`processing-session-${index}`}>
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -182,9 +203,10 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               {currentMetrics.title}
             </h3>
-            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700" data-testid="button-view-report">
-              View Report
-            </Button>
+            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+              <i className="fas fa-check-circle mr-1"></i>
+              Up to date
+            </Badge>
           </div>
 
           <div className="space-y-4">
@@ -200,12 +222,16 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
                 <span className="text-sm text-gray-600 dark:text-gray-400">{metric}</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {Math.floor(Math.random() * 10) + 90}%
+                    {index === 0 ? (stats?.avgConfidence ? `${Math.round(stats.avgConfidence * 100)}%` : '95%') :
+                     index === 1 ? (stats?.complianceScore ? `${stats.complianceScore}%` : '98%') :
+                     '94%'}
                   </span>
                   <div className="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-green-500 rounded-full" 
-                      style={{ width: `${Math.floor(Math.random() * 20) + 80}%` }}
+                      style={{ width: index === 0 ? (stats?.avgConfidence ? `${Math.round(stats.avgConfidence * 100)}%` : '95%') :
+                                     index === 1 ? (stats?.complianceScore ? `${stats.complianceScore}%` : '98%') :
+                                     '94%' }}
                     ></div>
                   </div>
                 </div>
@@ -222,42 +248,28 @@ export default function ModernAnalyticsWidgets({ industry, stats, isLoading }: M
             Quick Actions
           </h3>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
-              className="h-16 flex-col space-y-1"
-              data-testid="action-upload-documents"
-            >
-              <i className="fas fa-upload text-lg"></i>
-              <span className="text-xs">Upload</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-16 flex-col space-y-1"
-              data-testid="action-view-analytics"
-            >
-              <i className="fas fa-chart-line text-lg"></i>
-              <span className="text-xs">Analytics</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-16 flex-col space-y-1"
-              data-testid="action-export-data"
-            >
-              <i className="fas fa-download text-lg"></i>
-              <span className="text-xs">Export</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-16 flex-col space-y-1"
-              data-testid="action-settings"
-            >
-              <i className="fas fa-cog text-lg"></i>
-              <span className="text-xs">Settings</span>
-            </Button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <i className="fas fa-database text-blue-600"></i>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Documents in Database</span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{stats?.documentsProcessed || 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <i className="fas fa-clock text-green-600"></i>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Avg Processing Time</span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{stats?.avgProcessingTime || '2.3'}s</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <i className="fas fa-shield-alt text-purple-600"></i>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Security Score</span>
+              </div>
+              <span className="text-sm font-semibold text-green-600">100%</span>
+            </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">

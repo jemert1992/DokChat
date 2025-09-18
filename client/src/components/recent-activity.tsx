@@ -90,7 +90,19 @@ export default function RecentActivity({ documents, isLoading, onDocumentClick }
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
-          <Button variant="ghost" size="sm" data-testid="button-view-all">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            data-testid="button-view-all"
+            onClick={() => {
+              // Scroll to document library section
+              const librarySection = document.querySelector('[data-testid="document-library"]');
+              if (librarySection) {
+                librarySection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            title="View all documents in library"
+          >
             View All
           </Button>
         </div>

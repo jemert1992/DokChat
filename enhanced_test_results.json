@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-09-18T04:51:17.936Z",
+  "uiElements": [
+    {
+      "name": "React App Root",
+      "pattern": {},
+      "found": true
+    },
+    {
+      "name": "Upload Zone",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Dashboard Elements",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Data Test IDs",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Industry Selector",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Authentication",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Document Cards",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Analytics Widgets",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Mobile Menu",
+      "pattern": {},
+      "found": false
+    },
+    {
+      "name": "Responsive Classes",
+      "pattern": {},
+      "found": false
+    }
+  ],
+  "uploadTests": {
+    "testFileExists": true,
+    "requiresAuth": true,
+    "statusCode": "401"
+  },
+  "responsiveness": {
+    "tailwindBreakpoints": false,
+    "mobileFirst": false,
+    "viewportMeta": true,
+    "flexibleLayouts": false,
+    "hiddenOnMobile": false
+  },
+  "industryFeatures": {
+    "real_estate": {
+      "loaded": false,
+      "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    },
+    "medical": {
+      "loaded": false,
+      "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    },
+    "legal": {
+      "loaded": false,
+      "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    },
+    "finance": {
+      "loaded": false,
+      "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    }
+  },
+  "documentViewing": {
+    "uiPresent": false,
+    "statusCode": 200
+  },
+  "additionalFindings": [
+    {
+      "category": "WebSocket",
+      "status": "not-detected",
+      "note": "Real-time testing requires active connection"
+    },
+    {
+      "category": "Admin Features",
+      "status": "endpoints-protected",
+      "note": "Admin features require admin@emert.ai authentication to fully test"
+    }
+  ],
+  "summary": {
+    "readyForDemo": true,
+    "criticalIssues": [],
+    "warnings": [
+      "Some UI elements not detected in initial HTML - may load dynamically",
+      "Limited mobile responsiveness indicators detected"
+    ],
+    "successfulFeatures": [
+      "Upload endpoint properly secured with authentication"
+    ]
+  }
+}

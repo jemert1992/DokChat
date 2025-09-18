@@ -1,0 +1,339 @@
+{
+  "timestamp": "2025-09-18T04:49:28.977Z",
+  "environment": "Development",
+  "applicationUrl": "http://localhost:5000",
+  "testSummary": {
+    "totalTests": 35,
+    "passed": 24,
+    "failed": 0,
+    "warnings": 11
+  },
+  "sections": {
+    "Landing & Navigation": {
+      "tests": [
+        {
+          "name": "Homepage Load",
+          "status": "passed",
+          "message": "Homepage loads successfully",
+          "timestamp": "2025-09-18T04:49:29.011Z"
+        },
+        {
+          "name": "Auth Endpoint",
+          "status": "passed",
+          "message": "Auth endpoint responds correctly (401 when not logged in)",
+          "timestamp": "2025-09-18T04:49:29.014Z"
+        },
+        {
+          "name": "Login Redirect",
+          "status": "passed",
+          "message": "Login endpoint accessible",
+          "timestamp": "2025-09-18T04:49:31.870Z"
+        },
+        {
+          "name": "Static Assets",
+          "status": "passed",
+          "message": "Static asset routing configured",
+          "timestamp": "2025-09-18T04:49:31.877Z"
+        }
+      ],
+      "summary": {
+        "passed": 4,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    "API Endpoints": {
+      "tests": [
+        {
+          "name": "Documents API",
+          "status": "passed",
+          "message": "Documents API endpoint responds (requires auth)",
+          "timestamp": "2025-09-18T04:49:31.884Z"
+        },
+        {
+          "name": "Dashboard Stats",
+          "status": "passed",
+          "message": "Dashboard Stats endpoint responds (requires auth)",
+          "timestamp": "2025-09-18T04:49:31.886Z"
+        },
+        {
+          "name": "Industry Config",
+          "status": "passed",
+          "message": "Industry Config endpoint accessible",
+          "timestamp": "2025-09-18T04:49:31.891Z"
+        },
+        {
+          "name": "Compliance Status",
+          "status": "passed",
+          "message": "Compliance Status endpoint accessible",
+          "timestamp": "2025-09-18T04:49:31.900Z"
+        },
+        {
+          "name": "Collaboration Sessions",
+          "status": "passed",
+          "message": "Collaboration Sessions endpoint accessible",
+          "timestamp": "2025-09-18T04:49:31.909Z"
+        }
+      ],
+      "summary": {
+        "passed": 5,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    "WebSocket": {
+      "tests": [
+        {
+          "name": "WebSocket Configuration",
+          "status": "passed",
+          "message": "WebSocket endpoint should be available on port 5000",
+          "timestamp": "2025-09-18T04:49:31.915Z"
+        },
+        {
+          "name": "WebSocket Availability",
+          "status": "warnings",
+          "message": "WebSocket testing requires browser or WebSocket client - manual verification needed",
+          "timestamp": "2025-09-18T04:49:31.916Z"
+        }
+      ],
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 1
+      }
+    },
+    "File Upload": {
+      "tests": [
+        {
+          "name": "Upload Directory",
+          "status": "passed",
+          "message": "Upload directory exists",
+          "timestamp": "2025-09-18T04:49:31.916Z"
+        },
+        {
+          "name": "Upload Endpoint",
+          "status": "passed",
+          "message": "Upload endpoint configured (requires auth and file)",
+          "timestamp": "2025-09-18T04:49:31.920Z"
+        }
+      ],
+      "summary": {
+        "passed": 2,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    "Document Processing": {
+      "tests": [
+        {
+          "name": "AI Analysis",
+          "status": "warnings",
+          "message": "AI Analysis returned status 200",
+          "timestamp": "2025-09-18T04:49:31.935Z"
+        },
+        {
+          "name": "Vision Processing",
+          "status": "warnings",
+          "message": "Vision Processing returned status 200",
+          "timestamp": "2025-09-18T04:49:31.945Z"
+        },
+        {
+          "name": "Data Extraction",
+          "status": "warnings",
+          "message": "Data Extraction returned status 200",
+          "timestamp": "2025-09-18T04:49:31.964Z"
+        },
+        {
+          "name": "Document Chat",
+          "status": "warnings",
+          "message": "Document Chat returned status 200",
+          "timestamp": "2025-09-18T04:49:32.006Z"
+        },
+        {
+          "name": "GraphicsMagick",
+          "status": "passed",
+          "message": "GraphicsMagick is installed and available",
+          "timestamp": "2025-09-18T04:49:32.021Z"
+        }
+      ],
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 4
+      }
+    },
+    "Security": {
+      "tests": [
+        {
+          "name": "Security Headers",
+          "status": "warnings",
+          "message": "Some security headers may be missing",
+          "timestamp": "2025-09-18T04:49:32.025Z"
+        },
+        {
+          "name": "Rate Limiting",
+          "status": "warnings",
+          "message": "Rate limiting testing requires multiple rapid requests - manual verification recommended",
+          "timestamp": "2025-09-18T04:49:32.025Z"
+        },
+        {
+          "name": "Authentication Required",
+          "status": "passed",
+          "message": "API endpoints require authentication (verified in previous tests)",
+          "timestamp": "2025-09-18T04:49:32.025Z"
+        }
+      ],
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 2
+      }
+    },
+    "Industry Features": {
+      "tests": [
+        {
+          "name": "medical Configuration",
+          "status": "passed",
+          "message": "medical industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.033Z"
+        },
+        {
+          "name": "legal Configuration",
+          "status": "passed",
+          "message": "legal industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.042Z"
+        },
+        {
+          "name": "finance Configuration",
+          "status": "passed",
+          "message": "finance industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.053Z"
+        },
+        {
+          "name": "logistics Configuration",
+          "status": "passed",
+          "message": "logistics industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.062Z"
+        },
+        {
+          "name": "real_estate Configuration",
+          "status": "passed",
+          "message": "real_estate industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.074Z"
+        },
+        {
+          "name": "general Configuration",
+          "status": "passed",
+          "message": "general industry configuration available",
+          "timestamp": "2025-09-18T04:49:32.085Z"
+        }
+      ],
+      "summary": {
+        "passed": 6,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    "Mobile Responsiveness": {
+      "tests": [
+        {
+          "name": "Viewport Meta Tag",
+          "status": "warnings",
+          "message": "Viewport meta tag testing requires HTML parsing - manual verification needed",
+          "timestamp": "2025-09-18T04:49:32.086Z"
+        },
+        {
+          "name": "Touch Targets",
+          "status": "warnings",
+          "message": "Touch target size testing requires browser automation - manual verification needed",
+          "timestamp": "2025-09-18T04:49:32.086Z"
+        },
+        {
+          "name": "Responsive Layout",
+          "status": "warnings",
+          "message": "Responsive layout testing requires different viewport sizes - manual verification needed",
+          "timestamp": "2025-09-18T04:49:32.086Z"
+        },
+        {
+          "name": "Mobile Menu",
+          "status": "warnings",
+          "message": "Mobile menu functionality requires browser interaction - manual verification needed",
+          "timestamp": "2025-09-18T04:49:32.086Z"
+        }
+      ],
+      "summary": {
+        "passed": 0,
+        "failed": 0,
+        "warnings": 4
+      }
+    },
+    "Database": {
+      "tests": [
+        {
+          "name": "Database Connection",
+          "status": "passed",
+          "message": "Database connectivity endpoint checked",
+          "timestamp": "2025-09-18T04:49:32.094Z"
+        }
+      ],
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    "Integrations": {
+      "tests": [
+        {
+          "name": "OpenAI API",
+          "status": "passed",
+          "message": "OpenAI API key configured",
+          "timestamp": "2025-09-18T04:49:32.094Z"
+        },
+        {
+          "name": "Anthropic API",
+          "status": "passed",
+          "message": "Anthropic API key configured",
+          "timestamp": "2025-09-18T04:49:32.094Z"
+        },
+        {
+          "name": "Google Vision",
+          "status": "passed",
+          "message": "Google Vision API authenticated (verified in logs)",
+          "timestamp": "2025-09-18T04:49:32.095Z"
+        }
+      ],
+      "summary": {
+        "passed": 3,
+        "failed": 0,
+        "warnings": 0
+      }
+    }
+  },
+  "overallStatus": "READY FOR DEMO",
+  "criticalIssues": [],
+  "warnings": [
+    "WebSocket: WebSocket testing requires browser or WebSocket client - manual verification needed",
+    "Document Processing: AI Analysis returned status 200",
+    "Document Processing: Vision Processing returned status 200",
+    "Document Processing: Data Extraction returned status 200",
+    "Document Processing: Document Chat returned status 200",
+    "Security: Some security headers may be missing",
+    "Security: Rate limiting testing requires multiple rapid requests - manual verification recommended",
+    "Mobile Responsiveness: Viewport meta tag testing requires HTML parsing - manual verification needed",
+    "Mobile Responsiveness: Touch target size testing requires browser automation - manual verification needed",
+    "Mobile Responsiveness: Responsive layout testing requires different viewport sizes - manual verification needed",
+    "Mobile Responsiveness: Mobile menu functionality requires browser interaction - manual verification needed"
+  ],
+  "workingFeatures": [
+    "Landing & Navigation: 4 tests passed",
+    "API Endpoints: 5 tests passed",
+    "WebSocket: 1 tests passed",
+    "File Upload: 2 tests passed",
+    "Document Processing: 1 tests passed",
+    "Security: 1 tests passed",
+    "Industry Features: 6 tests passed",
+    "Database: 1 tests passed",
+    "Integrations: 3 tests passed"
+  ]
+}

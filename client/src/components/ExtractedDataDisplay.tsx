@@ -20,6 +20,7 @@ const ExtractedDataDisplay: React.FC<ExtractedDataDisplayProps> = ({ data }) => 
   const [transformedData, setTransformedData] = useState<TransformedData | null>(null);
   const [activeTab, setActiveTab] = useState('insights');
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<ProcessedInsight | null>(null);
 
   useEffect(() => {
     if (data && user?.industry) {
@@ -74,7 +75,14 @@ const ExtractedDataDisplay: React.FC<ExtractedDataDisplayProps> = ({ data }) => 
   };
 
   const renderInsightCard = (insight: ProcessedInsight) => (
-    <Card key={insight.id} className={`${getSeverityColor(insight.severity)} border transition-all hover:shadow-md`}>
+    <Card 
+      key={insight.id} 
+      className={`${getSeverityColor(insight.severity)} border transition-all hover:shadow-md cursor-pointer ${
+        selectedInsight?.id === insight.id ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={() => setSelectedInsight(insight)}
+      data-testid={`insight-card-${insight.id}`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
@@ -312,23 +320,114 @@ const ExtractedDataDisplay: React.FC<ExtractedDataDisplayProps> = ({ data }) => 
         </div>
 
         {/* Insights Tab */}
-        <TabsContent value="insights" className="space-y-4 mt-4">
+        <TabsContent value="insights" className="mt-4">
           {Object.keys(groupedInsights).length > 0 ? (
-            Object.entries(groupedInsights).map(([category, categoryInsights]) => (
-              <div key={category} className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                  <span className="bg-primary/10 text-primary px-2 py-1 rounded-md">
-                    {category}
-                  </span>
-                  <Badge variant="secondary" className="ml-2">
-                    {categoryInsights.length}
-                  </Badge>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Insights Sidebar */}
+              <div className="lg:col-span-1 space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Select an Insight
                 </h3>
-                <div className="grid gap-3">
-                  {categoryInsights.map(renderInsightCard)}
-                </div>
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-4 pr-4">
+                    {Object.entries(groupedInsights).map(([category, categoryInsights]) => (
+                      <div key={category} className="space-y-3">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                          <span className="bg-primary/10 text-primary px-2 py-1 rounded-md">
+                            {category}
+                          </span>
+                          <Badge variant="secondary" className="ml-2">
+                            {categoryInsights.length}
+                          </Badge>
+                        </h4>
+                        <div className="space-y-2">
+                          {categoryInsights.map(renderInsightCard)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
-            ))
+              
+              {/* Main Insight Panel */}
+              <div className="lg:col-span-2">
+                {selectedInsight ? (
+                  <Card className="h-[600px]">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className={`p-3 rounded-lg ${selectedInsight.severity === 'critical' ? 'bg-red-100 dark:bg-red-900' : 
+                                                             selectedInsight.severity === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900' :
+                                                             selectedInsight.severity === 'success' ? 'bg-green-100 dark:bg-green-900' :
+                                                             'bg-blue-100 dark:bg-blue-900'}`}>
+                            <i className={`${selectedInsight.icon} text-xl`}></i>
+                          </div>
+                          <div>
+                            <Badge variant={getSeverityBadgeColor(selectedInsight.severity)} className="mb-2">
+                              {selectedInsight.category}
+                            </Badge>
+                            <CardTitle className="text-xl">{selectedInsight.title}</CardTitle>
+                          </div>
+                        </div>
+                        {selectedInsight.confidence && showTechnicalDetails && (
+                          <Badge variant="outline" className="text-sm">
+                            {Math.round(selectedInsight.confidence * 100)}% confidence
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[400px]">
+                        <div className="space-y-4">
+                          <p className="text-foreground leading-relaxed">{selectedInsight.description}</p>
+                          
+                          {selectedInsight.details && selectedInsight.details.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="font-semibold text-foreground flex items-center">
+                                <i className="fas fa-info-circle mr-2 text-primary"></i>
+                                Details
+                              </h4>
+                              <div className="space-y-2">
+                                {selectedInsight.details.map((detail, idx) => (
+                                  <div key={idx} className="flex items-start space-x-3 p-3 bg-accent/30 rounded-lg">
+                                    <i className="fas fa-chevron-right text-xs mt-1 text-primary"></i>
+                                    <span className="text-sm text-foreground">{detail}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {selectedInsight.actions && selectedInsight.actions.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="font-semibold text-foreground flex items-center">
+                                <i className="fas fa-tasks mr-2 text-primary"></i>
+                                Recommended Actions
+                              </h4>
+                              <div className="space-y-2">
+                                {selectedInsight.actions.map((action, idx) => (
+                                  <div key={idx} className="flex items-start space-x-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                                    <i className="fas fa-arrow-right text-xs mt-1 text-primary"></i>
+                                    <span className="text-sm text-foreground font-medium">{action}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="h-[600px] flex items-center justify-center">
+                    <CardContent className="text-center">
+                      <i className="fas fa-hand-pointer text-4xl text-muted-foreground mb-4 opacity-50"></i>
+                      <p className="text-muted-foreground">Click on an insight card to view details</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
           ) : (
             <Card className="text-center py-8">
               <CardContent>

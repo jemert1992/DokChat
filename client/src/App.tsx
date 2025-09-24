@@ -11,6 +11,11 @@ import IndustrySelection from "@/pages/industry-selection";
 import Dashboard from "@/pages/dashboard";
 import DocumentAnalysis from "@/pages/document-analysis";
 import NotFound from "@/pages/not-found";
+// Industry-specific dashboards
+import MedicalDashboard from "@/pages/industry/medical-dashboard";
+import LegalDashboard from "@/pages/industry/legal-dashboard";
+import FinanceDashboard from "@/pages/industry/finance-dashboard";
+import LogisticsDashboard from "@/pages/industry/logistics-dashboard";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -38,6 +43,15 @@ function Router() {
           <Route path="/industry-selection" component={IndustrySelection} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/document/:id" component={DocumentAnalysis} />
+          {/* Industry-specific dashboards */}
+          <Route path="/medical/patient-dashboard" component={MedicalDashboard} />
+          <Route path="/medical/clinical-analytics" component={MedicalDashboard} />
+          <Route path="/legal/case-manager" component={LegalDashboard} />
+          <Route path="/legal/contract-analysis" component={LegalDashboard} />
+          <Route path="/finance/analytics-hub" component={FinanceDashboard} />
+          <Route path="/finance/transaction-monitoring" component={FinanceDashboard} />
+          <Route path="/logistics/control-center" component={LogisticsDashboard} />
+          <Route path="/logistics/shipment-tracking" component={LogisticsDashboard} />
         </>
       )}
       <Route component={NotFound} />

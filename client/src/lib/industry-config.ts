@@ -3,6 +3,7 @@ export interface NavigationItem {
   icon: string;
   label: string;
   view?: string;
+  path?: string;
   action: string;
   badge?: string | null;
   description?: string;
@@ -80,8 +81,8 @@ const industryConfigs: Record<string, IndustryConfig> = {
         label: 'CLINICAL WORKFLOW',
         priority: 1,
         items: [
-          { id: 'patient-dashboard', icon: 'fas fa-user-md', label: 'Patient Dashboard', view: 'capabilities', action: 'navigate', badge: null },
-          { id: 'clinical-analytics', icon: 'fas fa-chart-pulse', label: 'Clinical Analytics', view: 'analytics', action: 'navigate', badge: 'INSIGHTS' },
+          { id: 'patient-dashboard', icon: 'fas fa-user-md', label: 'Patient Dashboard', path: '/medical/patient-dashboard', action: 'navigate', badge: null },
+          { id: 'clinical-analytics', icon: 'fas fa-chart-pulse', label: 'Clinical Analytics', path: '/medical/clinical-analytics', action: 'navigate', badge: 'INSIGHTS' },
           { id: 'patient-records', icon: 'fas fa-file-medical', label: 'Patient Records', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -91,7 +92,7 @@ const industryConfigs: Record<string, IndustryConfig> = {
         items: [
           { id: 'upload-records', icon: 'fas fa-upload', label: 'Upload Medical Files', action: 'focus-upload', badge: null, description: 'Add new patient documents' },
           { id: 'lab-results', icon: 'fas fa-flask', label: 'Lab Results Analysis', action: 'scroll-to-activity', badge: null },
-          { id: 'diagnostic-ai', icon: 'fas fa-brain', label: 'Diagnostic AI', view: 'analytics', action: 'navigate', badge: 'AI' },
+          { id: 'diagnostic-ai', icon: 'fas fa-brain', label: 'Diagnostic AI', path: '/medical/patient-dashboard', action: 'navigate', badge: 'AI' },
           { id: 'hipaa-compliance', icon: 'fas fa-shield-alt', label: 'HIPAA Compliance', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -142,8 +143,8 @@ const industryConfigs: Record<string, IndustryConfig> = {
         label: 'LEGAL PRACTICE',
         priority: 1,
         items: [
-          { id: 'case-management', icon: 'fas fa-folder-open', label: 'Case Management', view: 'capabilities', action: 'navigate', badge: null },
-          { id: 'contract-analytics', icon: 'fas fa-chart-bar', label: 'Contract Analytics', view: 'analytics', action: 'navigate', badge: 'INSIGHTS' },
+          { id: 'case-management', icon: 'fas fa-folder-open', label: 'Case Management', path: '/legal/case-manager', action: 'navigate', badge: null },
+          { id: 'contract-analytics', icon: 'fas fa-chart-bar', label: 'Contract Analytics', path: '/legal/contract-analysis', action: 'navigate', badge: 'INSIGHTS' },
           { id: 'document-vault', icon: 'fas fa-vault', label: 'Document Vault', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -153,7 +154,7 @@ const industryConfigs: Record<string, IndustryConfig> = {
         items: [
           { id: 'upload-legal', icon: 'fas fa-upload', label: 'Upload Legal Docs', action: 'focus-upload', badge: null, description: 'Add contracts and legal documents' },
           { id: 'contract-review', icon: 'fas fa-file-contract', label: 'Contract Review', action: 'scroll-to-activity', badge: null },
-          { id: 'clause-analysis', icon: 'fas fa-search-plus', label: 'Clause Analysis', view: 'analytics', action: 'navigate', badge: 'AI' },
+          { id: 'clause-analysis', icon: 'fas fa-search-plus', label: 'Clause Analysis', path: '/legal/contract-analysis', action: 'navigate', badge: 'AI' },
           { id: 'compliance-check', icon: 'fas fa-shield-check', label: 'Compliance Check', view: 'documents', action: 'navigate', badge: 'VERIFY' }
         ]
       },
@@ -204,8 +205,8 @@ const industryConfigs: Record<string, IndustryConfig> = {
         label: 'SHIPMENT OPERATIONS',
         priority: 1,
         items: [
-          { id: 'shipment-tracking', icon: 'fas fa-map-marked-alt', label: 'Shipment Tracking', view: 'capabilities', action: 'navigate', badge: null },
-          { id: 'supply-analytics', icon: 'fas fa-chart-line', label: 'Supply Analytics', view: 'analytics', action: 'navigate', badge: 'LIVE' },
+          { id: 'shipment-tracking', icon: 'fas fa-map-marked-alt', label: 'Shipment Tracking', path: '/logistics/shipment-tracking', action: 'navigate', badge: null },
+          { id: 'supply-analytics', icon: 'fas fa-chart-line', label: 'Supply Analytics', path: '/logistics/control-center', action: 'navigate', badge: 'LIVE' },
           { id: 'cargo-manifest', icon: 'fas fa-clipboard-list', label: 'Cargo Manifest', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -215,7 +216,7 @@ const industryConfigs: Record<string, IndustryConfig> = {
         items: [
           { id: 'upload-shipping', icon: 'fas fa-upload', label: 'Upload Ship Docs', action: 'focus-upload', badge: null, description: 'Add shipping and customs documents' },
           { id: 'customs-clearance', icon: 'fas fa-passport', label: 'Customs Clearance', action: 'scroll-to-activity', badge: null },
-          { id: 'route-optimization', icon: 'fas fa-route', label: 'Route Optimization', view: 'analytics', action: 'navigate', badge: 'AI' },
+          { id: 'route-optimization', icon: 'fas fa-route', label: 'Route Optimization', path: '/logistics/control-center', action: 'navigate', badge: 'AI' },
           { id: 'compliance-audit', icon: 'fas fa-clipboard-check', label: 'Compliance Audit', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -266,8 +267,8 @@ const industryConfigs: Record<string, IndustryConfig> = {
         label: 'FINANCIAL ANALYSIS',
         priority: 1,
         items: [
-          { id: 'portfolio-dashboard', icon: 'fas fa-chart-pie', label: 'Portfolio Dashboard', view: 'capabilities', action: 'navigate', badge: null },
-          { id: 'risk-analytics', icon: 'fas fa-chart-area', label: 'Risk Analytics', view: 'analytics', action: 'navigate', badge: 'RISK' },
+          { id: 'portfolio-dashboard', icon: 'fas fa-chart-pie', label: 'Portfolio Dashboard', path: '/finance/analytics-hub', action: 'navigate', badge: null },
+          { id: 'risk-analytics', icon: 'fas fa-chart-area', label: 'Risk Analytics', path: '/finance/transaction-monitoring', action: 'navigate', badge: 'RISK' },
           { id: 'financial-records', icon: 'fas fa-file-invoice-dollar', label: 'Financial Records', view: 'documents', action: 'navigate', badge: null }
         ]
       },
@@ -277,7 +278,7 @@ const industryConfigs: Record<string, IndustryConfig> = {
         items: [
           { id: 'upload-financial', icon: 'fas fa-upload', label: 'Upload Financials', action: 'focus-upload', badge: null, description: 'Add financial statements and reports' },
           { id: 'credit-analysis', icon: 'fas fa-credit-card', label: 'Credit Analysis', action: 'scroll-to-activity', badge: null },
-          { id: 'fraud-detection', icon: 'fas fa-shield-alt', label: 'Fraud Detection', view: 'analytics', action: 'navigate', badge: 'AI' },
+          { id: 'fraud-detection', icon: 'fas fa-shield-alt', label: 'Fraud Detection', path: '/finance/transaction-monitoring', action: 'navigate', badge: 'AI' },
           { id: 'regulatory-reports', icon: 'fas fa-balance-scale', label: 'Regulatory Reports', view: 'documents', action: 'navigate', badge: 'COMPLIANCE' }
         ]
       },

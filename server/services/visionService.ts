@@ -252,7 +252,7 @@ export class VisionService {
       // Ensure output directory exists
       await fs.promises.mkdir(outputDir, { recursive: true });
       
-      // Configure pdf2pic conversion
+      // Configure pdf2pic conversion 
       const convert = pdf2pic.fromPath(pdfPath, {
         density: 300,           // DPI for good OCR quality
         saveFilename: "page",
@@ -260,7 +260,7 @@ export class VisionService {
         format: "png",
         width: 2000,           // Max width for good quality
         height: 2800           // Max height for good quality
-      });
+      } as any);
 
       console.log(`📄 Converting PDF to images for OCR: ${pdfPath}`);
       

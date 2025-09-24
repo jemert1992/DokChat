@@ -26,7 +26,7 @@ export default function MedicalDashboard() {
 
   // Fetch medical documents
   const { data: documents } = useQuery<Document[]>({
-    queryKey: ["/api/documents", { industry: "medical" }],
+    queryKey: ["/api/documents"],
   });
 
   // Mock patient data - in production, this would come from the database
@@ -265,7 +265,7 @@ export default function MedicalDashboard() {
                           <Badge className="bg-yellow-100 text-yellow-700">Borderline</Badge>
                         </div>
                         <Progress value={75} className="h-2" />
-                        <p className="text-sm text-gray-500 mt-1">210 mg/dL (Range: <200)</p>
+                        <p className="text-sm text-gray-500 mt-1">210 mg/dL (Range: &lt;200)</p>
                       </div>
                       
                       <div className="p-3 border rounded-lg">

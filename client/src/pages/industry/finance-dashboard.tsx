@@ -25,7 +25,7 @@ export default function FinanceDashboard() {
 
   // Fetch financial documents
   const { data: documents } = useQuery<Document[]>({
-    queryKey: ["/api/documents", { industry: "finance" }],
+    queryKey: ["/api/documents"],
   });
 
   // Mock transaction data - in production, this would come from the database

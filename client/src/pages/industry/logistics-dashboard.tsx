@@ -28,7 +28,7 @@ export default function LogisticsDashboard() {
 
   // Fetch logistics documents
   const { data: documents } = useQuery<Document[]>({
-    queryKey: ["/api/documents", { industry: "logistics" }],
+    queryKey: ["/api/documents"],
   });
 
   // Mock shipment data - in production, this would come from the database

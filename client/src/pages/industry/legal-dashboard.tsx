@@ -25,7 +25,7 @@ export default function LegalDashboard() {
 
   // Fetch legal documents
   const { data: documents } = useQuery<Document[]>({
-    queryKey: ["/api/documents", { industry: "legal" }],
+    queryKey: ["/api/documents"],
   });
 
   // Mock case data - in production, this would come from the database

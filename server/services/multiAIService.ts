@@ -105,15 +105,9 @@ export class MultiAIService {
     this.securityService = new AdvancedSecurityService();
     this.multiLanguageService = new MultiLanguageService();
     
-    // Initialize Anthropic Claude integration
-    try {
-      this.anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY
-      });
-    } catch (error) {
-      console.error('Failed to initialize Anthropic client:', error);
-      this.anthropic = null;
-    }
+    // Anthropic integration disabled (no API key available)
+    this.anthropic = null;
+    console.log('⚠️  Anthropic integration disabled - no API key provided');
     
     console.log('🚀 Revolutionary MultiAI Service initialized with industry-specific capabilities');
   }

@@ -252,7 +252,8 @@ export class VisionService {
       // Ensure output directory exists
       await fs.promises.mkdir(outputDir, { recursive: true });
       
-      // Configure pdf2pic conversion 
+      // Configure pdf2pic to use ImageMagick directly
+      process.env.GM_PATH = '/nix/store/1izdxwml9nsifjrh53rdfiglhjmrnx2s-imagemagick-7.1.1-32/bin/convert';
       const convert = pdf2pic.fromPath(pdfPath, {
         density: 300,           // DPI for good OCR quality
         saveFilename: "page",

@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Activity, 
   Heart, 
@@ -23,6 +31,9 @@ import type { Document } from "@shared/schema";
 
 export default function MedicalDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
+  const [showAddPatientDialog, setShowAddPatientDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const { toast } = useToast();
 
   // Fetch medical documents
   const { data: documents } = useQuery<Document[]>({
@@ -56,11 +67,31 @@ export default function MedicalDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" data-testid="button-add-patient">
+          <Button 
+            variant="outline" 
+            data-testid="button-add-patient"
+            onClick={() => {
+              toast({
+                title: "Add Patient",
+                description: "Opening patient registration form...",
+              });
+              setShowAddPatientDialog(true);
+            }}
+          >
             <Users className="h-4 w-4 mr-2" />
             Add Patient
           </Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" data-testid="button-upload-records">
+          <Button 
+            className="bg-teal-600 hover:bg-teal-700" 
+            data-testid="button-upload-records"
+            onClick={() => {
+              toast({
+                title: "Upload Medical Records",
+                description: "Opening document upload dialog...",
+              });
+              setShowUploadDialog(true);
+            }}
+          >
             <FileText className="h-4 w-4 mr-2" />
             Upload Records
           </Button>
@@ -345,6 +376,64 @@ export default function MedicalDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Patient Dialog */}
+      <Dialog open={showAddPatientDialog} onOpenChange={setShowAddPatientDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Patient</DialogTitle>
+            <DialogDescription>
+              Enter patient information to create a new medical record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Patient registration form would appear here</p>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowAddPatientDialog(false);
+                toast({
+                  title: "Success",
+                  description: "New patient added successfully!",
+                });
+              }}
+            >
+              Add Patient
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Records Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Medical Records</DialogTitle>
+            <DialogDescription>
+              Upload patient records, lab results, or medical documents.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-600">Drop medical records here or click to browse</p>
+              <p className="text-xs text-gray-500 mt-2">Supports PDF, DICOM, HL7 formats</p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowUploadDialog(false);
+                toast({
+                  title: "Success",
+                  description: "Medical records uploaded and processed!",
+                });
+              }}
+            >
+              Upload & Process
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

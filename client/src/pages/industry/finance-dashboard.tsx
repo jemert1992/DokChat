@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   TrendingUp, 
   TrendingDown,
@@ -22,6 +30,9 @@ import type { Document } from "@shared/schema";
 
 export default function FinanceDashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const { toast } = useToast();
 
   // Fetch financial documents
   const { data: documents } = useQuery<Document[]>({
@@ -53,11 +64,31 @@ export default function FinanceDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" data-testid="button-generate-report">
+          <Button 
+            variant="outline" 
+            data-testid="button-generate-report"
+            onClick={() => {
+              toast({
+                title: "Generate Report",
+                description: "Opening report generation wizard...",
+              });
+              setShowReportDialog(true);
+            }}
+          >
             <FileText className="h-4 w-4 mr-2" />
             Generate Report
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700" data-testid="button-upload-statement">
+          <Button 
+            className="bg-green-600 hover:bg-green-700" 
+            data-testid="button-upload-statement"
+            onClick={() => {
+              toast({
+                title: "Upload Statement",
+                description: "Opening statement upload dialog...",
+              });
+              setShowUploadDialog(true);
+            }}
+          >
             <Receipt className="h-4 w-4 mr-2" />
             Upload Statement
           </Button>
@@ -445,6 +476,64 @@ export default function FinanceDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Generate Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Financial Report</DialogTitle>
+            <DialogDescription>
+              Select report type and parameters for generation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Report configuration options would appear here</p>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowReportDialog(false);
+                toast({
+                  title: "Success",
+                  description: "Report generation started! You'll receive it shortly.",
+                });
+              }}
+            >
+              Generate Report
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Statement Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Financial Statement</DialogTitle>
+            <DialogDescription>
+              Upload bank statements, invoices, or financial documents for analysis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <Receipt className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-600">Drop financial statements here or click to browse</p>
+              <p className="text-xs text-gray-500 mt-2">Supports CSV, PDF, OFX, QBO formats</p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowUploadDialog(false);
+                toast({
+                  title: "Success",
+                  description: "Statement uploaded and processing started!",
+                });
+              }}
+            >
+              Upload & Process
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

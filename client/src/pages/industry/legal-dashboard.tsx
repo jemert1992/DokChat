@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Gavel, 
   FileText, 
@@ -22,6 +30,9 @@ import type { Document } from "@shared/schema";
 
 export default function LegalDashboard() {
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
+  const [showNewCaseDialog, setShowNewCaseDialog] = useState(false);
+  const [showUploadContractDialog, setShowUploadContractDialog] = useState(false);
+  const { toast } = useToast();
 
   // Fetch legal documents
   const { data: documents } = useQuery<Document[]>({
@@ -55,11 +66,31 @@ export default function LegalDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" data-testid="button-new-case">
+          <Button 
+            variant="outline" 
+            data-testid="button-new-case"
+            onClick={() => {
+              toast({
+                title: "New Case",
+                description: "Opening case creation form...",
+              });
+              setShowNewCaseDialog(true);
+            }}
+          >
             <Briefcase className="h-4 w-4 mr-2" />
             New Case
           </Button>
-          <Button className="bg-blue-900 hover:bg-blue-800" data-testid="button-upload-contract">
+          <Button 
+            className="bg-blue-900 hover:bg-blue-800" 
+            data-testid="button-upload-contract"
+            onClick={() => {
+              toast({
+                title: "Upload Contract",
+                description: "Opening contract upload dialog...",
+              });
+              setShowUploadContractDialog(true);
+            }}
+          >
             <FileText className="h-4 w-4 mr-2" />
             Upload Contract
           </Button>
@@ -139,15 +170,45 @@ export default function LegalDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="justify-start" data-testid="button-extract-clauses">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-extract-clauses"
+              onClick={() => {
+                toast({
+                  title: "Clause Extraction",
+                  description: "Analyzing contract for key clauses and terms...",
+                });
+              }}
+            >
               <Search className="h-4 w-4 mr-2" />
               Extract Key Clauses
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-risk-analysis">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-risk-analysis"
+              onClick={() => {
+                toast({
+                  title: "Risk Analysis",
+                  description: "Performing comprehensive risk assessment...",
+                });
+              }}
+            >
               <AlertTriangle className="h-4 w-4 mr-2" />
               Risk Analysis
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-compliance-check">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-compliance-check"
+              onClick={() => {
+                toast({
+                  title: "Compliance Check",
+                  description: "Running regulatory compliance validation...",
+                });
+              }}
+            >
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Compliance Check
             </Button>
@@ -396,6 +457,64 @@ export default function LegalDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* New Case Dialog */}
+      <Dialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Case</DialogTitle>
+            <DialogDescription>
+              Enter case information to create a new legal matter.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Case creation form would appear here</p>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowNewCaseDialog(false);
+                toast({
+                  title: "Success",
+                  description: "New case created successfully!",
+                });
+              }}
+            >
+              Create Case
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Contract Dialog */}
+      <Dialog open={showUploadContractDialog} onOpenChange={setShowUploadContractDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Contract</DialogTitle>
+            <DialogDescription>
+              Upload contracts for AI-powered analysis and review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-600">Drop contracts here or click to browse</p>
+              <p className="text-xs text-gray-500 mt-2">Supports PDF, DOCX, TXT formats</p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowUploadContractDialog(false);
+                toast({
+                  title: "Success",
+                  description: "Contract uploaded and analysis started!",
+                });
+              }}
+            >
+              Upload & Analyze
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

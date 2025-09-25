@@ -18,13 +18,30 @@ import {
   Ship,
   Shield,
   DollarSign,
-  Activity
+  Activity,
+  FileText,
+  Plus,
+  Download,
+  Upload,
+  MapPinned,
+  Send
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function LogisticsDashboard() {
   const [selectedShipment, setSelectedShipment] = useState<string | null>(null);
+  const [showNewShipmentDialog, setShowNewShipmentDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const { toast } = useToast();
 
   // Fetch logistics documents
   const { data: documents } = useQuery<Document[]>({
@@ -33,10 +50,66 @@ export default function LogisticsDashboard() {
 
   // Mock shipment data - in production, this would come from the database
   const shipments = [
-    { id: "1", tracking: "SHP-2024-001", origin: "Shanghai", destination: "Los Angeles", status: "In Transit", eta: "2024-02-05", mode: "sea" },
-    { id: "2", tracking: "SHP-2024-002", origin: "Frankfurt", destination: "New York", status: "Customs", eta: "2024-01-25", mode: "air" },
-    { id: "3", tracking: "SHP-2024-003", origin: "Chicago", destination: "Dallas", status: "Delivered", eta: "2024-01-20", mode: "ground" },
-    { id: "4", tracking: "SHP-2024-004", origin: "Tokyo", destination: "London", status: "Processing", eta: "2024-02-10", mode: "air" },
+    { 
+      id: "1", 
+      tracking: "SHP-2024-001", 
+      origin: "Shanghai", 
+      destination: "Los Angeles", 
+      status: "In Transit", 
+      eta: "2024-02-05", 
+      mode: "sea",
+      containerId: "MSKU-7849302",
+      weight: "2,450 kg",
+      carrier: "Maersk Line",
+      value: "$125,000",
+      hsCode: "8471.30.0100",
+      duties: "$8,750"
+    },
+    { 
+      id: "2", 
+      tracking: "SHP-2024-002", 
+      origin: "Frankfurt", 
+      destination: "New York", 
+      status: "Customs", 
+      eta: "2024-01-25", 
+      mode: "air",
+      containerId: "LUFT-9283746",
+      weight: "850 kg",
+      carrier: "Lufthansa Cargo",
+      value: "$75,000",
+      hsCode: "9018.90.8000",
+      duties: "$5,250"
+    },
+    { 
+      id: "3", 
+      tracking: "SHP-2024-003", 
+      origin: "Chicago", 
+      destination: "Dallas", 
+      status: "Delivered", 
+      eta: "2024-01-20", 
+      mode: "ground",
+      containerId: "TRUK-3847293",
+      weight: "1,200 kg",
+      carrier: "FedEx Freight",
+      value: "$45,000",
+      hsCode: "7308.90.9590",
+      duties: "$2,150"
+    },
+    { 
+      id: "4", 
+      tracking: "SHP-2024-004", 
+      origin: "Tokyo", 
+      destination: "London", 
+      status: "Processing", 
+      eta: "2024-02-10", 
+      mode: "air",
+      containerId: "JPEX-5829374",
+      weight: "650 kg",
+      carrier: "Japan Airlines Cargo",
+      value: "$92,000",
+      hsCode: "8542.31.0001",
+      duties: "$6,440"
+    },
   ];
 
   const getModeIcon = (mode: string) => {
@@ -69,11 +142,31 @@ export default function LogisticsDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" data-testid="button-new-shipment">
+          <Button 
+            variant="outline" 
+            data-testid="button-new-shipment"
+            onClick={() => {
+              toast({
+                title: "New Shipment",
+                description: "Opening shipment creation form...",
+              });
+              setShowNewShipmentDialog(true);
+            }}
+          >
             <Package className="h-4 w-4 mr-2" />
             New Shipment
           </Button>
-          <Button className="bg-orange-500 hover:bg-orange-600" data-testid="button-upload-manifest">
+          <Button 
+            className="bg-orange-500 hover:bg-orange-600" 
+            data-testid="button-upload-manifest"
+            onClick={() => {
+              toast({
+                title: "Upload Manifest",
+                description: "Opening manifest upload dialog...",
+              });
+              setShowUploadDialog(true);
+            }}
+          >
             <Truck className="h-4 w-4 mr-2" />
             Upload Manifest
           </Button>
@@ -153,15 +246,45 @@ export default function LogisticsDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="justify-start" data-testid="button-optimize-routes">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-optimize-routes"
+              onClick={() => {
+                toast({
+                  title: "Route Optimization",
+                  description: "Analyzing current routes for optimization opportunities...",
+                });
+              }}
+            >
               <MapPin className="h-4 w-4 mr-2" />
               Optimize Current Routes
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-predict-delays">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-predict-delays"
+              onClick={() => {
+                toast({
+                  title: "Delay Prediction",
+                  description: "Running AI-powered delay prediction analysis...",
+                });
+              }}
+            >
               <Clock className="h-4 w-4 mr-2" />
               Predict Delays
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-customs-check">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              data-testid="button-customs-check"
+              onClick={() => {
+                toast({
+                  title: "Customs Pre-Check",
+                  description: "Validating customs documentation for all active shipments...",
+                });
+              }}
+            >
               <Globe className="h-4 w-4 mr-2" />
               Customs Pre-Check
             </Button>
@@ -218,7 +341,11 @@ export default function LogisticsDashboard() {
 
         {/* Shipment Details */}
         <div className="lg:col-span-2">
-          {selectedShipment ? (
+          {selectedShipment ? (() => {
+            const shipment = shipments.find(s => s.id === selectedShipment);
+            if (!shipment) return null;
+            
+            return (
             <Card className="h-full">
               <CardHeader>
                 <CardTitle>Shipment Details</CardTitle>
@@ -236,19 +363,19 @@ export default function LogisticsDashboard() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-500">Container ID</p>
-                        <p className="text-lg font-semibold">MSKU-7849302</p>
+                        <p className="text-lg font-semibold">{shipment.containerId}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Weight</p>
-                        <p className="text-lg font-semibold">2,450 kg</p>
+                        <p className="text-lg font-semibold">{shipment.weight}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Carrier</p>
-                        <p className="text-lg font-semibold">Maersk Line</p>
+                        <p className="text-lg font-semibold">{shipment.carrier}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Value</p>
-                        <p className="text-lg font-semibold">$125,000</p>
+                        <p className="text-lg font-semibold">{shipment.value}</p>
                       </div>
                     </div>
                     
@@ -259,7 +386,7 @@ export default function LogisticsDashboard() {
                           <div className="w-2 h-2 rounded-full bg-green-600 mt-2"></div>
                           <div className="flex-1">
                             <p className="font-medium">Picked Up</p>
-                            <p className="text-sm text-gray-500">Shanghai Port - Jan 15, 2024 09:00 AM</p>
+                            <p className="text-sm text-gray-500">{shipment.origin} - Jan 15, 2024 09:00 AM</p>
                           </div>
                         </div>
                         
@@ -267,7 +394,7 @@ export default function LogisticsDashboard() {
                           <div className="w-2 h-2 rounded-full bg-green-600 mt-2"></div>
                           <div className="flex-1">
                             <p className="font-medium">Departed Origin</p>
-                            <p className="text-sm text-gray-500">Shanghai - Jan 16, 2024 14:00 PM</p>
+                            <p className="text-sm text-gray-500">{shipment.origin} - Jan 16, 2024 14:00 PM</p>
                           </div>
                         </div>
                         
@@ -275,7 +402,7 @@ export default function LogisticsDashboard() {
                           <div className="w-2 h-2 rounded-full bg-blue-600 mt-2 animate-pulse"></div>
                           <div className="flex-1">
                             <p className="font-medium">In Transit</p>
-                            <p className="text-sm text-gray-500">Pacific Ocean - Current Location</p>
+                            <p className="text-sm text-gray-500">En route to {shipment.destination}</p>
                           </div>
                         </div>
                         
@@ -283,7 +410,7 @@ export default function LogisticsDashboard() {
                           <div className="w-2 h-2 rounded-full bg-gray-300 mt-2"></div>
                           <div className="flex-1">
                             <p className="font-medium">Arrival Port</p>
-                            <p className="text-sm text-gray-500">Los Angeles - Est. Feb 5, 2024</p>
+                            <p className="text-sm text-gray-500">{shipment.destination} - Est. {shipment.eta}</p>
                           </div>
                         </div>
                       </div>
@@ -327,7 +454,7 @@ export default function LogisticsDashboard() {
                             <Shield className="h-4 w-4 text-green-600" />
                             <span className="font-medium">HS Code</span>
                           </div>
-                          <p className="font-mono text-sm">8471.30.0100</p>
+                          <p className="font-mono text-sm">{shipment.hsCode}</p>
                           <p className="text-xs text-gray-500 mt-1">Automatic Data Processing</p>
                         </CardContent>
                       </Card>
@@ -338,7 +465,7 @@ export default function LogisticsDashboard() {
                             <DollarSign className="h-4 w-4 text-green-600" />
                             <span className="font-medium">Duties & Taxes</span>
                           </div>
-                          <p className="font-semibold">$8,750</p>
+                          <p className="font-semibold">{shipment.duties}</p>
                           <p className="text-xs text-gray-500 mt-1">Paid in advance</p>
                         </CardContent>
                       </Card>
@@ -417,7 +544,8 @@ export default function LogisticsDashboard() {
                 </Tabs>
               </CardContent>
             </Card>
-          ) : (
+            );
+          })() : (
             <Card className="h-full flex items-center justify-center">
               <CardContent className="text-center py-12">
                 <Truck className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -467,6 +595,63 @@ export default function LogisticsDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* New Shipment Dialog */}
+      <Dialog open={showNewShipmentDialog} onOpenChange={setShowNewShipmentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Shipment</DialogTitle>
+            <DialogDescription>
+              Enter shipment details to create a new tracking record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Shipment creation form would appear here</p>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowNewShipmentDialog(false);
+                toast({
+                  title: "Success",
+                  description: "New shipment created successfully!",
+                });
+              }}
+            >
+              Create Shipment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Manifest Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Shipping Manifest</DialogTitle>
+            <DialogDescription>
+              Upload a CSV or Excel file with shipment details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-600">Drop your manifest file here or click to browse</p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setShowUploadDialog(false);
+                toast({
+                  title: "Success",
+                  description: "Manifest uploaded and processed!",
+                });
+              }}
+            >
+              Upload & Process
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

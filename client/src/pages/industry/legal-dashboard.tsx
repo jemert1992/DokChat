@@ -23,16 +23,19 @@ import {
   CheckCircle2,
   Clock,
   BookOpen,
-  Briefcase
+  Briefcase,
+  Home
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function LegalDashboard() {
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
   const [showNewCaseDialog, setShowNewCaseDialog] = useState(false);
   const [showUploadContractDialog, setShowUploadContractDialog] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Fetch legal documents
   const { data: documents } = useQuery<Document[]>({
@@ -59,11 +62,22 @@ export default function LegalDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Legal Case Manager</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Contract analysis, case management, and compliance tracking
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setLocation('/')}
+            data-testid="button-back-home"
+            title="Back to Dashboard"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Legal Case Manager</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Contract analysis, case management, and compliance tracking
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

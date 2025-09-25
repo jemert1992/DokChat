@@ -23,16 +23,19 @@ import {
   PieChart,
   CreditCard,
   Receipt,
-  FileText
+  FileText,
+  Home
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function FinanceDashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Fetch financial documents
   const { data: documents } = useQuery<Document[]>({
@@ -57,11 +60,22 @@ export default function FinanceDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Financial Analytics Hub</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Transaction monitoring, fraud detection, and compliance reporting
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setLocation('/')}
+            data-testid="button-back-home"
+            title="Back to Dashboard"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Financial Analytics Hub</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Transaction monitoring, fraud detection, and compliance reporting
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

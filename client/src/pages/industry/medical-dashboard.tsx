@@ -24,16 +24,19 @@ import {
   AlertCircle,
   CheckCircle2,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Home
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function MedicalDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
   const [showAddPatientDialog, setShowAddPatientDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Fetch medical documents
   const { data: documents } = useQuery<Document[]>({
@@ -60,11 +63,22 @@ export default function MedicalDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Patient Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Comprehensive patient records and clinical insights
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setLocation('/')}
+            data-testid="button-back-home"
+            title="Back to Dashboard"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Patient Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Comprehensive patient records and clinical insights
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

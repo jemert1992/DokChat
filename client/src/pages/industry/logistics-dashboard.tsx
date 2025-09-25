@@ -24,11 +24,13 @@ import {
   Download,
   Upload,
   MapPinned,
-  Send
+  Send,
+  Home
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export default function LogisticsDashboard() {
   const [showNewShipmentDialog, setShowNewShipmentDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Fetch logistics documents
   const { data: documents } = useQuery<Document[]>({
@@ -135,11 +138,22 @@ export default function LogisticsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Logistics Control Center</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Real-time shipment tracking, customs management, and route optimization
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setLocation('/')}
+            data-testid="button-back-home"
+            title="Back to Dashboard"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Logistics Control Center</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Real-time shipment tracking, customs management, and route optimization
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

@@ -66,6 +66,23 @@ Platform adapts to different industries through configuration-driven customizati
 
 Each industry has specific document types, processing rules, UI customizations, and compliance requirements defined in the industry configurations system.
 
+### Recent Changes (December 2024)
+
+#### Simplified Industry Dashboards
+All four industry dashboards have been redesigned with a streamlined 2-tab structure focused on core document processing and AI chat functionality:
+
+- **Documents & Upload Tab**: Unified document upload zone with real-time document list and processing status
+- **AI Assistant Tab**: Intelligent chat interface with industry-specific quick actions for common analysis tasks
+  - Medical: Extract patient info, diagnoses, treatment plans, lab results
+  - Legal: Extract key clauses, identify risks, compliance checks, contract summaries
+  - Finance: Extract amounts, analyze trends, detect anomalies, financial summaries
+  - Logistics: Extract tracking info, customs compliance, manifest verification, route analysis
+
+#### Performance Optimizations
+- Fixed OCR bottleneck: Quick mode now properly limits PDF processing to first 5 pages
+- Improved document processing speed with `extractTextQuick` method optimization
+- Enhanced routing with both industry-specific and legacy route support
+
 ## External Dependencies
 
 ### AI & Machine Learning Services

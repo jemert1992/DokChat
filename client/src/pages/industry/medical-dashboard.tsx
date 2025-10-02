@@ -18,7 +18,8 @@ import {
   Sparkles,
   Download,
   Home,
-  Pill
+  Pill,
+  X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
@@ -28,10 +29,10 @@ import { motion } from "framer-motion";
 
 export default function MedicalDashboard() {
   const [, setLocation] = useLocation();
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
-    { role: "assistant", content: "Hello! I'm your medical document AI assistant. Upload a medical document and I can help you extract patient information, diagnoses, medications, lab results, and more. What would you like me to analyze?" }
+    { role: "assistant", content: "Hello! I'm your medical document AI assistant. Upload medical documents and I can help you analyze multiple documents together - comparing patient information, tracking treatment progress across visits, correlating lab results with diagnoses, and more. What would you like me to analyze?" }
   ]);
 
   // Fetch documents
@@ -42,12 +43,28 @@ export default function MedicalDashboard() {
   const handleSendMessage = () => {
     if (!aiPrompt.trim()) return;
     
+    const docNames = selectedDocuments.map(d => d.originalFilename).join(", ");
     setChatMessages(prev => [
       ...prev,
       { role: "user", content: aiPrompt },
-      { role: "assistant", content: `I'll analyze that for you. ${selectedDocument ? `Looking at ${selectedDocument.originalFilename}...` : 'Please select a document first.'}` }
+      { role: "assistant", content: `I'll analyze that for you. ${selectedDocuments.length > 0 ? `Looking at ${selectedDocuments.length} document(s): ${docNames}...` : 'Please select at least one document first.'}` }
     ]);
     setAiPrompt("");
+  };
+
+  const toggleDocumentSelection = (doc: Document) => {
+    setSelectedDocuments(prev => {
+      const isSelected = prev.some(d => d.id === doc.id);
+      if (isSelected) {
+        return prev.filter(d => d.id !== doc.id);
+      } else {
+        return [...prev, doc];
+      }
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedDocuments([]);
   };
 
   const medicalDocuments = documents?.filter(doc => 
@@ -58,10 +75,10 @@ export default function MedicalDashboard() {
   ) || [];
 
   const quickActions = [
-    { icon: FileSearch, label: "Extract Patient Info", action: "Extract all patient demographics and contact information" },
-    { icon: Activity, label: "Find Diagnoses", action: "List all diagnoses and medical conditions mentioned" },
-    { icon: FileText, label: "Summarize Report", action: "Provide a concise summary of this medical document" },
-    { icon: Pill, label: "Extract Medications", action: "List all medications, dosages, and instructions" }
+    { icon: FileSearch, label: "Compare Patient Info", action: "Compare patient demographics and information across all selected documents" },
+    { icon: Activity, label: "Track Diagnoses", action: "Track diagnoses and medical conditions across all visits" },
+    { icon: FileText, label: "Summarize All", action: "Provide a comprehensive summary of all selected medical documents" },
+    { icon: Pill, label: "Medication History", action: "Extract and compare all medications, dosages across documents" }
   ];
 
   return (
@@ -87,9 +104,16 @@ export default function MedicalDashboard() {
             </p>
           </div>
         </div>
-        <Badge className="bg-teal-100 text-teal-800 px-4 py-2">
-          Medical Industry
-        </Badge>
+        <div className="flex items-center gap-2">
+          {selectedDocuments.length > 0 && (
+            <Badge className="bg-blue-100 text-blue-800 px-3 py-1">
+              {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''} selected
+            </Badge>
+          )}
+          <Badge className="bg-teal-100 text-teal-800 px-4 py-2">
+            Medical Industry
+          </Badge>
+        </div>
       </div>
 
       {/* Main Content Tabs */}
@@ -101,7 +125,7 @@ export default function MedicalDashboard() {
           </TabsTrigger>
           <TabsTrigger value="ai-chat" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            AI Assistant
+            AI Assistant {selectedDocuments.length > 0 && `(${selectedDocuments.length})`}
           </TabsTrigger>
         </TabsList>
 
@@ -111,87 +135,113 @@ export default function MedicalDashboard() {
             <CardHeader>
               <CardTitle>Upload Medical Documents</CardTitle>
               <CardDescription>
-                Upload medical records, lab reports, prescriptions, or clinical notes for AI analysis
+                Upload multiple medical records, lab reports, prescriptions, or clinical notes for combined AI analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <DocumentUploadZone />
+              <DocumentUploadZone industry="medical" />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Medical Documents</CardTitle>
-              <CardDescription>
-                Select a document to analyze with AI
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Medical Documents</CardTitle>
+                  <CardDescription>
+                    Select one or more documents to analyze together with AI
+                  </CardDescription>
+                </div>
+                {selectedDocuments.length > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={clearSelection}
+                  >
+                    Clear Selection ({selectedDocuments.length})
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3">
                   {medicalDocuments.length > 0 ? (
-                    medicalDocuments.map((doc) => (
-                      <motion.div
-                        key={doc.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
-                          selectedDocument?.id === doc.id ? 'border-teal-500 bg-teal-50 dark:bg-teal-950' : ''
-                        }`}
-                        onClick={() => setSelectedDocument(doc)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-teal-600" />
-                              <p className="font-medium">{doc.originalFilename}</p>
-                              {selectedDocument?.id === doc.id && (
-                                <Badge variant="outline" className="text-xs">Selected</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
-                            </p>
-                            {doc.confidence && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <div className="flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3 text-green-600" />
-                                  <span className="text-xs">Confidence: {doc.confidence}%</span>
-                                </div>
-                                {doc.documentType && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {doc.documentType}
+                    medicalDocuments.map((doc) => {
+                      const isSelected = selectedDocuments.some(d => d.id === doc.id);
+                      return (
+                        <motion.div
+                          key={doc.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
+                            isSelected ? 'border-teal-500 bg-teal-50 dark:bg-teal-950' : ''
+                          }`}
+                          onClick={() => toggleDocumentSelection(doc)}
+                          data-testid={`document-card-${doc.id}`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-teal-600" />
+                                <p className="font-medium">{doc.originalFilename}</p>
+                                {isSelected && (
+                                  <Badge variant="outline" className="text-xs bg-teal-100">
+                                    ✓ Selected
                                   </Badge>
                                 )}
                               </div>
-                            )}
+                              <p className="text-sm text-gray-500 mt-1">
+                                {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                              </p>
+                              {doc.confidence && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                    <span className="text-xs">Confidence: {doc.confidence}%</span>
+                                  </div>
+                                  {doc.documentType && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {doc.documentType}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Link href={`/document/${doc.id}`}>
+                                <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
+                                  View Details
+                                </Button>
+                              </Link>
+                              {doc.status === 'completed' && (
+                                <Button 
+                                  size="sm" 
+                                  variant={isSelected ? "default" : "outline"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleDocumentSelection(doc);
+                                  }}
+                                  data-testid={`button-select-${doc.id}`}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Selected
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Brain className="h-3 w-3 mr-1" />
+                                      Select
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-2">
-                            <Link href={`/document/${doc.id}`}>
-                              <Button size="sm" variant="outline">
-                                View Details
-                              </Button>
-                            </Link>
-                            {doc.status === 'completed' && (
-                              <Button 
-                                size="sm" 
-                                variant="default"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedDocument(doc);
-                                  // Switch to AI chat tab
-                                  const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
-                                  aiTab?.click();
-                                }}
-                              >
-                                <Brain className="h-3 w-3 mr-1" />
-                                Analyze
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
+                        </motion.div>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-12 text-gray-500">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -201,31 +251,71 @@ export default function MedicalDashboard() {
                   )}
                 </div>
               </ScrollArea>
+              {selectedDocuments.length > 0 && (
+                <div className="mt-4 p-3 bg-teal-50 dark:bg-teal-950 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''} selected for analysis
+                    </span>
+                    <Button 
+                      size="sm"
+                      className="bg-teal-600 hover:bg-teal-700"
+                      onClick={() => {
+                        // Switch to AI chat tab
+                        const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
+                        aiTab?.click();
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Analyze Selected
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* AI Chat Tab */}
         <TabsContent value="ai-chat" className="space-y-4 mt-4">
-          {selectedDocument ? (
+          {selectedDocuments.length > 0 ? (
             <Alert className="border-teal-200 bg-teal-50 dark:bg-teal-950">
               <FileText className="h-4 w-4 text-teal-600" />
-              <AlertDescription className="flex justify-between items-center">
-                <span>Analyzing: <strong>{selectedDocument.originalFilename}</strong></span>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={() => setSelectedDocument(null)}
-                >
-                  Change Document
-                </Button>
+              <AlertDescription>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-medium">Analyzing {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''}:</span>
+                    <div className="mt-2 space-y-1">
+                      {selectedDocuments.map(doc => (
+                        <div key={doc.id} className="flex items-center gap-2 text-sm">
+                          <span>• {doc.originalFilename}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0"
+                            onClick={() => toggleDocumentSelection(doc)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={clearSelection}
+                  >
+                    Clear All
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : (
             <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertDescription>
-                Please select a document from the Documents tab first to start AI analysis
+                Please select one or more documents from the Documents tab to start AI analysis
               </AlertDescription>
             </Alert>
           )}
@@ -234,10 +324,10 @@ export default function MedicalDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-teal-600" />
-                Medical AI Assistant
+                Medical AI Assistant - Multi-Document Analysis
               </CardTitle>
               <CardDescription>
-                Ask questions about your medical documents or use quick actions
+                Ask questions across multiple documents - compare treatments, track progress, correlate findings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -248,16 +338,17 @@ export default function MedicalDashboard() {
                     key={idx}
                     variant="outline"
                     className="justify-start"
-                    disabled={!selectedDocument}
+                    disabled={selectedDocuments.length === 0}
                     onClick={() => {
                       setAiPrompt(action.action);
                       setChatMessages(prev => [
                         ...prev,
                         { role: "user", content: action.action },
-                        { role: "assistant", content: `Analyzing your document for: ${action.action}...` }
+                        { role: "assistant", content: `Analyzing ${selectedDocuments.length} document(s) for: ${action.action}...` }
                       ]);
                       setAiPrompt("");
                     }}
+                    data-testid={`quick-action-${idx}`}
                   >
                     <action.icon className="h-4 w-4 mr-2" />
                     {action.label}
@@ -290,7 +381,9 @@ export default function MedicalDashboard() {
               {/* Input Area */}
               <div className="flex gap-2">
                 <Textarea
-                  placeholder="Ask about diagnoses, medications, lab results, patient history..."
+                  placeholder={selectedDocuments.length > 1 
+                    ? "Ask about patterns across documents, compare treatments, track progress..." 
+                    : "Ask about diagnoses, medications, lab results, patient history..."}
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -300,28 +393,28 @@ export default function MedicalDashboard() {
                     }
                   }}
                   className="flex-1 min-h-[80px]"
-                  disabled={!selectedDocument}
+                  disabled={selectedDocuments.length === 0}
+                  data-testid="textarea-ai-prompt"
                 />
                 <Button 
                   onClick={handleSendMessage}
-                  disabled={!selectedDocument || !aiPrompt.trim()}
+                  disabled={selectedDocuments.length === 0 || !aiPrompt.trim()}
                   className="bg-teal-600 hover:bg-teal-700"
+                  data-testid="button-send-message"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
 
-              {selectedDocument?.status === 'completed' && (
+              {selectedDocuments.length > 0 && selectedDocuments.every(doc => doc.status === 'completed') && (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1">
                     <Download className="h-4 w-4 mr-2" />
-                    Export Analysis
+                    Export Combined Analysis
                   </Button>
-                  <Link href={`/document/${selectedDocument.id}`}>
-                    <Button variant="outline" size="sm">
-                      View Full Report
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="sm">
+                    View Individual Reports
+                  </Button>
                 </div>
               )}
             </CardContent>

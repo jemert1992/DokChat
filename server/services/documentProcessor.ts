@@ -53,10 +53,10 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
 
-      // Stage 1: Text Extraction (OCR) - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text from document...');
-      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Running optimized text extraction', 'ocr');
-      const extractedText = await this.extractText(document.filePath, document.mimeType);
+      // Stage 1: Text Extraction (OCR) - QUICK VERSION (limited pages)
+      await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
+      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Extracting text from first 5 pages', 'ocr');
+      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 5);
       
       // Get OCR results
       const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
@@ -911,6 +911,37 @@ export class DocumentProcessor {
         handwritingDetected: false,
         blocks: []
       };
+    }
+  }
+
+  // Quick text extraction for fast processing (limits pages for PDFs)
+  private async extractTextQuick(filePath: string, mimeType?: string, maxPages: number = 5): Promise<string> {
+    try {
+      const fileExtension = path.extname(filePath).toLowerCase();
+      
+      // For plain text files, read directly
+      if (fileExtension === '.txt') {
+        return await fs.readFile(filePath, 'utf-8');
+      }
+      
+      // For PDFs, only process first few pages in quick mode
+      if (fileExtension === '.pdf') {
+        console.log(`⚡ Quick PDF extraction - processing only first ${maxPages} pages`);
+        const limitedOcrResult = await this.visionService.extractTextFromPDFLimited(filePath, maxPages);
+        return limitedOcrResult.text;
+      }
+      
+      // For images, use standard OCR
+      if (this.isImageFile(fileExtension)) {
+        const ocrResult = await this.visionService.extractTextFromImage(filePath);
+        return ocrResult.text;
+      }
+      
+      // For Word documents and other types
+      return await this.extractText(filePath, mimeType);
+    } catch (error) {
+      console.error('Quick text extraction failed:', error);
+      throw error;
     }
   }
 

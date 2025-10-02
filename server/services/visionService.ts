@@ -147,6 +147,101 @@ export class VisionService {
     }
   }
 
+  // Limited PDF extraction for quick mode - only processes first N pages
+  async extractTextFromPDFLimited(pdfPath: string, maxPages: number = 5): Promise<OCRResult> {
+    try {
+      // Ensure Vision client is properly initialized
+      this.ensureInitialized();
+      
+      console.log(`⚡ Quick PDF OCR - processing first ${maxPages} pages only: ${pdfPath}`);
+      
+      // Convert PDF to images for OCR processing
+      const allImageResults = await this.convertPDFToImages(pdfPath);
+      
+      // Limit to first N pages
+      const imageResults = allImageResults.slice(0, maxPages);
+      console.log(`⚡ Processing ${imageResults.length} of ${allImageResults.length} pages for quick analysis`);
+      
+      if (imageResults.length === 0) {
+        return {
+          text: 'No pages found in PDF',
+          confidence: 0,
+          blocks: [],
+          handwritingDetected: false,
+          language: 'en'
+        };
+      }
+
+      // Process limited pages
+      const pageResults: OCRResult[] = [];
+      const allBlocks: OCRResult['blocks'] = [];
+      let combinedText = '';
+      let totalConfidence = 0;
+      let handwritingDetected = false;
+      let detectedLanguage = 'en';
+
+      for (let i = 0; i < imageResults.length; i++) {
+        const imagePath = imageResults[i];
+        console.log(`⚡ Quick processing page ${i + 1}/${imageResults.length}: ${imagePath}`);
+        
+        try {
+          const pageResult = await this.extractTextFromImage(imagePath);
+          pageResults.push(pageResult);
+          
+          if (pageResult.text.trim()) {
+            combinedText += `--- Page ${i + 1} ---\n${pageResult.text}\n\n`;
+          }
+          
+          allBlocks.push(...pageResult.blocks);
+          totalConfidence += pageResult.confidence;
+          
+          if (pageResult.handwritingDetected) {
+            handwritingDetected = true;
+          }
+          
+          if (pageResult.language !== 'en') {
+            detectedLanguage = pageResult.language;
+          }
+          
+          // Clean up temporary image file
+          try {
+            await fs.promises.unlink(imagePath);
+          } catch (cleanupError) {
+            console.warn(`⚠️ Could not clean up temporary image: ${imagePath}`);
+          }
+          
+        } catch (pageError) {
+          console.error(`❌ Error processing PDF page ${i + 1}:`, pageError);
+        }
+      }
+
+      // Clean up remaining images that weren't processed
+      for (let i = imageResults.length; i < allImageResults.length; i++) {
+        try {
+          await fs.promises.unlink(allImageResults[i]);
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+      }
+
+      const avgConfidence = pageResults.length > 0 ? totalConfidence / pageResults.length : 0;
+
+      console.log(`⚡ Quick PDF OCR completed: ${pageResults.length} pages processed`);
+
+      return {
+        text: combinedText.trim() + `\n\n[Note: Quick analysis - only first ${maxPages} pages processed]`,
+        confidence: avgConfidence,
+        blocks: allBlocks,
+        handwritingDetected,
+        language: detectedLanguage
+      };
+
+    } catch (error) {
+      console.error('Quick PDF extraction failed:', error);
+      throw new Error(`Quick PDF extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async extractTextFromPDF(pdfPath: string): Promise<OCRResult> {
     try {
       // Ensure Vision client is properly initialized

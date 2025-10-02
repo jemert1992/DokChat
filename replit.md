@@ -78,6 +78,12 @@ All four industry dashboards have been redesigned with a streamlined 2-tab struc
   - Finance: Extract amounts, analyze trends, detect anomalies, financial summaries
   - Logistics: Extract tracking info, customs compliance, manifest verification, route analysis
 
+#### Simplified Navigation (December 2024)
+Removed all non-functional navigation tabs and streamlined sidebar to essential items only:
+- **MAIN Section**: Dashboard link and Industry-specific AI dashboard link
+- **DOCUMENTS Section**: Upload Documents (focuses upload zone) and Recent Documents (scrolls to document list)
+- **Removed**: All unnecessary tabs including Case Management, Contract Analytics, Property Portfolio, Market Analytics, Clinical Analytics, and dozens of other non-functional navigation items
+
 #### Performance Optimizations
 - Fixed OCR bottleneck: Quick mode now properly limits PDF processing to first 5 pages
 - Improved document processing speed with `extractTextQuick` method optimization

@@ -1,63 +1,68 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { 
-  Activity, 
-  Heart, 
   FileText, 
-  Pill, 
-  TestTube, 
-  Shield,
-  Users,
+  MessageSquare, 
+  Activity,
+  Send,
+  Brain,
+  CheckCircle,
   AlertCircle,
-  CheckCircle2,
-  TrendingUp,
-  DollarSign,
-  Home
+  FileSearch,
+  Sparkles,
+  Download,
+  Home,
+  Pill
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
+import DocumentUploadZone from "@/components/document-upload-zone";
+import { motion } from "framer-motion";
 
 export default function MedicalDashboard() {
-  const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
-  const [showAddPatientDialog, setShowAddPatientDialog] = useState(false);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
+    { role: "assistant", content: "Hello! I'm your medical document AI assistant. Upload a medical document and I can help you extract patient information, diagnoses, medications, lab results, and more. What would you like me to analyze?" }
+  ]);
 
-  // Fetch medical documents
+  // Fetch documents
   const { data: documents } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
 
-  // Mock patient data - in production, this would come from the database
-  const patients = [
-    { id: "1", name: "John Doe", mrn: "MRN-001", lastVisit: "2024-01-15", status: "Active", riskLevel: "low" },
-    { id: "2", name: "Jane Smith", mrn: "MRN-002", lastVisit: "2024-01-20", status: "Active", riskLevel: "high" },
-    { id: "3", name: "Robert Johnson", mrn: "MRN-003", lastVisit: "2024-01-10", status: "Inactive", riskLevel: "medium" },
-  ];
-
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case "high": return "text-red-600 bg-red-50";
-      case "medium": return "text-yellow-600 bg-yellow-50";
-      case "low": return "text-green-600 bg-green-50";
-      default: return "text-gray-600 bg-gray-50";
-    }
+  const handleSendMessage = () => {
+    if (!aiPrompt.trim()) return;
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: "user", content: aiPrompt },
+      { role: "assistant", content: `I'll analyze that for you. ${selectedDocument ? `Looking at ${selectedDocument.originalFilename}...` : 'Please select a document first.'}` }
+    ]);
+    setAiPrompt("");
   };
+
+  const medicalDocuments = documents?.filter(doc => 
+    doc.industry === 'medical' || 
+    doc.originalFilename?.toLowerCase().includes('medical') ||
+    doc.originalFilename?.toLowerCase().includes('patient') ||
+    doc.originalFilename?.toLowerCase().includes('clinical')
+  ) || [];
+
+  const quickActions = [
+    { icon: FileSearch, label: "Extract Patient Info", action: "Extract all patient demographics and contact information" },
+    { icon: Activity, label: "Find Diagnoses", action: "List all diagnoses and medical conditions mentioned" },
+    { icon: FileText, label: "Summarize Report", action: "Provide a concise summary of this medical document" },
+    { icon: Pill, label: "Extract Medications", action: "List all medications, dosages, and instructions" }
+  ];
 
   return (
     <div className="space-y-6">
@@ -69,385 +74,260 @@ export default function MedicalDashboard() {
             size="icon"
             onClick={() => setLocation('/')}
             data-testid="button-back-home"
-            title="Back to Dashboard"
           >
             <Home className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Patient Dashboard</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Activity className="h-8 w-8 text-teal-600" />
+              Medical Document Intelligence
+            </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Comprehensive patient records and clinical insights
+              HIPAA-compliant document processing with clinical AI
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            data-testid="button-add-patient"
-            onClick={() => {
-              toast({
-                title: "Add Patient",
-                description: "Opening patient registration form...",
-              });
-              setShowAddPatientDialog(true);
-            }}
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Add Patient
-          </Button>
-          <Button 
-            className="bg-teal-600 hover:bg-teal-700" 
-            data-testid="button-upload-records"
-            onClick={() => {
-              toast({
-                title: "Upload Medical Records",
-                description: "Opening document upload dialog...",
-              });
-              setShowUploadDialog(true);
-            }}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Upload Records
-          </Button>
-        </div>
+        <Badge className="bg-teal-100 text-teal-800 px-4 py-2">
+          Medical Industry
+        </Badge>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Active Patients</p>
-                <p className="text-2xl font-bold">247</p>
-                <p className="text-xs text-green-600 mt-1">+12 this week</p>
-              </div>
-              <div className="h-12 w-12 bg-teal-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-teal-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="documents" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documents & Upload
+          </TabsTrigger>
+          <TabsTrigger value="ai-chat" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            AI Assistant
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Records Processed</p>
-                <p className="text-2xl font-bold">1,842</p>
-                <p className="text-xs text-blue-600 mt-1">99.3% accuracy</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Lab Results</p>
-                <p className="text-2xl font-bold">89</p>
-                <p className="text-xs text-orange-600 mt-1">5 critical</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <TestTube className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">HIPAA Compliance</p>
-                <p className="text-2xl font-bold">100%</p>
-                <p className="text-xs text-green-600 mt-1">Fully compliant</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Patient List */}
-        <div className="lg:col-span-1">
-          <Card className="h-full">
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-4 mt-4">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Patient List</span>
-                <Badge variant="outline">{patients.length} patients</Badge>
-              </CardTitle>
+              <CardTitle>Upload Medical Documents</CardTitle>
+              <CardDescription>
+                Upload medical records, lab reports, prescriptions, or clinical notes for AI analysis
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                {patients.map((patient) => (
-                  <div
-                    key={patient.id}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors ${
-                      selectedPatient === patient.id ? "bg-teal-50 dark:bg-teal-950" : ""
-                    }`}
-                    onClick={() => setSelectedPatient(patient.id)}
-                    data-testid={`patient-row-${patient.id}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{patient.name}</p>
-                        <p className="text-sm text-gray-500">{patient.mrn}</p>
-                        <p className="text-xs text-gray-400 mt-1">Last visit: {patient.lastVisit}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Badge 
-                          variant={patient.status === "Active" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {patient.status}
-                        </Badge>
-                        <Badge 
-                          className={`text-xs ${getRiskColor(patient.riskLevel)}`}
-                          variant="outline"
-                        >
-                          {patient.riskLevel} risk
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardContent>
+              <DocumentUploadZone />
             </CardContent>
           </Card>
-        </div>
 
-        {/* Patient Details */}
-        <div className="lg:col-span-2">
-          {selectedPatient ? (
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Patient Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="records">Records</TabsTrigger>
-                    <TabsTrigger value="labs">Lab Results</TabsTrigger>
-                    <TabsTrigger value="medications">Medications</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="overview" className="space-y-4 mt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Blood Pressure</p>
-                        <p className="text-lg font-semibold">120/80 mmHg</p>
-                        <Badge className="mt-1 text-xs" variant="outline">Normal</Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Heart Rate</p>
-                        <p className="text-lg font-semibold">72 bpm</p>
-                        <Badge className="mt-1 text-xs" variant="outline">Normal</Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Temperature</p>
-                        <p className="text-lg font-semibold">98.6°F</p>
-                        <Badge className="mt-1 text-xs" variant="outline">Normal</Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">BMI</p>
-                        <p className="text-lg font-semibold">24.5</p>
-                        <Badge className="mt-1 text-xs" variant="outline">Healthy</Badge>
-                      </div>
-                    </div>
-                    
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Patient has a scheduled follow-up appointment on February 15, 2024
-                      </AlertDescription>
-                    </Alert>
-                  </TabsContent>
-                  
-                  <TabsContent value="records" className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      {documents?.slice(0, 5).map((doc) => (
-                        <div key={doc.id} className="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900">
-                          <div className="flex justify-between items-start">
-                            <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Medical Documents</CardTitle>
+              <CardDescription>
+                Select a document to analyze with AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-3">
+                  {medicalDocuments.length > 0 ? (
+                    medicalDocuments.map((doc) => (
+                      <motion.div
+                        key={doc.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
+                          selectedDocument?.id === doc.id ? 'border-teal-500 bg-teal-50 dark:bg-teal-950' : ''
+                        }`}
+                        onClick={() => setSelectedDocument(doc)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-teal-600" />
                               <p className="font-medium">{doc.originalFilename}</p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(doc.createdAt || '').toLocaleDateString()}
-                              </p>
+                              {selectedDocument?.id === doc.id && (
+                                <Badge variant="outline" className="text-xs">Selected</Badge>
+                              )}
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {doc.status}
-                            </Badge>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                            </p>
+                            {doc.confidence && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                  <span className="text-xs">Confidence: {doc.confidence}%</span>
+                                </div>
+                                {doc.documentType && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {doc.documentType}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Link href={`/document/${doc.id}`}>
+                              <Button size="sm" variant="outline">
+                                View Details
+                              </Button>
+                            </Link>
+                            {doc.status === 'completed' && (
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDocument(doc);
+                                  // Switch to AI chat tab
+                                  const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
+                                  aiTab?.click();
+                                }}
+                              >
+                                <Brain className="h-3 w-3 mr-1" />
+                                Analyze
+                              </Button>
+                            )}
                           </div>
                         </div>
-                      ))}
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No medical documents uploaded yet</p>
+                      <p className="text-sm mt-2">Upload your first document above to get started</p>
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="labs" className="space-y-4 mt-4">
-                    <div className="space-y-3">
-                      <div className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">Glucose Level</span>
-                          <Badge className="bg-green-100 text-green-700">Normal</Badge>
-                        </div>
-                        <Progress value={85} className="h-2" />
-                        <p className="text-sm text-gray-500 mt-1">95 mg/dL (Range: 70-100)</p>
-                      </div>
-                      
-                      <div className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">Cholesterol</span>
-                          <Badge className="bg-yellow-100 text-yellow-700">Borderline</Badge>
-                        </div>
-                        <Progress value={75} className="h-2" />
-                        <p className="text-sm text-gray-500 mt-1">210 mg/dL (Range: &lt;200)</p>
-                      </div>
-                      
-                      <div className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">Hemoglobin</span>
-                          <Badge className="bg-green-100 text-green-700">Normal</Badge>
-                        </div>
-                        <Progress value={70} className="h-2" />
-                        <p className="text-sm text-gray-500 mt-1">14.5 g/dL (Range: 13.5-17.5)</p>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="medications" className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      <div className="p-3 border rounded-lg flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Lisinopril</p>
-                          <p className="text-sm text-gray-500">10mg daily - Blood pressure</p>
-                        </div>
-                        <Pill className="h-5 w-5 text-teal-600" />
-                      </div>
-                      
-                      <div className="p-3 border rounded-lg flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Metformin</p>
-                          <p className="text-sm text-gray-500">500mg twice daily - Diabetes</p>
-                        </div>
-                        <Pill className="h-5 w-5 text-teal-600" />
-                      </div>
-                      
-                      <div className="p-3 border rounded-lg flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Atorvastatin</p>
-                          <p className="text-sm text-gray-500">20mg daily - Cholesterol</p>
-                        </div>
-                        <Pill className="h-5 w-5 text-teal-600" />
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center py-12">
-                <Heart className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Select a patient to view details</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Critical Alerts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            Critical Alerts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <Alert className="border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription>
-                <span className="font-medium">High Priority:</span> Patient MRN-002 has critical lab values requiring immediate review
+        {/* AI Chat Tab */}
+        <TabsContent value="ai-chat" className="space-y-4 mt-4">
+          {selectedDocument ? (
+            <Alert className="border-teal-200 bg-teal-50 dark:bg-teal-950">
+              <FileText className="h-4 w-4 text-teal-600" />
+              <AlertDescription className="flex justify-between items-center">
+                <span>Analyzing: <strong>{selectedDocument.originalFilename}</strong></span>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => setSelectedDocument(null)}
+                >
+                  Change Document
+                </Button>
               </AlertDescription>
             </Alert>
-            <Alert className="border-yellow-200 bg-yellow-50">
+          ) : (
+            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertDescription>
-                <span className="font-medium">Medication Alert:</span> Potential drug interaction detected for Patient MRN-003
+                Please select a document from the Documents tab first to start AI analysis
               </AlertDescription>
             </Alert>
-          </div>
-        </CardContent>
-      </Card>
+          )}
 
-      {/* Add Patient Dialog */}
-      <Dialog open={showAddPatientDialog} onOpenChange={setShowAddPatientDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Patient</DialogTitle>
-            <DialogDescription>
-              Enter patient information to create a new medical record.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">Patient registration form would appear here</p>
-            <Button 
-              className="w-full"
-              onClick={() => {
-                setShowAddPatientDialog(false);
-                toast({
-                  title: "Success",
-                  description: "New patient added successfully!",
-                });
-              }}
-            >
-              Add Patient
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-teal-600" />
+                Medical AI Assistant
+              </CardTitle>
+              <CardDescription>
+                Ask questions about your medical documents or use quick actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                {quickActions.map((action, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    className="justify-start"
+                    disabled={!selectedDocument}
+                    onClick={() => {
+                      setAiPrompt(action.action);
+                      setChatMessages(prev => [
+                        ...prev,
+                        { role: "user", content: action.action },
+                        { role: "assistant", content: `Analyzing your document for: ${action.action}...` }
+                      ]);
+                      setAiPrompt("");
+                    }}
+                  >
+                    <action.icon className="h-4 w-4 mr-2" />
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
 
-      {/* Upload Records Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Medical Records</DialogTitle>
-            <DialogDescription>
-              Upload patient records, lab results, or medical documents.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-600">Drop medical records here or click to browse</p>
-              <p className="text-xs text-gray-500 mt-2">Supports PDF, DICOM, HL7 formats</p>
-            </div>
-            <Button 
-              className="w-full"
-              onClick={() => {
-                setShowUploadDialog(false);
-                toast({
-                  title: "Success",
-                  description: "Medical records uploaded and processed!",
-                });
-              }}
-            >
-              Upload & Process
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+              {/* Chat Messages */}
+              <ScrollArea className="h-[300px] border rounded-lg p-4">
+                <div className="space-y-4">
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                          msg.role === 'user' 
+                            ? 'bg-teal-600 text-white' 
+                            : 'bg-gray-100 dark:bg-gray-800'
+                        }`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Input Area */}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Ask about diagnoses, medications, lab results, patient history..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1 min-h-[80px]"
+                  disabled={!selectedDocument}
+                />
+                <Button 
+                  onClick={handleSendMessage}
+                  disabled={!selectedDocument || !aiPrompt.trim()}
+                  className="bg-teal-600 hover:bg-teal-700"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {selectedDocument?.status === 'completed' && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Analysis
+                  </Button>
+                  <Link href={`/document/${selectedDocument.id}`}>
+                    <Button variant="outline" size="sm">
+                      View Full Report
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

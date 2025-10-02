@@ -3,6 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<'quick' | 'comprehensive'>('quick');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,6 +32,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       const formData = new FormData();
       formData.append('document', file);
       formData.append('industry', industry);
+      formData.append('analysisMode', analysisMode);
       
       const response = await apiRequest('POST', '/api/documents/upload', formData);
       return response.json();
@@ -139,6 +143,34 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Your Documents</h2>
           <p className="text-gray-600 dark:text-gray-400">Powerful AI analysis for {industry} documents</p>
+        </div>
+
+        {/* Analysis Mode Toggle */}
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="analysis-mode" className="text-sm font-medium">
+                Analysis Mode: <span className="font-bold text-primary">
+                  {analysisMode === 'quick' ? '⚡ Quick Analysis' : '🔬 Comprehensive Analysis'}
+                </span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {analysisMode === 'quick' 
+                  ? 'Fast processing (30-60 seconds) with essential extractions' 
+                  : 'Detailed analysis (3-5 minutes) with advanced AI features'}
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="analysis-mode" className="text-xs">Quick</Label>
+              <Switch
+                id="analysis-mode"
+                checked={analysisMode === 'comprehensive'}
+                onCheckedChange={(checked) => setAnalysisMode(checked ? 'comprehensive' : 'quick')}
+                data-testid="switch-analysis-mode"
+              />
+              <Label htmlFor="analysis-mode" className="text-xs">Comprehensive</Label>
+            </div>
+          </div>
         </div>
         
         <div

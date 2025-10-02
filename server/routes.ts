@@ -183,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
-      const { industry, documentType } = req.body;
+      const { industry, documentType, analysisMode } = req.body;
 
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -208,13 +208,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingProgress: 0,
       });
 
-      // Start processing asynchronously
-      documentProcessor.processDocument(document.id).catch(error => {
-        console.error(`Error processing document ${document.id}:`, error);
-        storage.updateDocumentStatus(document.id, 'error', 0, error.message);
-      });
+      // Start processing asynchronously based on analysis mode
+      const processingMode = analysisMode || 'quick'; // Default to quick mode
+      console.log(`📄 Processing document ${document.id} in ${processingMode} mode`);
+      
+      if (processingMode === 'comprehensive') {
+        // Comprehensive analysis (full processing)
+        documentProcessor.processDocument(document.id).catch(error => {
+          console.error(`Error in comprehensive processing for document ${document.id}:`, error);
+          storage.updateDocumentStatus(document.id, 'error', 0, error.message);
+        });
+      } else {
+        // Quick analysis (default)
+        documentProcessor.processDocumentQuick(document.id).catch(error => {
+          console.error(`Error in quick processing for document ${document.id}:`, error);
+          storage.updateDocumentStatus(document.id, 'error', 0, error.message);
+        });
+      }
 
-      res.json(document);
+      res.json({ ...document, analysisMode: processingMode });
     } catch (error) {
       console.error("Error uploading document:", error);
       res.status(500).json({ message: "Failed to upload document" });

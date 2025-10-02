@@ -40,6 +40,142 @@ export class DocumentProcessor {
     this.websocketService = websocketService || null;
   }
 
+  // Quick analysis mode - Essential processing only (30-60 seconds)
+  async processDocumentQuick(documentId: number): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting quick document analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 10, 'Starting quick analysis mode', 'initialization');
+
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      // Stage 1: Text Extraction (OCR) - REQUIRED
+      await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text from document...');
+      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Running optimized text extraction', 'ocr');
+      const extractedText = await this.extractText(document.filePath, document.mimeType);
+      
+      // Get OCR results
+      const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
+      
+      // Stage 2: Single AI Analysis (OpenAI only for speed) - REQUIRED
+      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running quick AI analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Performing essential analysis with OpenAI', 'ai_analysis');
+      
+      // Use only OpenAI for quick mode
+      const quickAIResult = await this.multiAIService.analyzeDocumentWithSingleModel(
+        extractedText, 
+        document.industry,
+        'openai', // Use only OpenAI for speed
+        ocrResults
+      );
+      
+      // Stage 3: Basic Entity Extraction - REQUIRED
+      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting key entities...');
+      this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting essential entities', 'entity_extraction');
+      
+      // Extract only essential entities
+      const entities = this.extractEssentialEntities(quickAIResult);
+      
+      // Stage 4: Save Results
+      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving analysis...');
+      this.sendWebSocketUpdate(documentId, 'processing', 95, 'Saving quick analysis results', 'saving');
+      
+      const processingResult: ProcessingResult = {
+        extractedText: ocrResults.text,
+        extractedData: {
+          analysisMode: 'quick',
+          openAI: quickAIResult,
+          processingTime: Date.now() - startTime,
+          recommendedModel: 'openai',
+        },
+        ocrConfidence: ocrResults.confidence,
+        aiConfidence: quickAIResult.confidence || 85, // Default confidence for quick mode
+        entities,
+      };
+
+      // Update document with results
+      await storage.updateDocumentAnalysis(
+        documentId,
+        processingResult.extractedText,
+        processingResult.extractedData,
+        processingResult.ocrConfidence,
+        processingResult.aiConfidence
+      );
+
+      // Save entities
+      for (const entity of processingResult.entities) {
+        await storage.createExtractedEntity({
+          documentId,
+          entityType: entity.type,
+          entityValue: entity.value,
+          confidenceScore: entity.confidence,
+        });
+      }
+
+      // Create analysis record
+      await storage.createDocumentAnalysis({
+        documentId,
+        analysisType: 'quick_analysis',
+        analysisData: processingResult.extractedData,
+        confidenceScore: processingResult.aiConfidence,
+      });
+
+      // Mark as completed
+      await storage.updateDocumentStatus(documentId, 'completed', 100, 'Quick analysis completed');
+      this.sendWebSocketUpdate(
+        documentId, 
+        'completed', 
+        100, 
+        `Quick analysis completed in ${Math.round((Date.now() - startTime) / 1000)} seconds`,
+        'completed'
+      );
+
+      console.log(`✅ Quick document processing completed for document ${documentId} in ${Date.now() - startTime}ms`);
+    } catch (error) {
+      console.error(`Error in quick processing for document ${documentId}:`, error);
+      await storage.updateDocumentStatus(
+        documentId, 
+        'error', 
+        0, 
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      this.sendWebSocketUpdate(
+        documentId,
+        'failed',
+        0,
+        error instanceof Error ? error.message : 'Quick processing failed',
+        'error'
+      );
+      throw error;
+    }
+  }
+
+  // Helper method to extract only essential entities
+  private extractEssentialEntities(aiResult: any): Array<{type: string; value: string; confidence: number}> {
+    const entities = [];
+    
+    // Extract only the most important entity types
+    if (aiResult.entities) {
+      const essentialTypes = ['person', 'organization', 'date', 'money', 'location', 'document_type'];
+      
+      for (const entity of aiResult.entities) {
+        if (essentialTypes.includes(entity.type.toLowerCase())) {
+          entities.push({
+            type: entity.type,
+            value: entity.value,
+            confidence: entity.confidence || 85
+          });
+        }
+      }
+    }
+    
+    return entities;
+  }
+
   async processDocument(documentId: number): Promise<void> {
     const startTime = Date.now();
     
@@ -72,46 +208,48 @@ export class DocumentProcessor {
         ocrResults // Pass pre-computed OCR results
       );
       
-      // Stage 3: Template-Free Processing (NEW FEATURE)
-      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running template-free analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Analyzing document without templates using GenAI', 'template_free');
+      // Stage 3: Run Advanced Features in PARALLEL for speed
+      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running advanced analysis features...');
+      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Parallel processing: Template-free, RAG, and Intelligence analysis', 'parallel_analysis');
       
-      let templateFreeResults = null;
-      try {
-        templateFreeResults = await this.templateFreeService.processDocumentWithoutTemplates(
+      // Run template-free and RAG enhancement in parallel since they're independent
+      const [templateFreeResult, ragResult] = await Promise.allSettled([
+        // Template-Free Processing
+        this.templateFreeService.processDocumentWithoutTemplates(
           document.filePath,
           extractedText,
           document.mimeType,
           document.userId
-        );
+        ).catch(error => {
+          console.warn('⚠️ Template-free processing failed:', error instanceof Error ? error.message : error);
+          return null;
+        }),
         
-        if (templateFreeResults && templateFreeResults.extractedFindings) {
-          console.log(`✅ Template-free processing discovered ${templateFreeResults.extractedFindings.length} entities with ${templateFreeResults.adaptiveConfidence}% confidence`);
-        } else {
-          console.warn('⚠️ Template-free processing returned empty results');
-        }
-      } catch (error) {
-        console.warn('⚠️ Template-free processing failed, continuing with standard processing:', error instanceof Error ? error.message : error);
-        // Send WebSocket update about template-free processing failure
-        this.sendWebSocketUpdate(documentId, 'processing', 65, 'Template-free analysis failed, using standard processing', 'template_free_error');
-      }
+        // RAG-Enhanced Analysis
+        (async () => {
+          const query = `${document.documentType || 'document'} ${document.industry} analysis`;
+          return this.ragService.enhanceAnalysisWithRAG(
+            multiAIResult,
+            query,
+            document.industry,
+            document.documentType || undefined
+          ).catch(error => {
+            console.warn('⚠️ RAG enhancement failed:', error);
+            return null;
+          });
+        })()
+      ]);
 
-      // Stage 4: RAG-Enhanced Analysis (NEW FEATURE)
-      await storage.updateDocumentStatus(documentId, 'processing', 65, 'Enhancing analysis with historical context...');
-      this.sendWebSocketUpdate(documentId, 'processing', 65, 'Applying RAG context for improved accuracy', 'rag_enhancement');
+      // Extract results from parallel execution
+      let templateFreeResults = templateFreeResult.status === 'fulfilled' ? templateFreeResult.value : null;
+      let ragEnhancedResults = ragResult.status === 'fulfilled' ? ragResult.value : null;
       
-      let ragEnhancedResults = null;
-      try {
-        const query = `${document.documentType || 'document'} ${document.industry} analysis`;
-        ragEnhancedResults = await this.ragService.enhanceAnalysisWithRAG(
-          multiAIResult,
-          query,
-          document.industry,
-          document.documentType
-        );
+      if (templateFreeResults && templateFreeResults.extractedFindings) {
+        console.log(`✅ Template-free processing discovered ${templateFreeResults.extractedFindings.length} entities with ${templateFreeResults.adaptiveConfidence}% confidence`);
+      }
+      
+      if (ragEnhancedResults) {
         console.log(`✅ RAG enhancement provided ${ragEnhancedResults.confidenceBoost}% confidence boost`);
-      } catch (error) {
-        console.warn('RAG enhancement failed, continuing with standard processing:', error);
       }
 
       // Stage 6: Advanced Confidence Calculation (NEW FEATURE)

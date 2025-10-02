@@ -164,6 +164,100 @@ export class MultiAIService {
     }
   }
 
+  // Quick analysis with single AI model (30-60 seconds)
+  async analyzeDocumentWithSingleModel(
+    text: string,
+    industry: string,
+    model: 'openai' | 'gemini' | 'anthropic' = 'openai',
+    precomputedOCRResults?: any
+  ): Promise<any> {
+    console.log(`⚡ Starting quick analysis with ${model} for ${industry} industry`);
+    const startTime = Date.now();
+
+    try {
+      // Use precomputed OCR results if available
+      const ocrResults = precomputedOCRResults || {
+        text,
+        confidence: 90,
+        language: 'en',
+        handwritingDetected: false
+      };
+
+      let result: any = {};
+      const industryConfig = getIndustryPrompt(industry);
+
+      // Analyze with selected model only
+      switch (model) {
+        case 'openai':
+          result = await this.openaiService.analyzeDocument(text, industry);
+          break;
+        case 'gemini':
+          result = await this.analyzeWithGemini(text, industry);
+          break;
+        case 'anthropic':
+          if (this.anthropic) {
+            result = await this.analyzeWithAnthropic(text, industry);
+          } else {
+            // Fallback to OpenAI if Anthropic not available
+            result = await this.openaiService.analyzeDocument(text, industry);
+          }
+          break;
+      }
+
+      // Extract basic entities
+      const entities = this.extractBasicEntities(result, industryConfig);
+
+      const processingTime = Date.now() - startTime;
+      console.log(`⚡ Quick analysis completed in ${processingTime}ms`);
+
+      return {
+        ...result,
+        entities,
+        confidence: result.confidence || 85,
+        processingTime,
+        model
+      };
+
+    } catch (error) {
+      console.error(`Error in quick ${model} analysis:`, error);
+      throw new Error(`Quick analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Helper method to extract basic entities from quick analysis
+  private extractBasicEntities(result: any, industryConfig: any): Array<{type: string; value: string; confidence: number}> {
+    const entities = [];
+    
+    // Extract from OpenAI-style results
+    if (result.entities && Array.isArray(result.entities)) {
+      for (const entity of result.entities) {
+        entities.push({
+          type: entity.type || 'unknown',
+          value: entity.value || entity.text || entity,
+          confidence: entity.confidence || 85
+        });
+      }
+    }
+    
+    // Extract from text-based results if no structured entities
+    if (entities.length === 0 && result.analysis) {
+      // Basic regex extraction for common entity types
+      const dateRegex = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
+      const moneyRegex = /\$[\d,]+(?:\.\d{2})?/g;
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+      
+      const dates = result.analysis.match(dateRegex) || [];
+      const amounts = result.analysis.match(moneyRegex) || [];
+      const emails = result.analysis.match(emailRegex) || [];
+      
+      dates.forEach(date => entities.push({ type: 'date', value: date, confidence: 80 }));
+      amounts.forEach(amount => entities.push({ type: 'money', value: amount, confidence: 80 }));
+      emails.forEach(email => entities.push({ type: 'email', value: email, confidence: 85 }));
+    }
+    
+    return entities;
+  }
+
   private async analyzeWithGemini(text: string, industry: string) {
     try {
       const [summary, sentiment] = await Promise.all([

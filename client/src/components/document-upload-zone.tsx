@@ -17,9 +17,15 @@ interface DocumentUploadZoneProps {
   onUploadComplete?: () => void;
 }
 
+interface UploadProgress {
+  fileName: string;
+  progress: number;
+  status: 'uploading' | 'completed' | 'failed';
+}
+
 export default function DocumentUploadZone({ industry, onUploadComplete }: DocumentUploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgresses, setUploadProgresses] = useState<UploadProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<'quick' | 'comprehensive'>('quick');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,19 +34,22 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   const industryConfig = getIndustryConfig(industry);
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (files: File[]) => {
       const formData = new FormData();
-      formData.append('document', file);
+      files.forEach(file => {
+        formData.append('documents', file);
+      });
       formData.append('industry', industry);
       formData.append('analysisMode', analysisMode);
       
-      const response = await apiRequest('POST', '/api/documents/upload', formData);
+      const response = await apiRequest('POST', '/api/documents/upload-bulk', formData);
       return response.json();
     },
     onSuccess: (data) => {
+      const count = data.documents ? data.documents.length : 1;
       toast({
         title: "Upload Successful",
-        description: `${data.originalFilename} has been uploaded and is being processed.`,
+        description: `${count} document${count > 1 ? 's have' : ' has'} been uploaded and ${count > 1 ? 'are' : 'is'} being processed.`,
       });
       
       // Invalidate documents query to refresh the list
@@ -48,7 +57,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       
       onUploadComplete?.();
-      setUploadProgress(0);
+      setUploadProgresses([]);
       setIsUploading(false);
     },
     onError: (error) => {
@@ -66,10 +75,10 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload document. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to upload documents. Please try again.",
         variant: "destructive",
       });
-      setUploadProgress(0);
+      setUploadProgresses([]);
       setIsUploading(false);
     },
   });
@@ -77,44 +86,68 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    const file = files[0];
-    
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload PDF, DOC, DOCX, JPG, or PNG files only.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const validFiles: File[] = [];
+    const progresses: UploadProgress[] = [];
 
-    // Validate file size (50MB limit)
-    if (file.size > 50 * 1024 * 1024) {
-      toast({
-        title: "File Too Large",
-        description: "Please upload files smaller than 50MB.",
-        variant: "destructive",
+    // Validate all files
+    Array.from(files).forEach(file => {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: `Invalid File Type: ${file.name}`,
+          description: "Please upload PDF, DOC, DOCX, JPG, or PNG files only.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        toast({
+          title: `File Too Large: ${file.name}`,
+          description: "Please upload files smaller than 50MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      validFiles.push(file);
+      progresses.push({
+        fileName: file.name,
+        progress: 0,
+        status: 'uploading'
       });
-      return;
-    }
+    });
+
+    if (validFiles.length === 0) return;
 
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadProgresses(progresses);
 
-    // Simulate upload progress
+    // Simulate upload progress for each file
     const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
+      setUploadProgresses(prev => prev.map(p => {
+        if (p.status === 'completed' || p.progress >= 90) {
+          return p;
         }
-        return prev + Math.random() * 20;
+        return {
+          ...p,
+          progress: Math.min(90, p.progress + Math.random() * 20)
+        };
+      }));
+      
+      // Clear interval when all files reach 90%
+      setUploadProgresses(prev => {
+        const allReached90 = prev.every(p => p.progress >= 90 || p.status === 'completed');
+        if (allReached90) {
+          clearInterval(progressInterval);
+        }
+        return prev;
       });
     }, 200);
 
-    uploadMutation.mutate(file);
+    uploadMutation.mutate(validFiles);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -143,6 +176,10 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Your Documents</h2>
           <p className="text-gray-600 dark:text-gray-400">Powerful AI analysis for {industry} documents</p>
+          <Badge className="mt-2 bg-green-100 text-green-800" variant="secondary">
+            <i className="fas fa-layer-group mr-2"></i>
+            Bulk Upload Enabled - Select Multiple Files
+          </Badge>
         </div>
 
         {/* Analysis Mode Toggle */}
@@ -195,6 +232,10 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
           <p className="text-gray-600 dark:text-gray-400 text-lg mb-4 max-w-md" data-testid="upload-description">
             {industryConfig.uploadDescription}
           </p>
+          <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-4">
+            <i className="fas fa-info-circle mr-2"></i>
+            Select or drop multiple files for bulk upload
+          </p>
           <div className="flex flex-wrap gap-3 justify-center mt-4">
             <Badge variant="secondary" className="px-3 py-1">
               <i className="fas fa-file-pdf mr-2 text-red-500"></i>
@@ -209,7 +250,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
               JPG/PNG
             </Badge>
             <Badge variant="outline" className="px-3 py-1">
-              Max 50MB
+              Max 50MB per file
             </Badge>
           </div>
         </div>
@@ -217,23 +258,33 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           className="hidden"
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
           onChange={(e) => handleFileSelect(e.target.files)}
           data-testid="file-input"
         />
 
-        {/* Upload Progress */}
-        {isUploading && (
-          <div className="mt-4 animate-slideIn" data-testid="upload-progress">
+        {/* Upload Progress for Multiple Files */}
+        {isUploading && uploadProgresses.length > 0 && (
+          <div className="mt-4 space-y-3 animate-slideIn" data-testid="upload-progress">
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
               <span className="flex items-center">
                 <LoadingSpinner size="sm" className="mr-2" />
-                Uploading document<span className="loading-dots"></span>
+                Uploading {uploadProgresses.length} document{uploadProgresses.length > 1 ? 's' : ''}<span className="loading-dots"></span>
               </span>
-              <span data-testid="progress-percentage" className="font-semibold">{Math.round(uploadProgress)}%</span>
             </div>
-            <Progress value={uploadProgress} className="h-2 transition-all duration-300" />
+            {uploadProgresses.map((file, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="truncate max-w-[200px]">{file.fileName}</span>
+                  <span data-testid={`progress-percentage-${index}`} className="font-semibold">
+                    {Math.round(file.progress)}%
+                  </span>
+                </div>
+                <Progress value={file.progress} className="h-2 transition-all duration-300" />
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

@@ -178,7 +178,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Document upload route
+  // Bulk document upload route
+  app.post('/api/documents/upload-bulk', isAuthenticated, upload.array('documents', 20), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const files = req.files as Express.Multer.File[];
+      const { industry, documentType, analysisMode } = req.body;
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const documents = [];
+      
+      // Process each file
+      for (const file of files) {
+        // Create document record
+        const document = await storage.createDocument({
+          userId,
+          filename: file.filename,
+          originalFilename: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          industry: industry || user.industry,
+          documentType: documentType || 'general',
+          status: 'uploaded',
+          processingProgress: 0,
+        });
+        
+        documents.push(document);
+
+        // Start processing asynchronously based on analysis mode
+        const processingMode = analysisMode || 'quick'; // Default to quick mode
+        console.log(`📄 Processing document ${document.id} in ${processingMode} mode`);
+        
+        if (processingMode === 'comprehensive') {
+          // Comprehensive analysis (full processing)
+          documentProcessor.processDocument(document.id).catch(error => {
+            console.error(`Error in comprehensive processing for document ${document.id}:`, error);
+            storage.updateDocumentStatus(document.id, 'error', 0, error.message);
+          });
+        } else {
+          // Quick analysis (default)
+          documentProcessor.processDocumentQuick(document.id).catch(error => {
+            console.error(`Error in quick processing for document ${document.id}:`, error);
+            storage.updateDocumentStatus(document.id, 'error', 0, error.message);
+          });
+        }
+      }
+
+      res.json({ 
+        documents, 
+        count: documents.length,
+        analysisMode: analysisMode || 'quick'
+      });
+    } catch (error) {
+      console.error("Error uploading documents:", error);
+      res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // Single document upload route (backward compatibility)
   app.post('/api/documents/upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

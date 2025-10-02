@@ -61,15 +61,15 @@ export class DocumentProcessor {
       // Get OCR results
       const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
       
-      // Stage 2: Single AI Analysis (OpenAI only for speed) - REQUIRED
+      // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED
       await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running quick AI analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Performing essential analysis with OpenAI', 'ai_analysis');
+      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Performing essential analysis with Gemini', 'ai_analysis');
       
-      // Use only OpenAI for quick mode
+      // Use Gemini for quick mode (faster and more cost-effective)
       const quickAIResult = await this.multiAIService.analyzeDocumentWithSingleModel(
         extractedText, 
         document.industry,
-        'openai', // Use only OpenAI for speed
+        'gemini', // Use Gemini Flash for speed
         ocrResults
       );
       
@@ -88,9 +88,9 @@ export class DocumentProcessor {
         extractedText: ocrResults.text,
         extractedData: {
           analysisMode: 'quick',
-          openAI: quickAIResult,
+          gemini: quickAIResult,
           processingTime: Date.now() - startTime,
-          recommendedModel: 'openai',
+          recommendedModel: 'gemini',
         },
         ocrConfidence: ocrResults.confidence,
         aiConfidence: quickAIResult.confidence || 85, // Default confidence for quick mode

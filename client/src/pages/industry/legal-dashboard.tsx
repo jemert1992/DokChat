@@ -1,62 +1,70 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { 
-  Gavel, 
   FileText, 
-  Shield, 
-  Search,
+  MessageSquare, 
+  Gavel,
+  Send,
+  Brain,
+  CheckCircle,
+  AlertCircle,
+  FileSearch,
+  Sparkles,
+  Download,
+  Home,
   Scale,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  BookOpen,
-  Briefcase,
-  Home
+  BookOpen
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
+import DocumentUploadZone from "@/components/document-upload-zone";
+import { motion } from "framer-motion";
 
 export default function LegalDashboard() {
-  const [selectedCase, setSelectedCase] = useState<string | null>(null);
-  const [showNewCaseDialog, setShowNewCaseDialog] = useState(false);
-  const [showUploadContractDialog, setShowUploadContractDialog] = useState(false);
-  const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
+    { role: "assistant", content: "I'm your legal document AI assistant. Upload contracts, court filings, legal briefs, or compliance documents and I'll help you extract key clauses, identify risks, summarize agreements, and ensure legal compliance. How can I assist you today?" }
+  ]);
 
-  // Fetch legal documents
+  // Fetch documents
   const { data: documents } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
 
-  // Mock case data - in production, this would come from the database
-  const cases = [
-    { id: "1", name: "Smith v. Johnson", caseNumber: "CV-2024-001", status: "Active", deadline: "2024-02-15", priority: "high" },
-    { id: "2", name: "Corporate Merger ABC", caseNumber: "M&A-2024-002", status: "Review", deadline: "2024-03-01", priority: "medium" },
-    { id: "3", name: "Patent Dispute XYZ", caseNumber: "IP-2024-003", status: "Discovery", deadline: "2024-02-28", priority: "high" },
-  ];
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "text-red-600 bg-red-50";
-      case "medium": return "text-yellow-600 bg-yellow-50";
-      case "low": return "text-green-600 bg-green-50";
-      default: return "text-gray-600 bg-gray-50";
-    }
+  const handleSendMessage = () => {
+    if (!aiPrompt.trim()) return;
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: "user", content: aiPrompt },
+      { role: "assistant", content: `Analyzing your legal document for: "${aiPrompt}". ${selectedDocument ? `Reviewing ${selectedDocument.originalFilename}...` : 'Please select a document first.'}` }
+    ]);
+    setAiPrompt("");
   };
+
+  const legalDocuments = documents?.filter(doc => 
+    doc.industry === 'legal' || 
+    doc.originalFilename?.toLowerCase().includes('legal') ||
+    doc.originalFilename?.toLowerCase().includes('contract') ||
+    doc.originalFilename?.toLowerCase().includes('agreement') ||
+    doc.originalFilename?.toLowerCase().includes('court')
+  ) || [];
+
+  const quickActions = [
+    { icon: FileSearch, label: "Extract Key Clauses", action: "Extract all important clauses and terms from this legal document" },
+    { icon: AlertCircle, label: "Identify Risks", action: "Identify potential legal risks and liabilities in this document" },
+    { icon: Scale, label: "Compliance Check", action: "Check this document for regulatory compliance issues" },
+    { icon: BookOpen, label: "Summarize Contract", action: "Provide a comprehensive summary of this legal agreement" }
+  ];
 
   return (
     <div className="space-y-6">
@@ -68,467 +76,257 @@ export default function LegalDashboard() {
             size="icon"
             onClick={() => setLocation('/')}
             data-testid="button-back-home"
-            title="Back to Dashboard"
           >
             <Home className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Legal Case Manager</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Gavel className="h-8 w-8 text-indigo-600" />
+              Legal Document Intelligence
+            </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Contract analysis, case management, and compliance tracking
+              AI-powered contract analysis and legal document processing
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            data-testid="button-new-case"
-            onClick={() => {
-              toast({
-                title: "New Case",
-                description: "Opening case creation form...",
-              });
-              setShowNewCaseDialog(true);
-            }}
-          >
-            <Briefcase className="h-4 w-4 mr-2" />
-            New Case
-          </Button>
-          <Button 
-            className="bg-blue-900 hover:bg-blue-800" 
-            data-testid="button-upload-contract"
-            onClick={() => {
-              toast({
-                title: "Upload Contract",
-                description: "Opening contract upload dialog...",
-              });
-              setShowUploadContractDialog(true);
-            }}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Upload Contract
-          </Button>
-        </div>
+        <Badge className="bg-indigo-100 text-indigo-800 px-4 py-2">
+          Legal Industry
+        </Badge>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Active Cases</p>
-                <p className="text-2xl font-bold">42</p>
-                <p className="text-xs text-green-600 mt-1">+3 this week</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Gavel className="h-6 w-6 text-blue-900" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="documents" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documents & Upload
+          </TabsTrigger>
+          <TabsTrigger value="ai-chat" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            AI Assistant
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Contracts Reviewed</p>
-                <p className="text-2xl font-bold">186</p>
-                <p className="text-xs text-blue-600 mt-1">98% accuracy</p>
-              </div>
-              <div className="h-12 w-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-6 w-6 text-indigo-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Upcoming Deadlines</p>
-                <p className="text-2xl font-bold">7</p>
-                <p className="text-xs text-orange-600 mt-1">2 urgent</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Clock className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Compliance Score</p>
-                <p className="text-2xl font-bold">98%</p>
-                <p className="text-xs text-green-600 mt-1">Excellent</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Contract Analysis Tool */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-blue-900" />
-            Contract Intelligence
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="justify-start" 
-              data-testid="button-extract-clauses"
-              onClick={() => {
-                toast({
-                  title: "Clause Extraction",
-                  description: "Analyzing contract for key clauses and terms...",
-                });
-              }}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Extract Key Clauses
-            </Button>
-            <Button 
-              variant="outline" 
-              className="justify-start" 
-              data-testid="button-risk-analysis"
-              onClick={() => {
-                toast({
-                  title: "Risk Analysis",
-                  description: "Performing comprehensive risk assessment...",
-                });
-              }}
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Risk Analysis
-            </Button>
-            <Button 
-              variant="outline" 
-              className="justify-start" 
-              data-testid="button-compliance-check"
-              onClick={() => {
-                toast({
-                  title: "Compliance Check",
-                  description: "Running regulatory compliance validation...",
-                });
-              }}
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Compliance Check
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Case List */}
-        <div className="lg:col-span-1">
-          <Card className="h-full">
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-4 mt-4">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Active Cases</span>
-                <Badge variant="outline">{cases.length} cases</Badge>
-              </CardTitle>
+              <CardTitle>Upload Legal Documents</CardTitle>
+              <CardDescription>
+                Upload contracts, court filings, legal briefs, or compliance documents for AI analysis
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                {cases.map((case_) => (
-                  <div
-                    key={case_.id}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors ${
-                      selectedCase === case_.id ? "bg-blue-50 dark:bg-blue-950" : ""
-                    }`}
-                    onClick={() => setSelectedCase(case_.id)}
-                    data-testid={`case-row-${case_.id}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{case_.name}</p>
-                        <p className="text-sm text-gray-500">{case_.caseNumber}</p>
-                        <p className="text-xs text-gray-400 mt-1">Deadline: {case_.deadline}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Badge 
-                          variant={case_.status === "Active" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {case_.status}
-                        </Badge>
-                        <Badge 
-                          className={`text-xs ${getPriorityColor(case_.priority)}`}
-                          variant="outline"
-                        >
-                          {case_.priority} priority
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardContent>
+              <DocumentUploadZone />
             </CardContent>
           </Card>
-        </div>
 
-        {/* Case Details */}
-        <div className="lg:col-span-2">
-          {selectedCase ? (
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Case Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="documents">Documents</TabsTrigger>
-                    <TabsTrigger value="contracts">Contracts</TabsTrigger>
-                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="overview" className="space-y-4 mt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Case Type</p>
-                        <p className="text-lg font-semibold">Civil Litigation</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Court</p>
-                        <p className="text-lg font-semibold">Superior Court</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Judge</p>
-                        <p className="text-lg font-semibold">Hon. Sarah Williams</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Filing Date</p>
-                        <p className="text-lg font-semibold">Jan 15, 2024</p>
-                      </div>
-                    </div>
-                    
-                    <Alert className="border-blue-200 bg-blue-50">
-                      <AlertTriangle className="h-4 w-4 text-blue-600" />
-                      <AlertDescription>
-                        Motion deadline approaching: Response due by February 15, 2024
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Case Summary</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        This case involves a breach of contract dispute between two corporations regarding 
-                        a software development agreement. The plaintiff alleges non-delivery of agreed-upon 
-                        features while the defendant claims scope changes were not properly documented.
-                      </p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="documents" className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      {documents?.slice(0, 5).map((doc) => (
-                        <div key={doc.id} className="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900">
-                          <div className="flex justify-between items-start">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Legal Documents</CardTitle>
+              <CardDescription>
+                Select a document to analyze with AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-3">
+                  {legalDocuments.length > 0 ? (
+                    legalDocuments.map((doc) => (
+                      <motion.div
+                        key={doc.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
+                          selectedDocument?.id === doc.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950' : ''
+                        }`}
+                        onClick={() => setSelectedDocument(doc)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-gray-400" />
-                              <div>
-                                <p className="font-medium">{doc.originalFilename}</p>
-                                <p className="text-sm text-gray-500">
-                                  {new Date(doc.createdAt || '').toLocaleDateString()}
-                                </p>
-                              </div>
+                              <FileText className="h-4 w-4 text-indigo-600" />
+                              <p className="font-medium">{doc.originalFilename}</p>
+                              {selectedDocument?.id === doc.id && (
+                                <Badge variant="outline" className="text-xs">Selected</Badge>
+                              )}
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {doc.status}
-                            </Badge>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                            </p>
+                            {doc.confidence && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                  <span className="text-xs">Confidence: {doc.confidence}%</span>
+                                </div>
+                                {doc.documentType && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {doc.documentType}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Link href={`/document/${doc.id}`}>
+                              <Button size="sm" variant="outline">
+                                View Details
+                              </Button>
+                            </Link>
+                            {doc.status === 'completed' && (
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDocument(doc);
+                                  const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
+                                  aiTab?.click();
+                                }}
+                              >
+                                <Brain className="h-3 w-3 mr-1" />
+                                Analyze
+                              </Button>
+                            )}
                           </div>
                         </div>
-                      ))}
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <Gavel className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No legal documents uploaded yet</p>
+                      <p className="text-sm mt-2">Upload your first document above to get started</p>
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="contracts" className="space-y-4 mt-4">
-                    <div className="space-y-3">
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium">Software Development Agreement</p>
-                            <p className="text-sm text-gray-500">Executed: Dec 1, 2023</p>
-                          </div>
-                          <Badge className="bg-green-100 text-green-700">Analyzed</Badge>
-                        </div>
-                        <div className="space-y-2 mt-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Key Terms Extracted</span>
-                            <span className="font-medium">24 clauses</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Risk Level</span>
-                            <Badge className="bg-yellow-100 text-yellow-700 text-xs">Medium</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium">Amendment #1</p>
-                            <p className="text-sm text-gray-500">Executed: Jan 5, 2024</p>
-                          </div>
-                          <Badge className="bg-blue-100 text-blue-700">Processing</Badge>
-                        </div>
-                        <Progress value={65} className="h-2 mt-3" />
-                      </div>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="timeline" className="space-y-4 mt-4">
-                    <div className="space-y-4">
-                      <div className="flex gap-3">
-                        <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Case Filed</p>
-                          <p className="text-sm text-gray-500">January 15, 2024</p>
-                          <p className="text-sm text-gray-600 mt-1">Initial complaint filed with court</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-3">
-                        <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Response Filed</p>
-                          <p className="text-sm text-gray-500">January 30, 2024</p>
-                          <p className="text-sm text-gray-600 mt-1">Defendant's answer submitted</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-3">
-                        <div className="w-2 h-2 rounded-full bg-yellow-600 mt-2"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Discovery Phase</p>
-                          <p className="text-sm text-gray-500">Current</p>
-                          <p className="text-sm text-gray-600 mt-1">Document exchange in progress</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-3">
-                        <div className="w-2 h-2 rounded-full bg-gray-300 mt-2"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Trial Date</p>
-                          <p className="text-sm text-gray-500">April 15, 2024</p>
-                          <p className="text-sm text-gray-600 mt-1">Scheduled trial date</p>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Chat Tab */}
+        <TabsContent value="ai-chat" className="space-y-4 mt-4">
+          {selectedDocument ? (
+            <Alert className="border-indigo-200 bg-indigo-50 dark:bg-indigo-950">
+              <FileText className="h-4 w-4 text-indigo-600" />
+              <AlertDescription className="flex justify-between items-center">
+                <span>Analyzing: <strong>{selectedDocument.originalFilename}</strong></span>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => setSelectedDocument(null)}
+                >
+                  Change Document
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center py-12">
-                <Gavel className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Select a case to view details</p>
-              </CardContent>
-            </Card>
+            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription>
+                Please select a document from the Documents tab first to start AI analysis
+              </AlertDescription>
+            </Alert>
           )}
-        </div>
-      </div>
 
-      {/* Recent Precedents */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-900" />
-            Relevant Precedents
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <div>
-                <p className="font-medium">Johnson v. Microsoft Corp.</p>
-                <p className="text-sm text-gray-500">Software contract breach - Similar fact pattern</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-indigo-600" />
+                Legal AI Assistant
+              </CardTitle>
+              <CardDescription>
+                Ask questions about your legal documents or use quick actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                {quickActions.map((action, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    className="justify-start"
+                    disabled={!selectedDocument}
+                    onClick={() => {
+                      setChatMessages(prev => [
+                        ...prev,
+                        { role: "user", content: action.action },
+                        { role: "assistant", content: `Analyzing your legal document for: ${action.action}...` }
+                      ]);
+                    }}
+                  >
+                    <action.icon className="h-4 w-4 mr-2" />
+                    {action.label}
+                  </Button>
+                ))}
               </div>
-              <Badge variant="outline">95% match</Badge>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <div>
-                <p className="font-medium">Apple Inc. v. Samsung</p>
-                <p className="text-sm text-gray-500">IP dispute - Relevant arguments</p>
+
+              {/* Chat Messages */}
+              <ScrollArea className="h-[300px] border rounded-lg p-4">
+                <div className="space-y-4">
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                          msg.role === 'user' 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'bg-gray-100 dark:bg-gray-800'
+                        }`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Input Area */}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Ask about clauses, risks, obligations, parties, deadlines, compliance..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1 min-h-[80px]"
+                  disabled={!selectedDocument}
+                />
+                <Button 
+                  onClick={handleSendMessage}
+                  disabled={!selectedDocument || !aiPrompt.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
-              <Badge variant="outline">87% match</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* New Case Dialog */}
-      <Dialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Case</DialogTitle>
-            <DialogDescription>
-              Enter case information to create a new legal matter.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">Case creation form would appear here</p>
-            <Button 
-              className="w-full"
-              onClick={() => {
-                setShowNewCaseDialog(false);
-                toast({
-                  title: "Success",
-                  description: "New case created successfully!",
-                });
-              }}
-            >
-              Create Case
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Upload Contract Dialog */}
-      <Dialog open={showUploadContractDialog} onOpenChange={setShowUploadContractDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Contract</DialogTitle>
-            <DialogDescription>
-              Upload contracts for AI-powered analysis and review.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-600">Drop contracts here or click to browse</p>
-              <p className="text-xs text-gray-500 mt-2">Supports PDF, DOCX, TXT formats</p>
-            </div>
-            <Button 
-              className="w-full"
-              onClick={() => {
-                setShowUploadContractDialog(false);
-                toast({
-                  title: "Success",
-                  description: "Contract uploaded and analysis started!",
-                });
-              }}
-            >
-              Upload & Analyze
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+              {selectedDocument?.status === 'completed' && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Analysis
+                  </Button>
+                  <Link href={`/document/${selectedDocument.id}`}>
+                    <Button variant="outline" size="sm">
+                      View Full Report
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

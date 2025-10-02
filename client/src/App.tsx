@@ -43,7 +43,12 @@ function Router() {
           <Route path="/industry-selection" component={IndustrySelection} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/document/:id" component={DocumentAnalysis} />
-          {/* Industry-specific dashboards */}
+          {/* Industry-specific dashboards - simplified routes */}
+          <Route path="/industry/medical" component={MedicalDashboard} />
+          <Route path="/industry/legal" component={LegalDashboard} />
+          <Route path="/industry/finance" component={FinanceDashboard} />
+          <Route path="/industry/logistics" component={LogisticsDashboard} />
+          {/* Legacy routes for backward compatibility */}
           <Route path="/medical/patient-dashboard" component={MedicalDashboard} />
           <Route path="/medical/clinical-analytics" component={MedicalDashboard} />
           <Route path="/legal/case-manager" component={LegalDashboard} />

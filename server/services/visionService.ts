@@ -149,6 +149,7 @@ export class VisionService {
 
   // Limited PDF extraction for quick mode - only processes first N pages
   async extractTextFromPDFLimited(pdfPath: string, maxPages: number = 5): Promise<OCRResult> {
+    let tempDir: string | null = null;
     try {
       // Ensure Vision client is properly initialized
       this.ensureInitialized();
@@ -157,6 +158,11 @@ export class VisionService {
       
       // Convert PDF to images for OCR processing
       const allImageResults = await this.convertPDFToImages(pdfPath);
+      
+      // Store temp directory for cleanup
+      if (allImageResults.length > 0) {
+        tempDir = path.dirname(allImageResults[0]);
+      }
       
       // Limit to first N pages
       const imageResults = allImageResults.slice(0, maxPages);
@@ -203,24 +209,8 @@ export class VisionService {
             detectedLanguage = pageResult.language;
           }
           
-          // Clean up temporary image file
-          try {
-            await fs.promises.unlink(imagePath);
-          } catch (cleanupError) {
-            console.warn(`⚠️ Could not clean up temporary image: ${imagePath}`);
-          }
-          
         } catch (pageError) {
           console.error(`❌ Error processing PDF page ${i + 1}:`, pageError);
-        }
-      }
-
-      // Clean up remaining images that weren't processed
-      for (let i = imageResults.length; i < allImageResults.length; i++) {
-        try {
-          await fs.promises.unlink(allImageResults[i]);
-        } catch (cleanupError) {
-          // Ignore cleanup errors
         }
       }
 
@@ -239,10 +229,21 @@ export class VisionService {
     } catch (error) {
       console.error('Quick PDF extraction failed:', error);
       throw new Error(`Quick PDF extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      // Clean up entire temp directory
+      if (tempDir) {
+        try {
+          await fs.promises.rm(tempDir, { recursive: true, force: true });
+          console.log(`🧹 Cleaned up temp directory: ${tempDir}`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Could not clean up temp directory: ${tempDir}`);
+        }
+      }
     }
   }
 
   async extractTextFromPDF(pdfPath: string): Promise<OCRResult> {
+    let tempDir: string | null = null;
     try {
       // Ensure Vision client is properly initialized
       this.ensureInitialized();
@@ -251,6 +252,11 @@ export class VisionService {
       
       // Convert PDF to images for OCR processing
       const imageResults = await this.convertPDFToImages(pdfPath);
+      
+      // Store temp directory for cleanup
+      if (imageResults.length > 0) {
+        tempDir = path.dirname(imageResults[0]);
+      }
       
       if (imageResults.length === 0) {
         return {
@@ -294,13 +300,6 @@ export class VisionService {
             detectedLanguage = pageResult.language;
           }
           
-          // Clean up temporary image file
-          try {
-            await fs.promises.unlink(imagePath);
-          } catch (cleanupError) {
-            console.warn(`⚠️ Could not clean up temporary image: ${imagePath}`);
-          }
-          
         } catch (pageError) {
           console.error(`❌ Error processing PDF page ${i + 1}:`, pageError);
           combinedText += `--- Page ${i + 1} ---\n[OCR Error: ${pageError instanceof Error ? pageError.message : 'Unknown error'}]\n\n`;
@@ -334,6 +333,16 @@ export class VisionService {
       }
       
       return this.createFallbackResult(`PDF OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      // Clean up entire temp directory
+      if (tempDir) {
+        try {
+          await fs.promises.rm(tempDir, { recursive: true, force: true });
+          console.log(`🧹 Cleaned up temp directory: ${tempDir}`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Could not clean up temp directory: ${tempDir}`);
+        }
+      }
     }
   }
 
@@ -342,7 +351,9 @@ export class VisionService {
    */
   private async convertPDFToImages(pdfPath: string): Promise<string[]> {
     try {
-      const outputDir = path.join(path.dirname(pdfPath), 'temp_pdf_images');
+      // Create unique temp directory for this PDF to avoid race conditions
+      const uniqueId = `pdf_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const outputDir = path.join(path.dirname(pdfPath), 'temp_pdf_images', uniqueId);
       
       // Ensure output directory exists
       await fs.promises.mkdir(outputDir, { recursive: true });

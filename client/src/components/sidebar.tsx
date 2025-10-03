@@ -1,9 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
-import { getIndustryConfig } from "@/lib/industry-config";
 import { useState } from "react";
 import type { User } from "@shared/schema";
+import {
+  Home,
+  FileText,
+  Brain,
+  Upload,
+  Clock,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Sparkles
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarProps {
   user: User;
@@ -13,59 +24,11 @@ interface SidebarProps {
 
 export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps) {
   const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const industryConfig = getIndustryConfig(user.industry || 'general');
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
-
-  const handleNavClick = (item: any) => {
-    switch (item.action) {
-      case 'navigate':
-        if (item.view && onNavigate) {
-          onNavigate(item.view);
-        } else if (item.path) {
-          setLocation(item.path);
-        }
-        break;
-      case 'focus-upload':
-        // Scroll to upload zone on dashboard
-        const uploadZone = document.getElementById('upload-zone');
-        if (uploadZone) {
-          uploadZone.scrollIntoView({ behavior: 'smooth' });
-          uploadZone.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'scale-105', 'transition-all');
-          setTimeout(() => {
-            uploadZone.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-75', 'scale-105');
-          }, 3000);
-        }
-        break;
-      case 'scroll-to-activity':
-        // Scroll to recent documents section
-        const activitySection = document.querySelector('[data-testid="recent-documents"]');
-        if (activitySection) {
-          activitySection.scrollIntoView({ behavior: 'smooth' });
-        }
-        break;
-      case 'profile':
-        if (onNavigate) onNavigate('profile');
-        break;
-      default:
-        if (item.view && onNavigate) {
-          onNavigate(item.view);
-        } else if (item.path) {
-          setLocation(item.path);
-        }
-    }
-  };
-
-  const handleQuickAction = (action: any) => {
-    handleNavClick(action);
-  };
-
-  // Use industry-specific navigation sections
-  const navSections = industryConfig.navigationSections.sort((a, b) => a.priority - b.priority);
 
   const getUserInitials = (user: User) => {
     const first = user.firstName?.[0] || '';
@@ -73,189 +36,208 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
     return first + last || user.email?.[0] || 'U';
   };
 
-  const getUserDisplayName = (user: User) => {
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+  const industryName = user.industry === 'medical' ? 'Medical Intelligence' :
+                       user.industry === 'finance' ? 'Finance Intelligence' :
+                       user.industry === 'legal' ? 'Legal Intelligence' :
+                       user.industry === 'logistics' ? 'Logistics Intelligence' :
+                       'Business Intelligence';
+
+  const navItems = [
+    { 
+      icon: Home, 
+      label: 'Dashboard', 
+      path: '/dashboard',
+      gradient: 'from-blue-500 to-indigo-500'
+    },
+    { 
+      icon: Brain, 
+      label: industryName, 
+      path: user.industry === 'medical' ? '/medical' :
+            user.industry === 'finance' ? '/finance' :
+            user.industry === 'legal' ? '/legal' :
+            user.industry === 'logistics' ? '/logistics' :
+            '/dashboard',
+      gradient: 'from-purple-500 to-pink-500',
+      pulse: true
+    },
+    { 
+      icon: Clock, 
+      label: 'Recent', 
+      path: '#recent',
+      action: 'scroll-to-recent',
+      gradient: 'from-green-500 to-teal-500'
     }
-    return user.email || 'User';
+  ];
+
+  const handleNavClick = (item: any) => {
+    if (item.action === 'scroll-to-recent') {
+      const recentSection = document.querySelector('[data-testid="recent-documents"]');
+      if (recentSection) {
+        recentSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (item.path) {
+      setLocation(item.path);
+    }
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-72'} bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 min-h-screen flex flex-col transition-all duration-300 relative shadow-sm`}>
-      
-      {/* Header with Logo and Collapse Button */}
-      <div className="p-6 pb-4">
-        <div className="flex items-center justify-between mb-6">
-          <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-xl flex items-center justify-center shadow-lg`}>
-              <i className={`${industryConfig.branding.logoIcon} text-white text-lg`}></i>
-            </div>
-            {!isCollapsed && (
-              <div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{industryConfig.branding.logoText}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block -mt-1">{industryConfig.branding.logoSubtext}</span>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            data-testid="sidebar-collapse"
-          >
-            <i className={`fas ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'} text-gray-500 text-sm`}></i>
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        {!isCollapsed && (
-          <div className="relative mb-6">
-            <div className="relative">
-              <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-              <Input
-                type="text"
-                placeholder={industryConfig.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`pl-10 pr-4 py-3 w-full bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-${industryConfig.branding.primaryColor} focus:border-transparent placeholder-gray-400`}
-                data-testid="search-input"
-              />
-            </div>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <i className="fas fa-times text-sm"></i>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex-1 px-4 pb-4">
-        {navSections.map((section, sectionIndex) => (
-          <div key={section.label} className={`${sectionIndex > 0 ? 'mt-8' : ''}`}>
-            {!isCollapsed && (
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">
-                {section.label}
+    <motion.div
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`
+        fixed left-0 top-0 h-screen
+        ${isCollapsed ? 'w-20' : 'w-72'}
+        bg-gradient-to-b from-white via-gray-50 to-gray-100
+        dark:from-gray-900 dark:via-gray-850 dark:to-gray-800
+        border-r border-gray-200 dark:border-gray-700
+        transition-all duration-300 ease-in-out
+        shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50
+        z-40
+      `}
+    >
+      {/* Mini Profile Card */}
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur">
+        <motion.div 
+          className="flex items-center gap-4"
+          whileHover={{ scale: 1.02 }}
+        >
+          <Avatar className="h-12 w-12 ring-2 ring-offset-2 ring-purple-500/20">
+            <AvatarImage src={user.profileImage} />
+            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-semibold">
+              {getUserInitials(user)}
+            </AvatarFallback>
+          </Avatar>
+          {!isCollapsed && (
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                {user.firstName} {user.lastName}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                {user.role || user.industry || 'Professional'}
               </p>
-            )}
-            <nav className="space-y-1">
-              {section.items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item)}
-                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-3 py-3'} rounded-xl transition-all duration-200 group relative ${
-                    currentPage === item.id
-                      ? `bg-${industryConfig.branding.secondaryColor} dark:bg-${industryConfig.branding.primaryColor}/20 text-${industryConfig.branding.primaryColor} dark:text-${industryConfig.branding.accentColor} shadow-sm`
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
-                  data-testid={`nav-${item.id}`}
-                >
-                  <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} w-full`}>
-                    <i className={`${item.icon} ${isCollapsed ? 'text-lg' : 'text-base'} ${currentPage === item.id ? `text-${industryConfig.branding.primaryColor} dark:text-${industryConfig.branding.accentColor}` : ''}`}></i>
-                    {!isCollapsed && (
-                      <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
-                    )}
-                    {!isCollapsed && item.badge && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        item.badge === 'NEW' 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Tooltip for collapsed state */}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                      {item.label}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
-        ))}
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="ml-auto hover:bg-gray-200 dark:hover:bg-gray-700"
+            data-testid="button-toggle-sidebar"
+          >
+            <ChevronRight className={`h-4 w-4 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+          </Button>
+        </motion.div>
       </div>
 
-      {/* User Profile */}
-      <div className="mt-auto p-4 border-t border-gray-200 dark:border-gray-800">
-        {!isCollapsed ? (
-          <>
-            <div className="flex items-center space-x-3 mb-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900">
-              <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-full flex items-center justify-center shadow-sm`}>
-                <span className="text-white text-sm font-semibold" data-testid="text-user-initials">
-                  {getUserInitials(user)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" data-testid="text-user-name">
-                  {getUserDisplayName(user)}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate" data-testid="text-user-industry">
-                  {industryConfig.userTitle}
-                </p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleLogout}
-                className="p-2 h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                data-testid="button-logout"
-              >
-                <i className="fas fa-sign-out-alt text-sm"></i>
-              </Button>
-            </div>
-            
-            {/* Industry-Specific Quick Actions */}
-            <div className="grid grid-cols-2 gap-2">
-              {industryConfig.quickActions.slice(0, 4).map((quickAction, index) => (
-                <Button 
-                  key={quickAction.id}
-                  variant={quickAction.primary ? "default" : "outline"} 
-                  size="sm" 
-                  className={`h-9 text-xs font-medium ${
-                    quickAction.primary 
-                      ? `bg-${industryConfig.branding.primaryColor} hover:bg-${industryConfig.branding.primaryColor}/90 text-white border-${industryConfig.branding.primaryColor}`
-                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                  onClick={() => handleQuickAction(quickAction)}
-                  data-testid={`quick-action-${quickAction.id}`}
-                >
-                  <i className={`${quickAction.icon} mr-1.5`}></i>
-                  {quickAction.label}
-                </Button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center space-y-3">
-            <div className={`w-10 h-10 bg-gradient-to-br from-${industryConfig.branding.gradientFrom} to-${industryConfig.branding.gradientTo} rounded-full flex items-center justify-center shadow-sm group relative`}>
-              <span className="text-white text-sm font-semibold" data-testid="text-user-initials">
-                {getUserInitials(user)}
-              </span>
-              
-              {/* Tooltip */}
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                {getUserDisplayName(user)}
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleLogout}
-              className="p-2 h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              data-testid="button-logout"
+      {/* Navigation Items */}
+      <nav className="p-4 space-y-2">
+        {navItems.map((item, index) => {
+          const Icon = item.icon;
+          const isActive = currentPage === item.path;
+          
+          return (
+            <motion.button
+              key={item.label}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.05, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleNavClick(item)}
+              className={`
+                w-full flex items-center gap-4 px-4 py-3 rounded-xl
+                transition-all duration-200
+                ${isActive ? 
+                  `bg-gradient-to-r ${item.gradient} text-white shadow-lg` : 
+                  'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }
+                ${item.pulse && !isActive ? 'animate-pulse' : ''}
+                group relative overflow-hidden
+              `}
+              data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
             >
-              <i className="fas fa-sign-out-alt text-sm"></i>
-            </Button>
-          </div>
-        )}
+              <div className={`
+                p-2 rounded-lg
+                ${isActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'}
+              `}>
+                <Icon className="h-5 w-5" />
+              </div>
+              {!isCollapsed && (
+                <>
+                  <span className="font-medium text-sm">{item.label}</span>
+                  {item.pulse && !isActive && (
+                    <Sparkles className="h-4 w-4 ml-auto text-purple-500 animate-pulse" />
+                  )}
+                </>
+              )}
+              
+              {/* Hover effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
+                animate={isActive ? { translateX: '200%' } : {}}
+                transition={{ duration: 1, repeat: isActive ? Infinity : 0, repeatDelay: 1 }}
+              />
+            </motion.button>
+          );
+        })}
+      </nav>
+
+      {/* Floating Upload Button */}
+      <motion.div
+        className="absolute bottom-24 left-1/2 transform -translate-x-1/2"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Button
+          onClick={() => {
+            const uploadZone = document.getElementById('upload-zone');
+            if (uploadZone) {
+              uploadZone.scrollIntoView({ behavior: 'smooth' });
+              uploadZone.classList.add('ring-4', 'ring-purple-500', 'ring-opacity-75');
+              setTimeout(() => {
+                uploadZone.classList.remove('ring-4', 'ring-purple-500', 'ring-opacity-75');
+              }, 2000);
+            }
+          }}
+          className={`
+            ${isCollapsed ? 'h-12 w-12' : 'h-14 px-6'}
+            bg-gradient-to-r from-purple-600 to-pink-600
+            hover:from-purple-700 hover:to-pink-700
+            text-white shadow-xl rounded-full
+            flex items-center justify-center gap-2
+            transform transition-all duration-300
+          `}
+          data-testid="button-upload-floating"
+        >
+          <Upload className="h-5 w-5" />
+          {!isCollapsed && <span className="font-semibold">Upload</span>}
+        </Button>
+      </motion.div>
+
+      {/* Bottom Section */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation('/settings')}
+            className="hover:bg-gray-200 dark:hover:bg-gray-700"
+            data-testid="button-settings"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+            data-testid="button-logout"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

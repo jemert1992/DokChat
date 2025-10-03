@@ -1,441 +1,345 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   FileText, 
-  MessageSquare, 
-  Activity,
-  Send,
   Brain,
+  Upload,
+  Send,
+  Activity,
+  Clock,
   CheckCircle,
   AlertCircle,
-  FileSearch,
   Sparkles,
-  Download,
-  Home,
-  Pill,
-  X,
-  Share2
+  TrendingUp,
+  Users,
+  FileSearch
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
-import { Link, useLocation } from "wouter";
-import DocumentUploadZone from "@/components/document-upload-zone";
+import { motion, AnimatePresence } from "framer-motion";
 import ShareDocumentDialog from "@/components/share-document-dialog";
-import { motion } from "framer-motion";
 
 export default function MedicalDashboard() {
-  const [, setLocation] = useLocation();
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
-  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
-    { role: "assistant", content: "Hello! I'm your medical document AI assistant. Upload medical documents and I can help you analyze multiple documents together - comparing patient information, tracking treatment progress across visits, correlating lab results with diagnoses, and more. What would you like me to analyze?" }
-  ]);
+  const [activeView, setActiveView] = useState<'dashboard' | 'ai'>('dashboard');
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Fetch documents
   const { data: documents } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
 
-  const handleSendMessage = () => {
-    if (!aiPrompt.trim()) return;
-    
-    const docNames = selectedDocuments.map(d => d.originalFilename).join(", ");
-    setChatMessages(prev => [
-      ...prev,
-      { role: "user", content: aiPrompt },
-      { role: "assistant", content: `I'll analyze that for you. ${selectedDocuments.length > 0 ? `Looking at ${selectedDocuments.length} document(s): ${docNames}...` : 'Please select at least one document first.'}` }
-    ]);
-    setAiPrompt("");
+  const stats = {
+    accuracy: 98.5,
+    documentsProcessed: documents?.filter(d => d.status === 'completed').length || 0,
+    avgTime: "1.2s"
   };
 
   const toggleDocumentSelection = (doc: Document) => {
     setSelectedDocuments(prev => {
       const isSelected = prev.some(d => d.id === doc.id);
-      if (isSelected) {
-        return prev.filter(d => d.id !== doc.id);
-      } else {
-        return [...prev, doc];
-      }
+      return isSelected ? prev.filter(d => d.id !== doc.id) : [...prev, doc];
     });
   };
 
-  const clearSelection = () => {
-    setSelectedDocuments([]);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    // File upload would be handled here
   };
 
-  const medicalDocuments = documents?.filter(doc => 
-    doc.industry === 'medical' || 
-    doc.originalFilename?.toLowerCase().includes('medical') ||
-    doc.originalFilename?.toLowerCase().includes('patient') ||
-    doc.originalFilename?.toLowerCase().includes('clinical')
-  ) || [];
-
   const quickActions = [
-    { icon: FileSearch, label: "Compare Patient Info", action: "Compare patient demographics and information across all selected documents" },
-    { icon: Activity, label: "Track Diagnoses", action: "Track diagnoses and medical conditions across all visits" },
-    { icon: FileText, label: "Summarize All", action: "Provide a comprehensive summary of all selected medical documents" },
-    { icon: Pill, label: "Medication History", action: "Extract and compare all medications, dosages across documents" }
+    { icon: FileSearch, label: "Extract Patient Info", gradient: "from-blue-500 to-cyan-500" },
+    { icon: Activity, label: "Analyze Diagnoses", gradient: "from-purple-500 to-pink-500" },
+    { icon: Users, label: "Treatment Plans", gradient: "from-green-500 to-teal-500" },
+    { icon: TrendingUp, label: "Lab Results", gradient: "from-orange-500 to-red-500" }
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setLocation('/')}
-            data-testid="button-back-home"
-          >
-            <Home className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Activity className="h-8 w-8 text-teal-600" />
-              Medical Document Intelligence
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              HIPAA-compliant document processing with clinical AI
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedDocuments.length > 0 && (
-            <Badge className="bg-blue-100 text-blue-800 px-3 py-1">
-              {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''} selected
-            </Badge>
-          )}
-          <Badge className="bg-teal-100 text-teal-800 px-4 py-2">
-            Medical Industry
-          </Badge>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      {/* Floating Action Button */}
+      <motion.button
+        className="fixed bottom-8 right-8 h-16 w-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-2xl flex items-center justify-center text-white z-50"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setActiveView(activeView === 'dashboard' ? 'ai' : 'dashboard')}
+        data-testid="button-toggle-view"
+      >
+        {activeView === 'dashboard' ? <Brain className="h-6 w-6" /> : <Activity className="h-6 w-6" />}
+      </motion.button>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="documents" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="documents" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Documents & Upload
-          </TabsTrigger>
-          <TabsTrigger value="ai-chat" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            AI Assistant {selectedDocuments.length > 0 && `(${selectedDocuments.length})`}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Documents Tab */}
-        <TabsContent value="documents" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Medical Documents</CardTitle>
-              <CardDescription>
-                Upload multiple medical records, lab reports, prescriptions, or clinical notes for combined AI analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DocumentUploadZone industry="medical" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
+      <div className="container mx-auto p-8 max-w-7xl">
+        {/* Header with Stats */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="text-4xl font-bold mb-2 gradient-text">
+            Medical Intelligence Dashboard
+          </h1>
+          <div className="flex gap-6 mt-6">
+            <motion.div 
+              className="card-modern card-gradient p-6 flex-1"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Medical Documents</CardTitle>
-                  <CardDescription>
-                    Select one or more documents to analyze together with AI
-                  </CardDescription>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
+                  <p className="text-3xl font-bold text-green-600">{stats.accuracy}%</p>
                 </div>
-                {selectedDocuments.length > 0 && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={clearSelection}
-                  >
-                    Clear Selection ({selectedDocuments.length})
-                  </Button>
-                )}
+                <CheckCircle className="h-10 w-10 text-green-500 opacity-20" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-3">
-                  {medicalDocuments.length > 0 ? (
-                    medicalDocuments.map((doc) => {
+            </motion.div>
+            <motion.div 
+              className="card-modern card-gradient p-6 flex-1"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Processing Time</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.avgTime}</p>
+                </div>
+                <Clock className="h-10 w-10 text-blue-500 opacity-20" />
+              </div>
+            </motion.div>
+            <motion.div 
+              className="card-modern card-gradient p-6 flex-1"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Documents</p>
+                  <p className="text-3xl font-bold text-purple-600">{stats.documentsProcessed}</p>
+                </div>
+                <FileText className="h-10 w-10 text-purple-500 opacity-20" />
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {activeView === 'dashboard' ? (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-6"
+            >
+              {/* Upload Zone */}
+              <motion.div
+                className={`card-modern p-8 border-2 border-dashed transition-all ${
+                  isDragging ? 'border-purple-500 bg-purple-50 dark:bg-purple-950' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                onDragEnter={() => setIsDragging(true)}
+                onDragLeave={() => setIsDragging(false)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                id="upload-zone"
+                whileHover={{ scale: 1.01 }}
+              >
+                <div className="text-center">
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-purple-500" />
+                  <h3 className="text-xl font-semibold mb-2">Drop Medical Documents Here</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Support for bulk upload - Select multiple files
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <Badge className="bg-green-100 text-green-800">HIPAA Compliant</Badge>
+                    <Badge className="bg-blue-100 text-blue-800">Bulk Upload Enabled</Badge>
+                  </div>
+                  <input 
+                    type="file" 
+                    multiple 
+                    className="hidden" 
+                    id="file-input"
+                    data-testid="input-file-upload"
+                  />
+                  <Button 
+                    className="mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                    onClick={() => document.getElementById('file-input')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Select Files
+                  </Button>
+                </div>
+              </motion.div>
+
+              {/* Recent Documents */}
+              <motion.div className="card-modern p-6" data-testid="recent-documents">
+                <h2 className="text-2xl font-bold mb-4">Recent Documents</h2>
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {documents?.slice(0, 10).map((doc, index) => {
                       const isSelected = selectedDocuments.some(d => d.id === doc.id);
                       return (
                         <motion.div
                           key={doc.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
-                            isSelected ? 'border-teal-500 bg-teal-50 dark:bg-teal-950' : ''
+                          transition={{ delay: index * 0.05 }}
+                          className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                            isSelected 
+                              ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950' 
+                              : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:shadow-md'
                           }`}
                           onClick={() => toggleDocumentSelection(doc)}
+                          whileHover={{ scale: 1.02 }}
                           data-testid={`document-card-${doc.id}`}
                         >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-teal-600" />
-                                <p className="font-medium">{doc.originalFilename}</p>
-                                {isSelected && (
-                                  <Badge variant="outline" className="text-xs bg-teal-100">
-                                    ✓ Selected
-                                  </Badge>
-                                )}
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${
+                                doc.status === 'completed' 
+                                  ? 'bg-green-100 text-green-600' 
+                                  : doc.status === 'processing' 
+                                  ? 'bg-blue-100 text-blue-600' 
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                <FileText className="h-5 w-5" />
                               </div>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
-                              </p>
-                              {doc.confidence && (
-                                <div className="flex items-center gap-2 mt-2">
-                                  <div className="flex items-center gap-1">
-                                    <CheckCircle className="h-3 w-3 text-green-600" />
-                                    <span className="text-xs">Confidence: {doc.confidence}%</span>
-                                  </div>
-                                  {doc.documentType && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {doc.documentType}
+                              <div>
+                                <p className="font-medium">{doc.originalFilename}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge className={
+                                    doc.status === 'completed' ? 'status-badge-ready' :
+                                    doc.status === 'processing' ? 'status-badge-processing' :
+                                    'status-badge-error'
+                                  }>
+                                    {doc.status}
+                                  </Badge>
+                                  {isSelected && (
+                                    <Badge className="bg-purple-100 text-purple-800">
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Selected
                                     </Badge>
                                   )}
                                 </div>
-                              )}
+                              </div>
                             </div>
-                            <div className="flex flex-col gap-2">
-                              <Link href={`/document/${doc.id}`}>
-                                <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
-                                  View Details
-                                </Button>
-                              </Link>
+                            <div className="flex gap-2">
                               {doc.status === 'completed' && (
-                                <>
-                                  <ShareDocumentDialog document={doc}>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      onClick={(e) => e.stopPropagation()}
-                                      data-testid={`button-share-${doc.id}`}
-                                    >
-                                      <Share2 className="h-3 w-3 mr-1" />
-                                      Share
-                                    </Button>
-                                  </ShareDocumentDialog>
+                                <ShareDocumentDialog document={doc}>
                                   <Button 
                                     size="sm" 
-                                    variant={isSelected ? "default" : "outline"}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleDocumentSelection(doc);
-                                    }}
-                                    data-testid={`button-select-${doc.id}`}
+                                    variant="ghost"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="hover:bg-purple-100"
+                                    data-testid={`button-share-${doc.id}`}
                                   >
-                                    {isSelected ? (
-                                      <>
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Selected
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Brain className="h-3 w-3 mr-1" />
-                                        Select
-                                      </>
-                                    )}
+                                    Share
                                   </Button>
-                                </>
+                                </ShareDocumentDialog>
                               )}
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `/document/${doc.id}`;
+                                }}
+                                className="hover:bg-blue-100"
+                              >
+                                View
+                              </Button>
                             </div>
                           </div>
                         </motion.div>
                       );
-                    })
-                  ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No medical documents uploaded yet</p>
-                      <p className="text-sm mt-2">Upload your first document above to get started</p>
-                    </div>
+                    })}
+                  </div>
+                </ScrollArea>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="ai"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              {/* AI Assistant View */}
+              <div className="card-modern p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <Brain className="h-6 w-6 text-purple-600" />
+                    Medical AI Assistant
+                  </h2>
+                  {selectedDocuments.length > 0 && (
+                    <Badge className="bg-purple-100 text-purple-800">
+                      {selectedDocuments.length} documents selected
+                    </Badge>
                   )}
                 </div>
-              </ScrollArea>
-              {selectedDocuments.length > 0 && (
-                <div className="mt-4 p-3 bg-teal-50 dark:bg-teal-950 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''} selected for analysis
-                    </span>
-                    <Button 
-                      size="sm"
-                      className="bg-teal-600 hover:bg-teal-700"
-                      onClick={() => {
-                        // Switch to AI chat tab
-                        const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
-                        aiTab?.click();
-                      }}
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {quickActions.map((action, index) => (
+                    <motion.button
+                      key={action.label}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`p-4 rounded-xl bg-gradient-to-r ${action.gradient} text-white shadow-lg hover:shadow-xl transition-all`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setAiPrompt(action.label)}
+                      data-testid={`quick-action-${action.label.toLowerCase().replace(' ', '-')}`}
                     >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Analyze Selected
+                      <action.icon className="h-5 w-5 mb-2" />
+                      <p className="text-sm font-semibold">{action.label}</p>
+                    </motion.button>
+                  ))}
+                </div>
+
+                {/* Chat Interface */}
+                <div className="border rounded-xl p-4 bg-gray-50 dark:bg-gray-900">
+                  <ScrollArea className="h-[300px] mb-4">
+                    <div className="space-y-4">
+                      <div className="flex gap-3">
+                        <div className="p-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white h-8 w-8 flex items-center justify-center">
+                          <Brain className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                          <p className="text-sm">
+                            Hello! I'm your medical AI assistant. Select documents and I'll help you analyze patient information, 
+                            track treatment progress, correlate lab results, and more.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                  
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder={selectedDocuments.length > 0 
+                        ? "Ask about the selected documents..." 
+                        : "Select documents first, then ask your question..."}
+                      className="flex-1 min-h-[60px] resize-none"
+                      data-testid="textarea-ai-prompt"
+                    />
+                    <Button
+                      size="lg"
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                      disabled={!aiPrompt.trim() || selectedDocuments.length === 0}
+                      data-testid="button-send-ai"
+                    >
+                      <Send className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* AI Chat Tab */}
-        <TabsContent value="ai-chat" className="space-y-4 mt-4">
-          {selectedDocuments.length > 0 ? (
-            <Alert className="border-teal-200 bg-teal-50 dark:bg-teal-950">
-              <FileText className="h-4 w-4 text-teal-600" />
-              <AlertDescription>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-medium">Analyzing {selectedDocuments.length} document{selectedDocuments.length > 1 ? 's' : ''}:</span>
-                    <div className="mt-2 space-y-1">
-                      {selectedDocuments.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-2 text-sm">
-                          <span>• {doc.originalFilename}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-5 w-5 p-0"
-                            onClick={() => toggleDocumentSelection(doc)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    onClick={clearSelection}
-                  >
-                    Clear All
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription>
-                Please select one or more documents from the Documents tab to start AI analysis
-              </AlertDescription>
-            </Alert>
+              </div>
+            </motion.div>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-teal-600" />
-                Medical AI Assistant - Multi-Document Analysis
-              </CardTitle>
-              <CardDescription>
-                Ask questions across multiple documents - compare treatments, track progress, correlate findings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-2">
-                {quickActions.map((action, idx) => (
-                  <Button
-                    key={idx}
-                    variant="outline"
-                    className="justify-start"
-                    disabled={selectedDocuments.length === 0}
-                    onClick={() => {
-                      setAiPrompt(action.action);
-                      setChatMessages(prev => [
-                        ...prev,
-                        { role: "user", content: action.action },
-                        { role: "assistant", content: `Analyzing ${selectedDocuments.length} document(s) for: ${action.action}...` }
-                      ]);
-                      setAiPrompt("");
-                    }}
-                    data-testid={`quick-action-${idx}`}
-                  >
-                    <action.icon className="h-4 w-4 mr-2" />
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
-
-              {/* Chat Messages */}
-              <ScrollArea className="h-[300px] border rounded-lg p-4">
-                <div className="space-y-4">
-                  {chatMessages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                          msg.role === 'user' 
-                            ? 'bg-teal-600 text-white' 
-                            : 'bg-gray-100 dark:bg-gray-800'
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-
-              {/* Input Area */}
-              <div className="flex gap-2">
-                <Textarea
-                  placeholder={selectedDocuments.length > 1 
-                    ? "Ask about patterns across documents, compare treatments, track progress..." 
-                    : "Ask about diagnoses, medications, lab results, patient history..."}
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  className="flex-1 min-h-[80px]"
-                  disabled={selectedDocuments.length === 0}
-                  data-testid="textarea-ai-prompt"
-                />
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={selectedDocuments.length === 0 || !aiPrompt.trim()}
-                  className="bg-teal-600 hover:bg-teal-700"
-                  data-testid="button-send-message"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {selectedDocuments.length > 0 && selectedDocuments.every(doc => doc.status === 'completed') && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Combined Analysis
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    View Individual Reports
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

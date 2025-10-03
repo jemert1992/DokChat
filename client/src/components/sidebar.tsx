@@ -26,8 +26,17 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
   const [, setLocation] = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      window.location.href = '/';
+    }
   };
 
   const getUserInitials = (user: User) => {

@@ -29,8 +29,17 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
 
   const isAdmin = user.email === 'admin@emert.ai';
 
-  const handleLogout = () => {
-    window.location.href = '/api/logout';
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      window.location.href = '/';
+    }
   };
 
   const handleSwitchIndustry = () => {

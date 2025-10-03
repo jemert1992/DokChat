@@ -35,6 +35,8 @@ Comprehensive schema supporting multi-industry document processing:
 - **Extracted Entities**: Structured entity extraction results
 - **Processing Jobs**: Background task tracking and status management
 - **Industry Configurations**: Customizable settings per industry
+- **Chat Sessions**: Persistent chat sessions for multi-document analysis with document IDs array
+- **Chat Messages**: Individual messages linked to chat sessions for conversation history
 - **Sessions**: Authentication session management
 
 ### Document Processing Pipeline
@@ -95,10 +97,24 @@ Removed all non-functional navigation tabs and streamlined sidebar to essential 
 - **DOCUMENTS Section**: Upload Documents (focuses upload zone) and Recent Documents (scrolls to document list)
 - **Removed**: All unnecessary tabs including Case Management, Contract Analytics, Property Portfolio, Market Analytics, Clinical Analytics, and dozens of other non-functional navigation items
 
+#### Bulk Document Selection and Chat Persistence (October 2024)
+Implemented bulk document analysis capabilities with persistent chat sessions:
+
+- **Multi-Document Selection**: Checkboxes in Finance dashboard allow selecting multiple documents for bulk analysis
+- **Persistent Chat Sessions**: Chat conversations are saved to database and automatically restored
+  - Sessions are created per unique set of selected documents
+  - Messages persist across page refreshes and document reselection
+  - Database schema includes `chat_sessions` and `chat_messages` tables
+  - API endpoints for creating sessions, saving messages, and retrieving history
+- **Smart Session Management**: Automatically loads existing sessions when the same documents are selected
+- **Bulk Analysis Support**: Send questions and analysis requests to multiple documents simultaneously
+- **Chat History Restoration**: Previous conversations are restored when reselecting the same document set
+
 #### Performance Optimizations
 - Fixed OCR bottleneck: Quick mode now properly limits PDF processing to first 5 pages
 - Improved document processing speed with `extractTextQuick` method optimization
 - Enhanced routing with both industry-specific and legacy route support
+- Resolved PDF processing race condition by creating unique temporary directories per document
 
 ## External Dependencies
 

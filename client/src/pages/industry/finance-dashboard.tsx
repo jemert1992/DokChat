@@ -48,31 +48,54 @@ export default function FinanceDashboard() {
   // Create or load chat session when documents are selected
   useEffect(() => {
     if (selectedDocuments.length > 0) {
-      const documentIds = selectedDocuments.map(d => d.id);
+      const documentIds = selectedDocuments.map(d => d.id).sort((a, b) => a - b); // Sort for consistent comparison
       
-      // Create a new chat session for these documents
-      apiRequest('/api/chat-sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          documentIds,
-          industry: 'finance',
-          title: `Finance Analysis - ${new Date().toLocaleDateString()}`
-        }),
-        headers: { 'Content-Type': 'application/json' }
+      // Check if there's an existing session for these documents
+      apiRequest('/api/chat-sessions?industry=finance', {
+        method: 'GET'
       })
-        .then((session: any) => {
-          setCurrentSessionId(session.id);
-          
-          // Load existing messages for this session
-          return apiRequest(`/api/chat-sessions/${session.id}/messages`, {
-            method: 'GET'
+        .then((sessions: any[]) => {
+          // Find a session with the exact same document IDs
+          const existingSession = sessions.find(s => {
+            const sessionDocIds = [...s.documentIds].sort((a: number, b: number) => a - b);
+            return sessionDocIds.length === documentIds.length && 
+                   sessionDocIds.every((id: number, idx: number) => id === documentIds[idx]);
           });
+          
+          if (existingSession) {
+            // Load existing session
+            setCurrentSessionId(existingSession.id);
+            return apiRequest(`/api/chat-sessions/${existingSession.id}/messages`, {
+              method: 'GET'
+            });
+          } else {
+            // Create a new chat session for these documents
+            return apiRequest('/api/chat-sessions', {
+              method: 'POST',
+              body: JSON.stringify({
+                documentIds,
+                industry: 'finance',
+                title: `Finance Analysis - ${new Date().toLocaleDateString()}`
+              }),
+              headers: { 'Content-Type': 'application/json' }
+            }).then((session: any) => {
+              setCurrentSessionId(session.id);
+              return apiRequest(`/api/chat-sessions/${session.id}/messages`, {
+                method: 'GET'
+              });
+            });
+          }
         })
         .then((messages: any[]) => {
           if (messages && messages.length > 0) {
             setChatMessages([
               { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" },
               ...messages.map(m => ({ role: m.role, content: m.content }))
+            ]);
+          } else {
+            // Reset to default message for new session
+            setChatMessages([
+              { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
             ]);
           }
         })
@@ -86,7 +109,7 @@ export default function FinanceDashboard() {
         { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
       ]);
     }
-  }, [selectedDocuments.map(d => d.id).join(',')]); // Depend on document IDs
+  }, [selectedDocuments.map(d => d.id).sort((a, b) => a - b).join(',')]); // Depend on sorted document IDs
 
   const handleSendMessage = async () => {
     if (!aiPrompt.trim() || !currentSessionId) return;

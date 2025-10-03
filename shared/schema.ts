@@ -623,12 +623,20 @@ export const documentShares = pgTable("document_shares", {
   teamId: integer("team_id").references(() => teams.id),
   userId: varchar("user_id").references(() => users.id),
   sharedBy: varchar("shared_by").references(() => users.id).notNull(),
+  sharedWithEmail: varchar("shared_with_email", { length: 255 }), // Email address for external sharing
+  shareToken: varchar("share_token", { length: 255 }).unique(), // Unique token for share link
   accessLevel: varchar("access_level", { length: 50 }).default('view'), // view, comment, edit, manage
   permissions: jsonb("permissions").default({}),
+  message: text("message"), // Optional message from sharer
+  accessedAt: timestamp("accessed_at"),
   expiresAt: timestamp("expires_at"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_share_document").on(table.documentId),
+  index("idx_share_token").on(table.shareToken),
+  index("idx_share_email").on(table.sharedWithEmail),
+]);
 
 // Document comments and annotations
 export const documentComments = pgTable("document_comments", {

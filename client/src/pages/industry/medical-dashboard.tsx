@@ -19,12 +19,14 @@ import {
   Download,
   Home,
   Pill,
-  X
+  X,
+  Share2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 import DocumentUploadZone from "@/components/document-upload-zone";
+import ShareDocumentDialog from "@/components/share-document-dialog";
 import { motion } from "framer-motion";
 
 export default function MedicalDashboard() {
@@ -215,27 +217,40 @@ export default function MedicalDashboard() {
                                 </Button>
                               </Link>
                               {doc.status === 'completed' && (
-                                <Button 
-                                  size="sm" 
-                                  variant={isSelected ? "default" : "outline"}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleDocumentSelection(doc);
-                                  }}
-                                  data-testid={`button-select-${doc.id}`}
-                                >
-                                  {isSelected ? (
-                                    <>
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      Selected
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Brain className="h-3 w-3 mr-1" />
-                                      Select
-                                    </>
-                                  )}
-                                </Button>
+                                <>
+                                  <ShareDocumentDialog document={doc}>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={(e) => e.stopPropagation()}
+                                      data-testid={`button-share-${doc.id}`}
+                                    >
+                                      <Share2 className="h-3 w-3 mr-1" />
+                                      Share
+                                    </Button>
+                                  </ShareDocumentDialog>
+                                  <Button 
+                                    size="sm" 
+                                    variant={isSelected ? "default" : "outline"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDocumentSelection(doc);
+                                    }}
+                                    data-testid={`button-select-${doc.id}`}
+                                  >
+                                    {isSelected ? (
+                                      <>
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Selected
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Brain className="h-3 w-3 mr-1" />
+                                        Select
+                                      </>
+                                    )}
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>

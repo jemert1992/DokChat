@@ -2550,6 +2550,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================================================================================
+  // DOCUMENT SHARING & COLLABORATION ENDPOINTS - SECURE with ownership verification
+  // ==================================================================================
+
+  // Create a document share
+  app.post('/api/documents/:id/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { email, accessLevel, message, expiresIn } = req.body;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Generate unique share token
+      const shareToken = randomUUID();
+      
+      // Calculate expiry date if provided
+      let expiresAt = null;
+      if (expiresIn) {
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + expiresIn);
+        expiresAt = expiryDate;
+      }
+
+      // Create the share
+      const share = await storage.createDocumentShare({
+        documentId,
+        sharedBy: userId,
+        sharedWithEmail: email,
+        shareToken,
+        accessLevel: accessLevel || 'view',
+        message: message || null,
+        expiresAt,
+        isActive: true,
+      });
+
+      // TODO: Send email notification if email integration is configured
+      // For now, just return the share link
+      const shareLink = `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/shared/${shareToken}`;
+
+      res.json({
+        share,
+        shareLink,
+        message: `Document shared with ${email}. Share link created.`
+      });
+    } catch (error) {
+      console.error("Error creating document share:", error);
+      res.status(500).json({ message: "Failed to share document" });
+    }
+  });
+
+  // Get all shares for a document
+  app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get all active shares for this document
+      const shares = await storage.getDocumentShares(documentId);
+      
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching document shares:", error);
+      res.status(500).json({ message: "Failed to fetch shares" });
+    }
+  });
+
+  // Access a shared document via share token
+  app.get('/api/shared/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      // Get share by token
+      const share = await storage.getShareByToken(token);
+      if (!share) {
+        return res.status(404).json({ message: "Share not found or expired" });
+      }
+
+      // Check if share is active and not expired
+      if (!share.isActive) {
+        return res.status(403).json({ message: "This share has been revoked" });
+      }
+
+      if (share.expiresAt && new Date(share.expiresAt) < new Date()) {
+        return res.status(403).json({ message: "This share has expired" });
+      }
+
+      // Get the document
+      const document = await storage.getDocument(share.documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Get document analyses
+      const analyses = await storage.getDocumentAnalyses(share.documentId);
+
+      // Log access
+      await storage.updateShareAccess(share.id);
+
+      // Return document data based on access level
+      const response = {
+        document: {
+          id: document.id,
+          originalFilename: document.originalFilename,
+          industry: document.industry,
+          documentType: document.documentType,
+          status: document.status,
+          createdAt: document.createdAt,
+        },
+        share: {
+          accessLevel: share.accessLevel,
+          message: share.message,
+          sharedBy: share.sharedBy,
+          expiresAt: share.expiresAt,
+        },
+        analyses: share.accessLevel !== 'view' ? [] : analyses,
+        canComment: ['comment', 'edit', 'manage'].includes(share.accessLevel),
+        canEdit: ['edit', 'manage'].includes(share.accessLevel),
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error accessing shared document:", error);
+      res.status(500).json({ message: "Failed to access shared document" });
+    }
+  });
+
+  // Revoke a share
+  app.delete('/api/documents/:id/shares/:shareId', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const shareId = parseInt(req.params.shareId);
+      const userId = req.user.claims.sub;
+
+      if (isNaN(documentId) || isNaN(shareId)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+
+      // Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Revoke the share
+      await storage.revokeDocumentShare(shareId);
+      
+      res.json({ message: "Share revoked successfully" });
+    } catch (error) {
+      console.error("Error revoking share:", error);
+      res.status(500).json({ message: "Failed to revoke share" });
+    }
+  });
+
   // Add AI testing endpoints - ONLY in development with authentication
   if (process.env.NODE_ENV === 'development') {
     console.log('⚠️  AI Test endpoints enabled in development mode');

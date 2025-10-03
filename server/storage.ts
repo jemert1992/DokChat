@@ -221,9 +221,12 @@ export interface IStorage {
   
   // Document sharing operations
   shareDocument(share: InsertDocumentShare): Promise<DocumentShare>;
+  createDocumentShare(share: any): Promise<DocumentShare>; // Alias for shareDocument
   getDocumentShares(documentId: number): Promise<DocumentShare[]>;
   getUserDocumentShares(userId: string): Promise<DocumentShare[]>;
+  getShareByToken(token: string): Promise<DocumentShare | undefined>;
   updateDocumentShare(id: number, updates: Partial<DocumentShare>): Promise<DocumentShare>;
+  updateShareAccess(shareId: number): Promise<void>;
   revokeDocumentShare(id: number): Promise<void>;
   
   // Comment operations
@@ -837,6 +840,29 @@ export class DatabaseStorage implements IStorage {
       .values(share)
       .returning();
     return result;
+  }
+  
+  // Alias for shareDocument to support different naming conventions
+  async createDocumentShare(share: any): Promise<DocumentShare> {
+    return this.shareDocument(share);
+  }
+  
+  // Get a share by its unique token
+  async getShareByToken(token: string): Promise<DocumentShare | undefined> {
+    const share = await db
+      .select()
+      .from(documentShares)
+      .where(eq(documentShares.shareToken, token))
+      .limit(1);
+    return share[0];
+  }
+  
+  // Update share access (set accessedAt timestamp)
+  async updateShareAccess(shareId: number): Promise<void> {
+    await db
+      .update(documentShares)
+      .set({ accessedAt: new Date() })
+      .where(eq(documentShares.id, shareId));
   }
 
   async getDocumentShares(documentId: number): Promise<DocumentShare[]> {

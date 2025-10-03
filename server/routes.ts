@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, hashPassword } from "./auth";
+import passport from "passport";
 import multer from "multer";
 import path from "path";
 import { DocumentProcessor } from "./services/documentProcessor";
@@ -114,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       req.apiKey = validation.apiKey;
-      req.user = { claims: { sub: validation.apiKey?.userId } };
+      req.user = { id: validation.apiKey?.userId };
       next();
     } catch (error) {
       console.error('API key validation error:', error);
@@ -135,10 +136,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return isAuthenticated(req, res, next);
   };
 
-  // Auth routes
+  // Registration route
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { email, password, firstName, lastName } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: 'Email already registered' });
+      }
+
+      const hashedPassword = await hashPassword(password);
+      const user = await storage.createUser({
+        email,
+        password: hashedPassword,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        industry: 'general',
+      });
+
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Registration successful but login failed' });
+        }
+        res.json({ message: 'Registration successful', user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName } });
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ message: 'Registration failed' });
+    }
+  });
+
+  // Login route
+  app.post('/api/auth/login', (req, res, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: 'Authentication error' });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || 'Invalid credentials' });
+      }
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Login failed' });
+        }
+        res.json({ message: 'Login successful', user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName } });
+      });
+    })(req, res, next);
+  });
+
+  // Google OAuth routes
+  app.get('/api/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
+
+  app.get('/api/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/industry-selection');
+    }
+  );
+
+  // Logout route
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Logout failed' });
+      }
+      res.json({ message: 'Logout successful' });
+    });
+  });
+
+  // Get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -150,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Industry selection route
   app.put('/api/user/industry', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const validatedData = industrySelectionSchema.parse(req.body);
       
       const user = await storage.updateUserIndustry(
@@ -181,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk document upload route
   app.post('/api/documents/upload-bulk', isAuthenticated, upload.array('documents', 20), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const files = req.files as Express.Multer.File[];
       const { industry, documentType, analysisMode } = req.body;
 
@@ -247,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Single document upload route (backward compatibility)
   app.post('/api/documents/upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const file = req.file;
       const { industry, documentType, analysisMode } = req.body;
 
@@ -302,7 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user documents
   app.get('/api/documents', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 50;
       
       const documents = await storage.getUserDocuments(userId, limit);
@@ -317,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       const document = await storage.getDocument(documentId);
       if (!document) {
@@ -348,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/status', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       const document = await storage.getDocument(documentId);
       if (!document) {
@@ -375,7 +451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/:id/agentic-process', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -422,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/template-free-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -464,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/:id/template-free-process', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -548,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/template-free-insights', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -607,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/entity-extraction', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -667,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/compliance', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -750,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/multi-ai-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -802,7 +878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/dashboard/industry-analytics/:industry', isAuthenticated, async (req: any, res) => {
     try {
       const { industry } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 10;
 
       // Get user's documents for this industry
@@ -857,7 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/intelligence', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -964,7 +1040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/intelligence/insights', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -1020,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/intelligence/risks', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -1066,7 +1142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard statistics - now using real analytics
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const stats = await analyticsService.getDashboardStats(userId);
       
       // Validate response with Zod schema
@@ -1081,7 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Industry-specific analytics endpoint
   app.get('/api/analytics/industry/:industry', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry } = req.params;
       
       // Validate industry parameter
@@ -1137,7 +1213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Compliance alerts endpoint
   app.get('/api/analytics/compliance-alerts', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -1180,7 +1256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // FIXED: Advanced Analytics API - Now using proper AdvancedAnalyticsService
   app.get('/api/analytics/advanced', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry, timeRange } = req.query;
       
       const user = await storage.getUser(userId);
@@ -1253,7 +1329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Predictive Analytics Endpoint
   app.get('/api/analytics/predictive', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry, timeframe } = req.query;
       
       const user = await storage.getUser(userId);
@@ -1276,7 +1352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cross-Document Intelligence Endpoint
   app.get('/api/analytics/cross-document', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry, documentIds } = req.query;
       
       const user = await storage.getUser(userId);
@@ -1299,7 +1375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-Time Analytics Endpoint
   app.get('/api/analytics/realtime', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       const realTimeAnalytics = await advancedAnalyticsService.getRealTimeAnalytics(userId);
       
@@ -1313,7 +1389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Anomaly Detection Endpoint
   app.get('/api/analytics/anomalies', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { analysisType } = req.query;
       
       const analysisTypeParam = (analysisType as 'documents' | 'system' | 'behavioral' | 'all') || 'all';
@@ -1330,7 +1406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance Optimization Analytics Endpoint
   app.get('/api/analytics/performance', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry } = req.query;
       
       const user = await storage.getUser(userId);
@@ -1351,7 +1427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Executive Dashboard Endpoint
   app.get('/api/analytics/executive', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry } = req.query;
       
       const user = await storage.getUser(userId);
@@ -1372,7 +1448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-Time Analytics WebSocket Subscription Management
   app.post('/api/analytics/realtime/subscribe', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { metrics } = req.body;
       
       const metricsArray = Array.isArray(metrics) ? metrics : ['all'];
@@ -1390,7 +1466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/analytics/realtime/unsubscribe', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { metrics } = req.body;
       
       const metricsArray = Array.isArray(metrics) ? metrics : undefined;
@@ -1409,7 +1485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Legacy advanced analytics endpoint (now replaced with real data)
   app.get('/api/analytics/legacy', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { industry } = req.query;
       
       const documents = await storage.getUserDocuments(userId, 1000);
@@ -1505,7 +1581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat with document
   app.post('/api/documents/:id/chat', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const { question } = chatQuerySchema.parse(req.body);
 
@@ -1526,7 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get chat history
   app.get('/api/documents/:id/chat/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
 
       if (isNaN(documentId)) {
@@ -1546,7 +1622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Clear chat history
   app.delete('/api/documents/:id/chat/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
 
       if (isNaN(documentId)) {
@@ -1706,7 +1782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/webhooks', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { url, events, metadata } = webhookSchema.parse(req.body);
       
       const webhook = await enterpriseIntegrationService.registerWebhook(userId, url, events, metadata);
@@ -1719,7 +1795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/enterprise/webhooks', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const webhooks = await enterpriseIntegrationService.getUserWebhooks(userId);
       res.json({ webhooks, total: webhooks.length });
     } catch (error) {
@@ -1730,7 +1806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/enterprise/webhooks/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const webhookId = req.params.id;
       const updates = req.body;
       
@@ -1744,7 +1820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/enterprise/webhooks/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const webhookId = req.params.id;
       
       await enterpriseIntegrationService.deleteWebhook(userId, webhookId);
@@ -1766,7 +1842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/api-keys', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { keyName, permissions, rateLimit, expiresAt, metadata } = apiKeySchema.parse(req.body);
       
       const apiKey = await enterpriseIntegrationService.generateAPIKey(
@@ -1781,7 +1857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/enterprise/api-keys', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const apiKeys = await enterpriseIntegrationService.getUserAPIKeys(userId);
       
       // Remove sensitive key values from response
@@ -1799,7 +1875,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/enterprise/api-keys/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const keyId = req.params.id;
       
       await enterpriseIntegrationService.revokeAPIKey(userId, keyId);
@@ -1820,7 +1896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/platforms', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { platform, accessToken, refreshToken, configuration } = platformSchema.parse(req.body);
       
       const integration = await enterpriseIntegrationService.connectPlatform(
@@ -1835,7 +1911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/enterprise/platforms', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const integrations = await enterpriseIntegrationService.getUserPlatformIntegrations(userId);
       
       // Sanitize sensitive tokens
@@ -1854,7 +1930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/platforms/:id/sync', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const integrationId = req.params.id;
       const { syncType = 'documents' } = req.body;
       
@@ -1868,7 +1944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/enterprise/platforms/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const integrationId = req.params.id;
       
       await enterpriseIntegrationService.disconnectPlatform(userId, integrationId);
@@ -1893,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/bulk/upload', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { documents } = bulkUploadSchema.parse(req.body);
       
       // Convert base64 content to buffers
@@ -1924,7 +2000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/bulk/export', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const exportConfig = exportSchema.parse(req.body);
       
       const operation = await enterpriseIntegrationService.startBulkExport(userId, exportConfig);
@@ -1937,7 +2013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/enterprise/bulk/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const operationId = req.params.id;
       
       const operation = await enterpriseIntegrationService.getBulkOperationStatus(userId, operationId);
@@ -1950,7 +2026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/enterprise/bulk/:id', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const operationId = req.params.id;
       
       await enterpriseIntegrationService.cancelBulkOperation(userId, operationId);
@@ -1964,7 +2040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Data Export/Import Endpoints
   app.get('/api/enterprise/export', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const exportConfig = exportSchema.parse(req.query);
       
       const exportResult = await enterpriseIntegrationService.exportUserData(userId, exportConfig);
@@ -1995,7 +2071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/enterprise/metrics', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const metrics = await enterpriseIntegrationService.getSystemHealth();
       res.json(metrics);
     } catch (error) {
@@ -2013,7 +2089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/enterprise/events/trigger', dualAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { eventType, data, metadata } = eventSchema.parse(req.body);
       
       const event = await enterpriseIntegrationService.triggerWebhooks(userId, eventType, data, metadata);
@@ -2100,7 +2176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create team
   app.post('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const teamData = teamCreateSchema.parse(req.body);
 
       const team = await storage.createTeam({
@@ -2140,7 +2216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user teams
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const teams = await storage.getUserTeams(userId);
       res.json(teams);
     } catch (error) {
@@ -2152,7 +2228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get team details
   app.get('/api/teams/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const teamId = parseInt(req.params.id);
 
       // Check if user is team member
@@ -2177,7 +2253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add team member
   app.post('/api/teams/:id/members', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const teamId = parseInt(req.params.id);
       const memberData = teamMemberSchema.parse(req.body);
 
@@ -2218,7 +2294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Share document
   app.post('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const shareData = documentShareSchema.parse(req.body);
 
@@ -2258,7 +2334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get document shares
   app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
 
       // Check if user has access to the document
@@ -2282,7 +2358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add comment
   app.post('/api/documents/:id/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const commentData = commentCreateSchema.parse(req.body);
 
@@ -2336,7 +2412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get document comments
   app.get('/api/documents/:id/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const includeReplies = req.query.includeReplies !== 'false';
 
@@ -2357,7 +2433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Resolve comment
   app.patch('/api/comments/:id/resolve', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const commentId = parseInt(req.params.id);
 
       const comment = await storage.resolveComment(commentId, userId);
@@ -2375,7 +2451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create annotation
   app.post('/api/documents/:id/annotations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const annotationData = annotationCreateSchema.parse(req.body);
 
@@ -2407,7 +2483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get document annotations
   app.get('/api/documents/:id/annotations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
 
       const annotations = await storage.getDocumentAnnotations(documentId, userId);
@@ -2425,7 +2501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Join collaboration session
   app.post('/api/documents/:id/sessions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = parseInt(req.params.id);
       const sessionData = sessionUpdateSchema.parse(req.body);
 
@@ -2487,7 +2563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user notifications
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 50;
 
       const notifications = await storage.getUserNotifications(userId, limit);
@@ -2514,7 +2590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mark all notifications as read
   app.patch('/api/notifications/read-all', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       await storage.markAllNotificationsRead(userId);
       res.json({ message: 'All notifications marked as read' });
@@ -2531,7 +2607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get activity logs
   app.get('/api/activity', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const documentId = req.query.documentId ? parseInt(req.query.documentId as string) : undefined;
       const teamId = req.query.teamId ? parseInt(req.query.teamId as string) : undefined;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -2558,7 +2634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/:id/share', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { email, accessLevel, message, expiresIn } = req.body;
 
       if (isNaN(documentId)) {
@@ -2617,7 +2693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -2708,7 +2784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentId = parseInt(req.params.id);
       const shareId = parseInt(req.params.shareId);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
 
       if (isNaN(documentId) || isNaN(shareId)) {
         return res.status(400).json({ message: "Invalid ID" });

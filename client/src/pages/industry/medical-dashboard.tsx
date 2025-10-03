@@ -71,17 +71,17 @@ export default function MedicalDashboard() {
         {activeView === 'dashboard' ? <Brain className="h-6 w-6" /> : <Activity className="h-6 w-6" />}
       </motion.button>
 
-      <div className="container mx-auto p-8 max-w-7xl">
+      <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
         {/* Header with Stats */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold mb-2 gradient-text">
+          <h1 className="text-2xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             Medical Intelligence Dashboard
           </h1>
-          <div className="flex gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mt-6">
             <motion.div 
               className="card-modern card-gradient p-6 flex-1"
               whileHover={{ scale: 1.02 }}
@@ -278,7 +278,7 @@ export default function MedicalDashboard() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                   {quickActions.map((action, index) => (
                     <motion.button
                       key={action.label}

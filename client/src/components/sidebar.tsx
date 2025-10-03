@@ -94,6 +94,8 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
         transition-all duration-300 ease-in-out
         shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50
         z-40
+        lg:translate-x-0
+        ${isCollapsed ? '' : 'max-lg:w-full max-lg:translate-x-[-100%]'}
       `}
     >
       {/* Mini Profile Card */}

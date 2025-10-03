@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,11 +29,13 @@ import type { Document } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function FinanceDashboard() {
   const [, setLocation] = useLocation();
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
     { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
   ]);
@@ -43,21 +45,95 @@ export default function FinanceDashboard() {
     queryKey: ["/api/documents"],
   });
 
-  const handleSendMessage = () => {
-    if (!aiPrompt.trim()) return;
+  // Create or load chat session when documents are selected
+  useEffect(() => {
+    if (selectedDocuments.length > 0) {
+      const documentIds = selectedDocuments.map(d => d.id);
+      
+      // Create a new chat session for these documents
+      apiRequest('/api/chat-sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          documentIds,
+          industry: 'finance',
+          title: `Finance Analysis - ${new Date().toLocaleDateString()}`
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then((session: any) => {
+          setCurrentSessionId(session.id);
+          
+          // Load existing messages for this session
+          return apiRequest(`/api/chat-sessions/${session.id}/messages`, {
+            method: 'GET'
+          });
+        })
+        .then((messages: any[]) => {
+          if (messages && messages.length > 0) {
+            setChatMessages([
+              { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" },
+              ...messages.map(m => ({ role: m.role, content: m.content }))
+            ]);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to create/load chat session:', err);
+        });
+    } else {
+      // Reset when no documents are selected
+      setCurrentSessionId(null);
+      setChatMessages([
+        { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
+      ]);
+    }
+  }, [selectedDocuments.map(d => d.id).join(',')]); // Depend on document IDs
+
+  const handleSendMessage = async () => {
+    if (!aiPrompt.trim() || !currentSessionId) return;
     
+    const userMessage = aiPrompt;
     const docSummary = selectedDocuments.length === 1 
       ? `Processing ${selectedDocuments[0].originalFilename}...`
       : selectedDocuments.length > 1
         ? `Processing ${selectedDocuments.length} documents: ${selectedDocuments.map(d => d.originalFilename).slice(0, 3).join(', ')}${selectedDocuments.length > 3 ? ` and ${selectedDocuments.length - 3} more` : ''}...`
         : 'Please select at least one document first.';
     
+    const assistantResponse = `Analyzing financial data for: "${userMessage}". ${docSummary}`;
+    
+    // Update UI immediately
     setChatMessages(prev => [
       ...prev,
-      { role: "user", content: aiPrompt },
-      { role: "assistant", content: `Analyzing financial data for: "${aiPrompt}". ${docSummary}` }
+      { role: "user", content: userMessage },
+      { role: "assistant", content: assistantResponse }
     ]);
     setAiPrompt("");
+    
+    // Save messages to database
+    try {
+      // Save user message
+      await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          role: 'user',
+          content: userMessage,
+          model: 'openai'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      // Save assistant response
+      await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          role: 'assistant',
+          content: assistantResponse,
+          model: 'openai'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      console.error('Failed to save messages:', err);
+    }
   };
 
   const toggleDocumentSelection = (doc: Document) => {
@@ -341,15 +417,46 @@ export default function FinanceDashboard() {
                     variant="outline"
                     className="justify-start"
                     disabled={selectedDocuments.length === 0}
-                    onClick={() => {
+                    onClick={async () => {
                       const docInfo = selectedDocuments.length === 1 
                         ? selectedDocuments[0].originalFilename 
                         : `${selectedDocuments.length} documents`;
+                      const userMessage = action.action;
+                      const assistantResponse = `Analyzing financial data for ${docInfo}: ${action.action}...`;
+                      
+                      // Update UI immediately
                       setChatMessages(prev => [
                         ...prev,
-                        { role: "user", content: action.action },
-                        { role: "assistant", content: `Analyzing financial data for ${docInfo}: ${action.action}...` }
+                        { role: "user", content: userMessage },
+                        { role: "assistant", content: assistantResponse }
                       ]);
+                      
+                      // Save to database if session exists
+                      if (currentSessionId) {
+                        try {
+                          await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              role: 'user',
+                              content: userMessage,
+                              model: 'openai'
+                            }),
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          
+                          await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              role: 'assistant',
+                              content: assistantResponse,
+                              model: 'openai'
+                            }),
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                        } catch (err) {
+                          console.error('Failed to save quick action messages:', err);
+                        }
+                      }
                     }}
                     data-testid={`button-quick-${idx}`}
                   >

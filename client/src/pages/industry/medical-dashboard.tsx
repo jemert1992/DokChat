@@ -83,7 +83,7 @@ export default function MedicalDashboard() {
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mt-6">
             <motion.div 
-              className="card-modern card-gradient p-6 flex-1"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
               whileHover={{ scale: 1.02 }}
             >
               <div className="flex items-center justify-between">
@@ -95,7 +95,7 @@ export default function MedicalDashboard() {
               </div>
             </motion.div>
             <motion.div 
-              className="card-modern card-gradient p-6 flex-1"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
               whileHover={{ scale: 1.02 }}
             >
               <div className="flex items-center justify-between">
@@ -107,7 +107,7 @@ export default function MedicalDashboard() {
               </div>
             </motion.div>
             <motion.div 
-              className="card-modern card-gradient p-6 flex-1"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
               whileHover={{ scale: 1.02 }}
             >
               <div className="flex items-center justify-between">
@@ -132,8 +132,8 @@ export default function MedicalDashboard() {
             >
               {/* Upload Zone */}
               <motion.div
-                className={`card-modern p-8 border-2 border-dashed transition-all ${
-                  isDragging ? 'border-purple-500 bg-purple-50 dark:bg-purple-950' : 'border-gray-300 dark:border-gray-700'
+                className={`bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border-2 border-dashed transition-all duration-300 hover:shadow-xl ${
+                  isDragging ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950 dark:to-pink-950' : 'border-gray-300 dark:border-gray-700 hover:border-purple-400'
                 }`}
                 onDragEnter={() => setIsDragging(true)}
                 onDragLeave={() => setIsDragging(false)}
@@ -170,7 +170,7 @@ export default function MedicalDashboard() {
               </motion.div>
 
               {/* Recent Documents */}
-              <motion.div className="card-modern p-6" data-testid="recent-documents">
+              <motion.div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300" data-testid="recent-documents">
                 <h2 className="text-2xl font-bold mb-4">Recent Documents</h2>
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-3">
@@ -264,7 +264,7 @@ export default function MedicalDashboard() {
               className="space-y-6"
             >
               {/* AI Assistant View */}
-              <div className="card-modern p-6">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold flex items-center gap-2">
                     <Brain className="h-6 w-6 text-purple-600" />

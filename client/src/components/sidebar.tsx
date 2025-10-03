@@ -105,7 +105,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
           whileHover={{ scale: 1.02 }}
         >
           <Avatar className="h-12 w-12 ring-2 ring-offset-2 ring-purple-500/20">
-            <AvatarImage src={user.profileImage} />
+            <AvatarImage src={user.profileImageUrl || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-semibold">
               {getUserInitials(user)}
             </AvatarFallback>

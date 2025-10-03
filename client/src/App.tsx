@@ -44,6 +44,10 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/document/:id" component={DocumentAnalysis} />
           {/* Industry-specific dashboards - simplified routes */}
+          <Route path="/medical" component={MedicalDashboard} />
+          <Route path="/legal" component={LegalDashboard} />
+          <Route path="/finance" component={FinanceDashboard} />
+          <Route path="/logistics" component={LogisticsDashboard} />
           <Route path="/industry/medical" component={MedicalDashboard} />
           <Route path="/industry/legal" component={LegalDashboard} />
           <Route path="/industry/finance" component={FinanceDashboard} />

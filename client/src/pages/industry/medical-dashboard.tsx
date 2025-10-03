@@ -97,9 +97,12 @@ export default function MedicalDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4 }}
-              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20 hover:shadow-2xl hover:shadow-green-500/10 transition-all duration-300 border border-transparent hover:border-green-200 dark:hover:border-green-800 cursor-pointer"
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20 hover:shadow-2xl hover:shadow-green-500/10 transition-all duration-300 border border-transparent hover:border-green-200 dark:hover:border-green-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-500/50 focus-visible:border-green-500"
               whileHover={{ scale: 1.03, y: -4 }}
               whileTap={{ scale: 0.98 }}
+              tabIndex={0}
+              role="article"
+              aria-label="Accuracy statistics"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -118,9 +121,12 @@ export default function MedicalDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
-              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer"
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50 focus-visible:border-blue-500"
               whileHover={{ scale: 1.03, y: -4 }}
               whileTap={{ scale: 0.98 }}
+              tabIndex={0}
+              role="article"
+              aria-label="Processing time statistics"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -139,9 +145,12 @@ export default function MedicalDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 border border-transparent hover:border-purple-200 dark:hover:border-purple-800 cursor-pointer sm:col-span-2 lg:col-span-1"
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 border border-transparent hover:border-purple-200 dark:hover:border-purple-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/50 focus-visible:border-purple-500 sm:col-span-2 lg:col-span-1"
               whileHover={{ scale: 1.03, y: -4 }}
               whileTap={{ scale: 0.98 }}
+              tabIndex={0}
+              role="article"
+              aria-label="Documents processed statistics"
             >
               <div className="flex items-center justify-between">
                 <div>

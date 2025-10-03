@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   FileText, 
   MessageSquare, 
@@ -19,7 +20,9 @@ import {
   Download,
   Home,
   TrendingUp,
-  Receipt
+  Receipt,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
@@ -29,10 +32,10 @@ import { motion } from "framer-motion";
 
 export default function FinanceDashboard() {
   const [, setLocation] = useLocation();
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
-    { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. What financial insights do you need?" }
+    { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
   ]);
 
   // Fetch documents
@@ -43,12 +46,38 @@ export default function FinanceDashboard() {
   const handleSendMessage = () => {
     if (!aiPrompt.trim()) return;
     
+    const docSummary = selectedDocuments.length === 1 
+      ? `Processing ${selectedDocuments[0].originalFilename}...`
+      : selectedDocuments.length > 1
+        ? `Processing ${selectedDocuments.length} documents: ${selectedDocuments.map(d => d.originalFilename).slice(0, 3).join(', ')}${selectedDocuments.length > 3 ? ` and ${selectedDocuments.length - 3} more` : ''}...`
+        : 'Please select at least one document first.';
+    
     setChatMessages(prev => [
       ...prev,
       { role: "user", content: aiPrompt },
-      { role: "assistant", content: `Analyzing financial data for: "${aiPrompt}". ${selectedDocument ? `Processing ${selectedDocument.originalFilename}...` : 'Please select a document first.'}` }
+      { role: "assistant", content: `Analyzing financial data for: "${aiPrompt}". ${docSummary}` }
     ]);
     setAiPrompt("");
+  };
+
+  const toggleDocumentSelection = (doc: Document) => {
+    setSelectedDocuments(prev => {
+      const isSelected = prev.some(d => d.id === doc.id);
+      if (isSelected) {
+        return prev.filter(d => d.id !== doc.id);
+      } else {
+        return [...prev, doc];
+      }
+    });
+  };
+
+  const selectAllDocuments = () => {
+    const completedDocs = financeDocuments.filter(doc => doc.status === 'completed');
+    setSelectedDocuments(completedDocs);
+  };
+
+  const deselectAllDocuments = () => {
+    setSelectedDocuments([]);
   };
 
   const financeDocuments = documents?.filter(doc => 
@@ -123,76 +152,119 @@ export default function FinanceDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Financial Documents</CardTitle>
-              <CardDescription>
-                Select a document to analyze with AI
-              </CardDescription>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Recent Financial Documents</CardTitle>
+                  <CardDescription>
+                    Select documents to analyze with AI
+                  </CardDescription>
+                </div>
+                {financeDocuments.some(doc => doc.status === 'completed') && (
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={selectedDocuments.length > 0 ? deselectAllDocuments : selectAllDocuments}
+                      data-testid="button-toggle-all"
+                    >
+                      {selectedDocuments.length > 0 ? (
+                        <>
+                          <Square className="h-4 w-4 mr-2" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="h-4 w-4 mr-2" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {selectedDocuments.length > 0 && (
+                <Badge className="mt-2 bg-emerald-100 text-emerald-800">
+                  {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+                </Badge>
+              )}
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3">
                   {financeDocuments.length > 0 ? (
-                    financeDocuments.map((doc) => (
-                      <motion.div
-                        key={doc.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all ${
-                          selectedDocument?.id === doc.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950' : ''
-                        }`}
-                        onClick={() => setSelectedDocument(doc)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-emerald-600" />
-                              <p className="font-medium">{doc.originalFilename}</p>
-                              {selectedDocument?.id === doc.id && (
-                                <Badge variant="outline" className="text-xs">Selected</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
-                            </p>
-                            {doc.confidence && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <div className="flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3 text-green-600" />
-                                  <span className="text-xs">Confidence: {doc.confidence}%</span>
-                                </div>
-                                {doc.documentType && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {doc.documentType}
-                                  </Badge>
+                    financeDocuments.map((doc) => {
+                      const isSelected = selectedDocuments.some(d => d.id === doc.id);
+                      return (
+                        <motion.div
+                          key={doc.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-all ${
+                            isSelected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950' : ''
+                          }`}
+                        >
+                          <div className="flex gap-3 items-start">
+                            {doc.status === 'completed' && (
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleDocumentSelection(doc)}
+                                className="mt-1"
+                                data-testid={`checkbox-doc-${doc.id}`}
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-emerald-600" />
+                                <p className="font-medium">{doc.originalFilename}</p>
+                                {isSelected && (
+                                  <Badge variant="outline" className="text-xs">Selected</Badge>
                                 )}
                               </div>
-                            )}
+                              <p className="text-sm text-gray-500 mt-1">
+                                {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                              </p>
+                              {doc.confidence && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                    <span className="text-xs">Confidence: {doc.confidence}%</span>
+                                  </div>
+                                  {doc.documentType && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {doc.documentType}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Link href={`/document/${doc.id}`}>
+                                <Button size="sm" variant="outline" data-testid={`button-view-${doc.id}`}>
+                                  View Details
+                                </Button>
+                              </Link>
+                              {doc.status === 'completed' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => {
+                                    if (!isSelected) {
+                                      toggleDocumentSelection(doc);
+                                    }
+                                    const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
+                                    aiTab?.click();
+                                  }}
+                                  data-testid={`button-analyze-${doc.id}`}
+                                >
+                                  <Brain className="h-3 w-3 mr-1" />
+                                  Analyze
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-2">
-                            <Link href={`/document/${doc.id}`}>
-                              <Button size="sm" variant="outline">
-                                View Details
-                              </Button>
-                            </Link>
-                            {doc.status === 'completed' && (
-                              <Button 
-                                size="sm" 
-                                variant="default"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedDocument(doc);
-                                  const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
-                                  aiTab?.click();
-                                }}
-                              >
-                                <Brain className="h-3 w-3 mr-1" />
-                                Analyze
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
+                        </motion.div>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-12 text-gray-500">
                       <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -208,25 +280,44 @@ export default function FinanceDashboard() {
 
         {/* AI Chat Tab */}
         <TabsContent value="ai-chat" className="space-y-4 mt-4">
-          {selectedDocument ? (
+          {selectedDocuments.length > 0 ? (
             <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950">
               <FileText className="h-4 w-4 text-emerald-600" />
-              <AlertDescription className="flex justify-between items-center">
-                <span>Analyzing: <strong>{selectedDocument.originalFilename}</strong></span>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={() => setSelectedDocument(null)}
-                >
-                  Change Document
-                </Button>
+              <AlertDescription>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Analyzing {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''}:
+                    </p>
+                    <div className="space-y-1">
+                      {selectedDocuments.slice(0, 5).map((doc) => (
+                        <div key={doc.id} className="text-sm flex items-center gap-2">
+                          <CheckCircle className="h-3 w-3 text-emerald-600" />
+                          <span>{doc.originalFilename}</span>
+                        </div>
+                      ))}
+                      {selectedDocuments.length > 5 && (
+                        <p className="text-sm text-gray-600">
+                          ... and {selectedDocuments.length - 5} more documents
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={deselectAllDocuments}
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : (
             <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertDescription>
-                Please select a document from the Documents tab first to start AI analysis
+                Please select at least one document from the Documents tab to start AI analysis
               </AlertDescription>
             </Alert>
           )}
@@ -249,14 +340,18 @@ export default function FinanceDashboard() {
                     key={idx}
                     variant="outline"
                     className="justify-start"
-                    disabled={!selectedDocument}
+                    disabled={selectedDocuments.length === 0}
                     onClick={() => {
+                      const docInfo = selectedDocuments.length === 1 
+                        ? selectedDocuments[0].originalFilename 
+                        : `${selectedDocuments.length} documents`;
                       setChatMessages(prev => [
                         ...prev,
                         { role: "user", content: action.action },
-                        { role: "assistant", content: `Analyzing financial data: ${action.action}...` }
+                        { role: "assistant", content: `Analyzing financial data for ${docInfo}: ${action.action}...` }
                       ]);
                     }}
+                    data-testid={`button-quick-${idx}`}
                   >
                     <action.icon className="h-4 w-4 mr-2" />
                     {action.label}
@@ -299,28 +394,32 @@ export default function FinanceDashboard() {
                     }
                   }}
                   className="flex-1 min-h-[80px]"
-                  disabled={!selectedDocument}
+                  disabled={selectedDocuments.length === 0}
+                  data-testid="textarea-ai-prompt"
                 />
                 <Button 
                   onClick={handleSendMessage}
-                  disabled={!selectedDocument || !aiPrompt.trim()}
+                  disabled={selectedDocuments.length === 0 || !aiPrompt.trim()}
                   className="bg-emerald-600 hover:bg-emerald-700"
+                  data-testid="button-send-message"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
 
-              {selectedDocument?.status === 'completed' && (
+              {selectedDocuments.length > 0 && (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1" data-testid="button-export">
                     <Download className="h-4 w-4 mr-2" />
                     Export Analysis
                   </Button>
-                  <Link href={`/document/${selectedDocument.id}`}>
-                    <Button variant="outline" size="sm">
-                      View Full Report
-                    </Button>
-                  </Link>
+                  {selectedDocuments.length === 1 && (
+                    <Link href={`/document/${selectedDocuments[0].id}`}>
+                      <Button variant="outline" size="sm" data-testid="button-view-report">
+                        View Full Report
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               )}
             </CardContent>

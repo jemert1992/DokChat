@@ -60,62 +60,100 @@ export default function MedicalDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Floating Action Button */}
+      {/* Floating Action Button - Elite */}
       <motion.button
-        className="fixed bottom-8 right-8 h-16 w-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-2xl flex items-center justify-center text-white z-50"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 h-14 w-14 sm:h-16 sm:w-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:shadow-purple-500/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/50 active:scale-95"
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setActiveView(activeView === 'dashboard' ? 'ai' : 'dashboard')}
         data-testid="button-toggle-view"
+        aria-label={activeView === 'dashboard' ? 'Open AI Assistant' : 'Back to Dashboard'}
       >
-        {activeView === 'dashboard' ? <Brain className="h-6 w-6" /> : <Activity className="h-6 w-6" />}
+        <motion.div
+          initial={{ scale: 1 }}
+          animate={{ scale: activeView === 'dashboard' ? 1 : 1.1 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeView === 'dashboard' ? <Brain className="h-6 w-6" /> : <Activity className="h-6 w-6" />}
+        </motion.div>
       </motion.button>
 
       <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
-        {/* Header with Stats */}
+        {/* Header with Stats - Elite */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="mb-6 sm:mb-8"
         >
-          <h1 className="text-2xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-600 bg-clip-text text-transparent leading-tight tracking-tight">
             Medical Intelligence Dashboard
           </h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mt-6">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2">
+            AI-powered document analysis with HIPAA compliance
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mt-6">
             <motion.div 
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
-              whileHover={{ scale: 1.02 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20 hover:shadow-2xl hover:shadow-green-500/10 transition-all duration-300 border border-transparent hover:border-green-200 dark:hover:border-green-800 cursor-pointer"
+              whileHover={{ scale: 1.03, y: -4 }}
+              whileTap={{ scale: 0.98 }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.accuracy}%</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Accuracy</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400 group-hover:text-green-500 transition-colors">{stats.accuracy}%</p>
                 </div>
-                <CheckCircle className="h-10 w-10 text-green-500 opacity-20" />
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.2 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 text-green-500 opacity-20 group-hover:opacity-40 transition-opacity" />
+                </motion.div>
               </div>
             </motion.div>
             <motion.div 
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
-              whileHover={{ scale: 1.02 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer"
+              whileHover={{ scale: 1.03, y: -4 }}
+              whileTap={{ scale: 0.98 }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Processing Time</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.avgTime}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Processing Time</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 group-hover:text-blue-500 transition-colors">{stats.avgTime}</p>
                 </div>
-                <Clock className="h-10 w-10 text-blue-500 opacity-20" />
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.2 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <Clock className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 opacity-20 group-hover:opacity-40 transition-opacity" />
+                </motion.div>
               </div>
             </motion.div>
             <motion.div 
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 hover:shadow-xl transition-all duration-300"
-              whileHover={{ scale: 1.02 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+              className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 sm:p-6 flex-1 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 border border-transparent hover:border-purple-200 dark:hover:border-purple-800 cursor-pointer sm:col-span-2 lg:col-span-1"
+              whileHover={{ scale: 1.03, y: -4 }}
+              whileTap={{ scale: 0.98 }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Documents</p>
-                  <p className="text-3xl font-bold text-purple-600">{stats.documentsProcessed}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Documents</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400 group-hover:text-purple-500 transition-colors">{stats.documentsProcessed}</p>
                 </div>
-                <FileText className="h-10 w-10 text-purple-500 opacity-20" />
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.2 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-purple-500 opacity-20 group-hover:opacity-40 transition-opacity" />
+                </motion.div>
               </div>
             </motion.div>
           </div>
@@ -130,27 +168,48 @@ export default function MedicalDashboard() {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              {/* Upload Zone */}
+              {/* Upload Zone - Elite */}
               <motion.div
-                className={`bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border-2 border-dashed transition-all duration-300 hover:shadow-xl ${
-                  isDragging ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950 dark:to-pink-950' : 'border-gray-300 dark:border-gray-700 hover:border-purple-400'
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className={`group bg-white dark:bg-gray-900 rounded-3xl shadow-lg p-6 sm:p-8 lg:p-10 border-2 border-dashed transition-all duration-500 ${
+                  isDragging 
+                    ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950 dark:to-pink-950 scale-[1.02] shadow-2xl shadow-purple-500/20' 
+                    : 'border-gray-300 dark:border-gray-700 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-500/5'
                 }`}
                 onDragEnter={() => setIsDragging(true)}
                 onDragLeave={() => setIsDragging(false)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
                 id="upload-zone"
-                whileHover={{ scale: 1.01 }}
+                whileHover={{ scale: 1.005 }}
               >
                 <div className="text-center">
-                  <Upload className="h-12 w-12 mx-auto mb-4 text-purple-500" />
-                  <h3 className="text-xl font-semibold mb-2">Drop Medical Documents Here</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  <motion.div
+                    animate={{ 
+                      y: isDragging ? -5 : 0,
+                      scale: isDragging ? 1.1 : 1 
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Upload className={`h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 transition-colors duration-300 ${
+                      isDragging ? 'text-purple-600' : 'text-purple-500 group-hover:text-purple-600'
+                    }`} />
+                  </motion.div>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+                    Drop Medical Documents Here
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
                     Support for bulk upload - Select multiple files
                   </p>
-                  <div className="flex gap-2 justify-center">
-                    <Badge className="bg-green-100 text-green-800">HIPAA Compliant</Badge>
-                    <Badge className="bg-blue-100 text-blue-800">Bulk Upload Enabled</Badge>
+                  <div className="flex flex-wrap gap-2 justify-center mb-5">
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs sm:text-sm px-3 py-1">
+                      HIPAA Compliant
+                    </Badge>
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs sm:text-sm px-3 py-1">
+                      Bulk Upload Enabled
+                    </Badge>
                   </div>
                   <input 
                     type="file" 
@@ -160,8 +219,9 @@ export default function MedicalDashboard() {
                     data-testid="input-file-upload"
                   />
                   <Button 
-                    className="mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/50 px-6 py-5 sm:px-8 text-sm sm:text-base"
                     onClick={() => document.getElementById('file-input')?.click()}
+                    data-testid="button-select-files"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Select Files

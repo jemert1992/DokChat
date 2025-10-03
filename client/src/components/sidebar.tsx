@@ -84,18 +84,19 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
     <motion.div
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
       className={`
         fixed left-0 top-0 h-screen
         ${isCollapsed ? 'w-20' : 'w-72'}
         bg-gradient-to-b from-white via-gray-50 to-gray-100
         dark:from-gray-900 dark:via-gray-850 dark:to-gray-800
-        border-r border-gray-200 dark:border-gray-700
+        border-r border-gray-200/80 dark:border-gray-700/80
         transition-all duration-300 ease-in-out
         shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50
         z-40
         lg:translate-x-0
         ${isCollapsed ? '' : 'max-lg:w-full max-lg:translate-x-[-100%]'}
+        backdrop-blur-sm
       `}
     >
       {/* Mini Profile Card */}
@@ -185,17 +186,20 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
         })}
       </nav>
 
-      {/* Floating Upload Button */}
+      {/* Floating Upload Button - Elite */}
       <motion.div
-        className="absolute bottom-24 left-1/2 transform -translate-x-1/2"
-        whileHover={{ scale: 1.1 }}
+        className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-max"
+        whileHover={{ scale: 1.1, rotate: 2 }}
         whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.3 }}
       >
         <Button
           onClick={() => {
             const uploadZone = document.getElementById('upload-zone');
             if (uploadZone) {
-              uploadZone.scrollIntoView({ behavior: 'smooth' });
+              uploadZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
               uploadZone.classList.add('ring-4', 'ring-purple-500', 'ring-opacity-75');
               setTimeout(() => {
                 uploadZone.classList.remove('ring-4', 'ring-purple-500', 'ring-opacity-75');
@@ -206,14 +210,29 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
             ${isCollapsed ? 'h-12 w-12' : 'h-14 px-6'}
             bg-gradient-to-r from-purple-600 to-pink-600
             hover:from-purple-700 hover:to-pink-700
-            text-white shadow-xl rounded-full
+            text-white shadow-2xl hover:shadow-purple-500/50
+            rounded-full
             flex items-center justify-center gap-2
             transform transition-all duration-300
+            focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/50
+            relative overflow-hidden
           `}
           data-testid="button-upload-floating"
         >
-          <Upload className="h-5 w-5" />
-          {!isCollapsed && <span className="font-semibold">Upload</span>}
+          <motion.div
+            animate={{ y: [0, -3, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Upload className="h-5 w-5" />
+          </motion.div>
+          {!isCollapsed && <span className="font-semibold text-sm sm:text-base">Upload</span>}
+          
+          {/* Shimmer effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            animate={{ translateX: ['-100%', '200%'] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+          />
         </Button>
       </motion.div>
 

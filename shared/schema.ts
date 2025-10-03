@@ -75,10 +75,22 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Chat sessions for multi-document conversations
+export const chatSessions = pgTable("chat_sessions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  industry: varchar("industry", { length: 50 }).notNull(),
+  documentIds: jsonb("document_ids").notNull(), // Array of document IDs
+  title: varchar("title", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Chat messages table for document conversations
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
-  documentId: integer("document_id").references(() => documents.id).notNull(),
+  sessionId: integer("session_id").references(() => chatSessions.id),
+  documentId: integer("document_id").references(() => documents.id),
   userId: varchar("user_id").references(() => users.id).notNull(),
   role: varchar("role", { length: 20 }).notNull(), // 'user' or 'assistant'
   content: text("content").notNull(),
@@ -251,6 +263,9 @@ export type ProcessingJob = typeof processingJobs.$inferSelect;
 
 export type InsertIndustryConfiguration = typeof industryConfigurations.$inferInsert;
 export type IndustryConfiguration = typeof industryConfigurations.$inferSelect;
+
+export type InsertChatSession = typeof chatSessions.$inferInsert;
+export type ChatSession = typeof chatSessions.$inferSelect;
 
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;

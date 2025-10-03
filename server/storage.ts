@@ -5,6 +5,7 @@ import {
   extractedEntities,
   processingJobs,
   industryConfigurations,
+  chatSessions,
   chatMessages,
   medicalDocuments,
   medicalEntities,
@@ -36,6 +37,8 @@ import {
   type ProcessingJob,
   type InsertProcessingJob,
   type IndustryConfiguration,
+  type ChatSession,
+  type InsertChatSession,
   type ChatMessage,
   type InsertChatMessage,
   type MedicalDocument,
@@ -184,6 +187,14 @@ export interface IStorage {
   saveChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatHistory(documentId: number, limit?: number): Promise<ChatMessage[]>;
   clearChatHistory(documentId: number): Promise<void>;
+  
+  // Chat session operations
+  createChatSession(session: InsertChatSession): Promise<ChatSession>;
+  getChatSession(id: number): Promise<ChatSession | undefined>;
+  getUserChatSessions(userId: string, industry?: string): Promise<ChatSession[]>;
+  updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession>;
+  getSessionMessages(sessionId: number): Promise<ChatMessage[]>;
+  saveSessionMessage(message: InsertChatMessage): Promise<ChatMessage>;
   
   // Medical industry operations
   createMedicalDocument(medDoc: InsertMedicalDocument): Promise<MedicalDocument>;
@@ -658,6 +669,61 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(chatMessages)
       .where(eq(chatMessages.documentId, documentId));
+  }
+
+  // Chat session operations
+  async createChatSession(session: InsertChatSession): Promise<ChatSession> {
+    const [result] = await db
+      .insert(chatSessions)
+      .values(session)
+      .returning();
+    return result;
+  }
+
+  async getChatSession(id: number): Promise<ChatSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(chatSessions)
+      .where(eq(chatSessions.id, id));
+    return session;
+  }
+
+  async getUserChatSessions(userId: string, industry?: string): Promise<ChatSession[]> {
+    const conditions = [eq(chatSessions.userId, userId)];
+    if (industry) {
+      conditions.push(eq(chatSessions.industry, industry));
+    }
+    return await db
+      .select()
+      .from(chatSessions)
+      .where(and(...conditions))
+      .orderBy(desc(chatSessions.updatedAt));
+  }
+
+  async updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession> {
+    const [updated] = await db
+      .update(chatSessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(chatSessions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getSessionMessages(sessionId: number): Promise<ChatMessage[]> {
+    const messages = await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(desc(chatMessages.createdAt));
+    return messages.reverse(); // Return in chronological order
+  }
+
+  async saveSessionMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [savedMessage] = await db
+      .insert(chatMessages)
+      .values(message)
+      .returning();
+    return savedMessage;
   }
 
   // Medical industry operations

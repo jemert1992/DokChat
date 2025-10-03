@@ -146,7 +146,7 @@ export default function FinanceDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <DocumentUploadZone />
+              <DocumentUploadZone industry="finance" />
             </CardContent>
           </Card>
 
@@ -223,11 +223,11 @@ export default function FinanceDashboard() {
                               <p className="text-sm text-gray-500 mt-1">
                                 {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
                               </p>
-                              {doc.confidence && (
+                              {doc.aiConfidence && (
                                 <div className="flex items-center gap-2 mt-2">
                                   <div className="flex items-center gap-1">
                                     <CheckCircle className="h-3 w-3 text-green-600" />
-                                    <span className="text-xs">Confidence: {doc.confidence}%</span>
+                                    <span className="text-xs">Confidence: {doc.aiConfidence}%</span>
                                   </div>
                                   {doc.documentType && (
                                     <Badge variant="outline" className="text-xs">

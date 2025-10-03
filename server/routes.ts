@@ -1639,6 +1639,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat session endpoints for bulk document analysis
+  app.post('/api/chat-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { documentIds, industry, title } = req.body;
+
+      if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Document IDs array required" });
+      }
+
+      if (!industry) {
+        return res.status(400).json({ message: "Industry required" });
+      }
+
+      const session = await storage.createChatSession({
+        userId,
+        industry,
+        documentIds,
+        title: title || `Chat Session - ${new Date().toLocaleDateString()}`
+      });
+
+      res.json(session);
+    } catch (error) {
+      console.error("Error creating chat session:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create chat session" 
+      });
+    }
+  });
+
+  app.get('/api/chat-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const industry = req.query.industry as string | undefined;
+
+      const sessions = await storage.getUserChatSessions(userId, industry);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting chat sessions:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to get chat sessions" 
+      });
+    }
+  });
+
+  app.get('/api/chat-sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+
+      if (isNaN(sessionId)) {
+        return res.status(400).json({ message: "Invalid session ID" });
+      }
+
+      const session = await storage.getChatSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error("Error getting chat session:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to get chat session" 
+      });
+    }
+  });
+
+  app.get('/api/chat-sessions/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+
+      if (isNaN(sessionId)) {
+        return res.status(400).json({ message: "Invalid session ID" });
+      }
+
+      const messages = await storage.getSessionMessages(sessionId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting session messages:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to get messages" 
+      });
+    }
+  });
+
+  app.post('/api/chat-sessions/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const sessionId = parseInt(req.params.id);
+      const { role, content, model } = req.body;
+
+      if (isNaN(sessionId)) {
+        return res.status(400).json({ message: "Invalid session ID" });
+      }
+
+      if (!role || !content) {
+        return res.status(400).json({ message: "Role and content required" });
+      }
+
+      const message = await storage.saveSessionMessage({
+        sessionId,
+        userId,
+        role,
+        content,
+        model: model || 'openai'
+      });
+
+      // Update session's updatedAt timestamp
+      await storage.updateChatSession(sessionId, {});
+
+      res.json(message);
+    } catch (error) {
+      console.error("Error saving session message:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to save message" 
+      });
+    }
+  });
+
   // OCR Health Check endpoint - REAL OCR TESTING
   app.get('/api/ocr/health', isAuthenticated, async (req, res) => {
     try {

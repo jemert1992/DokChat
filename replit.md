@@ -107,10 +107,10 @@ Implemented bulk document analysis capabilities with persistent chat sessions:
   - Database schema includes `chat_sessions` and `chat_messages` tables
   - API endpoints for creating sessions, saving messages, and retrieving history
 - **Smart Session Management**: Automatically loads existing sessions when the same documents are selected
-- **Real AI Document Analysis**: GPT-4o powered analysis with industry-specific prompts
+- **Real AI Document Analysis**: Google Gemini 2.5 Flash powered analysis with industry-specific prompts
   - Endpoint: POST `/api/chat/analyze` for real-time document analysis
   - Smart document chunking: First 1500 chars per document for speed
-  - Token limit: 800 tokens max for fast responses
+  - Gemini 2.5 Flash for lightning-fast responses (seamlessly integrates with Google Vision OCR)
   - Industry-specific system prompts for finance, medical, legal, logistics
 - **Chat History Restoration**: Previous conversations with AI responses are restored when reselecting the same document set
 

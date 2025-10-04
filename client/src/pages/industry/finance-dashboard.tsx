@@ -167,10 +167,10 @@ export default function FinanceDashboard() {
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'user',
         content: userMessage,
-        model: 'gpt-5'
+        model: 'gemini-2.5-flash'
       });
       
-      // Call real AI analysis endpoint
+      // Call real AI analysis endpoint (now powered by Gemini!)
       const response = await apiRequest('POST', '/api/chat/analyze', {
         question: userMessage,
         documentIds,
@@ -191,7 +191,7 @@ export default function FinanceDashboard() {
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'assistant',
         content: aiResponse,
-        model: 'gpt-5'
+        model: 'gemini-2.5-flash'
       });
     } catch (err) {
       console.error('Failed to analyze documents:', err);

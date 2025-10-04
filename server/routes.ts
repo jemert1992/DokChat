@@ -1777,10 +1777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No documents found" });
       }
 
-      // Initialize OpenAI client
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-      const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      // Initialize Gemini client - using Google's AI for seamless integration with Vision API
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
       // Build context from documents - use extracted text
       let documentContext = documents.map(doc => {
@@ -1799,17 +1798,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const systemPrompt = systemPrompts[industry as keyof typeof systemPrompts] || "You are a professional document analyst. Provide clear, accurate insights based on the documents provided.";
 
-      // Call GPT for analysis - using gpt-4o for reliable fast responses
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", 
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}` }
-        ],
-        max_tokens: 800, // Limit response for speed
+      // Call Gemini for analysis - using gemini-2.5-flash for fast, reliable responses
+      console.log(`🤖 Calling Gemini with ${documents.length} documents, context length: ${documentContext.length} chars`);
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        config: {
+          systemInstruction: systemPrompt,
+        },
+        contents: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}`
       });
 
-      const analysis = response.choices[0].message.content || "Unable to generate analysis";
+      console.log(`✅ Gemini response received:`, {
+        hasText: !!response.text,
+        contentPreview: response.text?.substring(0, 100)
+      });
+
+      const analysis = response.text || "Unable to generate analysis";
 
       res.json({ analysis, documentsAnalyzed: documents.length });
     } catch (error) {

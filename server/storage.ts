@@ -191,7 +191,7 @@ export interface IStorage {
   // Chat session operations
   createChatSession(session: InsertChatSession): Promise<ChatSession>;
   getChatSession(id: number): Promise<ChatSession | undefined>;
-  getUserChatSessions(userId: string, industry?: string): Promise<ChatSession[]>;
+  getUserChatSessions(userId: string, industry?: string, limit?: number): Promise<ChatSession[]>;
   updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession>;
   getSessionMessages(sessionId: number): Promise<ChatMessage[]>;
   saveSessionMessage(message: InsertChatMessage): Promise<ChatMessage>;
@@ -688,16 +688,22 @@ export class DatabaseStorage implements IStorage {
     return session;
   }
 
-  async getUserChatSessions(userId: string, industry?: string): Promise<ChatSession[]> {
+  async getUserChatSessions(userId: string, industry?: string, limit?: number): Promise<ChatSession[]> {
     const conditions = [eq(chatSessions.userId, userId)];
     if (industry) {
       conditions.push(eq(chatSessions.industry, industry));
     }
-    return await db
+    let query = db
       .select()
       .from(chatSessions)
       .where(and(...conditions))
       .orderBy(desc(chatSessions.updatedAt));
+    
+    if (limit) {
+      query = query.limit(limit) as any;
+    }
+    
+    return await query;
   }
 
   async updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession> {

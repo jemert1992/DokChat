@@ -1673,8 +1673,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const industry = req.query.industry as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
 
-      const sessions = await storage.getUserChatSessions(userId, industry);
+      const sessions = await storage.getUserChatSessions(userId, industry, limit);
       res.json(sessions);
     } catch (error) {
       console.error("Error getting chat sessions:", error);

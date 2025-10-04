@@ -107,8 +107,12 @@ Implemented bulk document analysis capabilities with persistent chat sessions:
   - Database schema includes `chat_sessions` and `chat_messages` tables
   - API endpoints for creating sessions, saving messages, and retrieving history
 - **Smart Session Management**: Automatically loads existing sessions when the same documents are selected
-- **Bulk Analysis Support**: Send questions and analysis requests to multiple documents simultaneously
-- **Chat History Restoration**: Previous conversations are restored when reselecting the same document set
+- **Real AI Document Analysis**: GPT-4o powered analysis with industry-specific prompts
+  - Endpoint: POST `/api/chat/analyze` for real-time document analysis
+  - Smart document chunking: First 1500 chars per document for speed
+  - Token limit: 800 tokens max for fast responses
+  - Industry-specific system prompts for finance, medical, legal, logistics
+- **Chat History Restoration**: Previous conversations with AI responses are restored when reselecting the same document set
 
 #### Performance Optimizations
 - Fixed OCR bottleneck: Quick mode now properly limits PDF processing to first 5 pages

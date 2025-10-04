@@ -1782,9 +1782,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const OpenAI = (await import('openai')).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      // Build context from documents - use extracted text or OCR text
+      // Build context from documents - use extracted text
       let documentContext = documents.map(doc => {
-        const content = doc.extractedText || doc.ocrText || 'No content extracted';
+        const content = doc.extractedText || 'No content extracted';
         const preview = content.substring(0, 1500); // Limit to 1500 chars per doc for speed
         return `Document: ${doc.originalFilename}\nContent: ${preview}${content.length > 1500 ? '...' : ''}`;
       }).join('\n\n---\n\n');
@@ -1799,14 +1799,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const systemPrompt = systemPrompts[industry as keyof typeof systemPrompts] || "You are a professional document analyst. Provide clear, accurate insights based on the documents provided.";
 
-      // Call GPT-5 for analysis
+      // Call GPT for analysis - using gpt-4o for reliable fast responses
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025
+        model: "gpt-4o", 
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}` }
         ],
-        max_completion_tokens: 800, // Limit response for speed
+        max_tokens: 800, // Limit response for speed
       });
 
       const analysis = response.choices[0].message.content || "Unable to generate analysis";
@@ -1814,8 +1814,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ analysis, documentsAnalyzed: documents.length });
     } catch (error) {
       console.error("Error in AI analysis:", error);
+      
+      // Log detailed error info
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as any;
+        console.error("OpenAI API Error Details:", {
+          status: apiError.status,
+          statusText: apiError.statusText,
+          data: apiError.response?.data
+        });
+      }
+      
       res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to analyze documents" 
+        message: error instanceof Error ? error.message : "Failed to analyze documents",
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });

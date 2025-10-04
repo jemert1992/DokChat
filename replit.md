@@ -112,6 +112,12 @@ Implemented bulk document analysis capabilities with persistent chat sessions:
   - Smart document chunking: First 1500 chars per document for speed
   - Gemini 2.5 Flash for lightning-fast responses (seamlessly integrates with Google Vision OCR)
   - Industry-specific system prompts for finance, medical, legal, logistics
+  - **Enhanced Formatting** (October 2024): AI responses now render with:
+    - Headers (## syntax) → styled `<h3>` elements for clear sections
+    - Bold text (**text**) → `<strong>` for emphasis on key figures
+    - Bullet points (• or -) → `<ul>/<li>` for easy scanning
+    - Proper paragraph spacing for digestible 2-3 sentence blocks
+  - **Larger Chat Interface**: Increased from 300px to 500px height for better readability
 - **Chat History Restoration**: Previous conversations with AI responses are restored when reselecting the same document set
 
 #### Performance Optimizations

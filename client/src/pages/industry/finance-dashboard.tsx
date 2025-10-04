@@ -45,6 +45,44 @@ export default function FinanceDashboard() {
     queryKey: ["/api/documents"],
   });
 
+  // Auto-load most recent chat session on mount
+  useEffect(() => {
+    if (!documents) return; // Wait for documents to load
+    
+    // Try to load the most recent session
+    apiRequest('GET', '/api/chat-sessions?industry=finance&limit=1')
+      .then(res => res.json())
+      .then((sessions: any[]) => {
+        if (sessions && sessions.length > 0) {
+          const mostRecentSession = sessions[0];
+          
+          // Restore the documents that were part of this session
+          const sessionDocs = documents.filter(doc => 
+            mostRecentSession.documentIds.includes(doc.id)
+          );
+          
+          if (sessionDocs.length > 0) {
+            setSelectedDocuments(sessionDocs);
+            setCurrentSessionId(mostRecentSession.id);
+            
+            // Load the chat history
+            apiRequest('GET', `/api/chat-sessions/${mostRecentSession.id}/messages`)
+              .then(res => res.json())
+              .then((messages: any[]) => {
+                if (messages && messages.length > 0) {
+                  setChatMessages([
+                    { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" },
+                    ...messages.map(m => ({ role: m.role, content: m.content }))
+                  ]);
+                }
+              })
+              .catch(err => console.error('Failed to load messages:', err));
+          }
+        }
+      })
+      .catch(err => console.error('Failed to load recent session:', err));
+  }, [documents]); // Run when documents are loaded
+
   // Create or load chat session when documents are selected
   useEffect(() => {
     if (selectedDocuments.length > 0) {
@@ -126,7 +164,7 @@ export default function FinanceDashboard() {
     ]);
     setAiPrompt("");
     
-    // Save messages to database
+    // Save messages to database (session timestamp is auto-updated)
     try {
       // Save user message
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
@@ -135,7 +173,7 @@ export default function FinanceDashboard() {
         model: 'openai'
       });
       
-      // Save assistant response
+      // Save assistant response  
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'assistant',
         content: assistantResponse,

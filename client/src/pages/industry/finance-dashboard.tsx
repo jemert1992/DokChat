@@ -51,9 +51,8 @@ export default function FinanceDashboard() {
       const documentIds = selectedDocuments.map(d => d.id).sort((a, b) => a - b); // Sort for consistent comparison
       
       // Check if there's an existing session for these documents
-      apiRequest('/api/chat-sessions?industry=finance', {
-        method: 'GET'
-      })
+      apiRequest('GET', '/api/chat-sessions?industry=finance')
+        .then(res => res.json())
         .then((sessions: any[]) => {
           // Find a session with the exact same document IDs
           const existingSession = sessions.find(s => {
@@ -65,25 +64,21 @@ export default function FinanceDashboard() {
           if (existingSession) {
             // Load existing session
             setCurrentSessionId(existingSession.id);
-            return apiRequest(`/api/chat-sessions/${existingSession.id}/messages`, {
-              method: 'GET'
-            });
+            return apiRequest('GET', `/api/chat-sessions/${existingSession.id}/messages`)
+              .then(res => res.json());
           } else {
             // Create a new chat session for these documents
-            return apiRequest('/api/chat-sessions', {
-              method: 'POST',
-              body: JSON.stringify({
-                documentIds,
-                industry: 'finance',
-                title: `Finance Analysis - ${new Date().toLocaleDateString()}`
-              }),
-              headers: { 'Content-Type': 'application/json' }
-            }).then((session: any) => {
-              setCurrentSessionId(session.id);
-              return apiRequest(`/api/chat-sessions/${session.id}/messages`, {
-                method: 'GET'
+            return apiRequest('POST', '/api/chat-sessions', {
+              documentIds,
+              industry: 'finance',
+              title: `Finance Analysis - ${new Date().toLocaleDateString()}`
+            })
+              .then(res => res.json())
+              .then((session: any) => {
+                setCurrentSessionId(session.id);
+                return apiRequest('GET', `/api/chat-sessions/${session.id}/messages`)
+                  .then(res => res.json());
               });
-            });
           }
         })
         .then((messages: any[]) => {
@@ -134,25 +129,17 @@ export default function FinanceDashboard() {
     // Save messages to database
     try {
       // Save user message
-      await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({
-          role: 'user',
-          content: userMessage,
-          model: 'openai'
-        }),
-        headers: { 'Content-Type': 'application/json' }
+      await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
+        role: 'user',
+        content: userMessage,
+        model: 'openai'
       });
       
       // Save assistant response
-      await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({
-          role: 'assistant',
-          content: assistantResponse,
-          model: 'openai'
-        }),
-        headers: { 'Content-Type': 'application/json' }
+      await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
+        role: 'assistant',
+        content: assistantResponse,
+        model: 'openai'
       });
     } catch (err) {
       console.error('Failed to save messages:', err);
@@ -457,24 +444,16 @@ export default function FinanceDashboard() {
                       // Save to database if session exists
                       if (currentSessionId) {
                         try {
-                          await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              role: 'user',
-                              content: userMessage,
-                              model: 'openai'
-                            }),
-                            headers: { 'Content-Type': 'application/json' }
+                          await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
+                            role: 'user',
+                            content: userMessage,
+                            model: 'openai'
                           });
                           
-                          await apiRequest(`/api/chat-sessions/${currentSessionId}/messages`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              role: 'assistant',
-                              content: assistantResponse,
-                              model: 'openai'
-                            }),
-                            headers: { 'Content-Type': 'application/json' }
+                          await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
+                            role: 'assistant',
+                            content: assistantResponse,
+                            model: 'openai'
                           });
                         } catch (err) {
                           console.error('Failed to save quick action messages:', err);

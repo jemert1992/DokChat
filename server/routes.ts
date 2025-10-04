@@ -3009,8 +3009,8 @@ FORMATTING RULES:
           expiresAt: share.expiresAt,
         },
         analyses: share.accessLevel !== 'view' ? [] : analyses,
-        canComment: ['comment', 'edit', 'manage'].includes(share.accessLevel),
-        canEdit: ['edit', 'manage'].includes(share.accessLevel),
+        canComment: share.accessLevel ? ['comment', 'edit', 'manage'].includes(share.accessLevel) : false,
+        canEdit: share.accessLevel ? ['edit', 'manage'].includes(share.accessLevel) : false,
       };
 
       res.json(response);

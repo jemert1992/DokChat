@@ -530,8 +530,8 @@ export default function FinanceDashboard() {
                 ))}
               </div>
 
-              {/* Chat Messages */}
-              <ScrollArea className="h-[300px] border rounded-lg p-4">
+              {/* Chat Messages - Larger area for better readability */}
+              <ScrollArea className="h-[500px] border rounded-lg p-4 bg-white dark:bg-gray-950">
                 <div className="space-y-4">
                   {chatMessages.map((msg, idx) => (
                     <div
@@ -539,13 +539,34 @@ export default function FinanceDashboard() {
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                        className={`max-w-[85%] rounded-lg px-4 py-3 ${
                           msg.role === 'user' 
                             ? 'bg-emerald-600 text-white' 
                             : 'bg-gray-100 dark:bg-gray-800'
                         }`}
                       >
-                        <p className="text-sm">{msg.content}</p>
+                        {msg.role === 'assistant' ? (
+                          <div 
+                            className="text-sm prose prose-sm dark:prose-invert max-w-none"
+                            dangerouslySetInnerHTML={{
+                              __html: msg.content
+                                // Convert headers (## Header)
+                                .replace(/^## (.+)$/gm, '<h3 class="font-semibold text-base mt-3 mb-2 first:mt-0">$1</h3>')
+                                // Convert bold (**text**)
+                                .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+                                // Convert bullet points (• or -)
+                                .replace(/^[•\-] (.+)$/gm, '<li class="ml-4">$1</li>')
+                                // Wrap consecutive <li> in <ul>
+                                .replace(/(<li class="ml-4">.+<\/li>\n?)+/g, '<ul class="list-disc list-inside space-y-1 my-2">$&</ul>')
+                                // Convert line breaks to paragraphs
+                                .split('\n\n')
+                                .map(para => para.trim() ? `<p class="mb-3 last:mb-0">${para}</p>` : '')
+                                .join('')
+                            }}
+                          />
+                        ) : (
+                          <p className="text-sm">{msg.content}</p>
+                        )}
                       </div>
                     </div>
                   ))}

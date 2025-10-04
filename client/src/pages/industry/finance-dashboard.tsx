@@ -145,42 +145,66 @@ export default function FinanceDashboard() {
   }, [selectedDocuments.map(d => d.id).sort((a, b) => a - b).join(',')]); // Depend on sorted document IDs
 
   const handleSendMessage = async () => {
-    if (!aiPrompt.trim() || !currentSessionId) return;
+    if (!aiPrompt.trim() || !currentSessionId || selectedDocuments.length === 0) return;
     
     const userMessage = aiPrompt;
-    const docSummary = selectedDocuments.length === 1 
-      ? `Processing ${selectedDocuments[0].originalFilename}...`
-      : selectedDocuments.length > 1
-        ? `Processing ${selectedDocuments.length} documents: ${selectedDocuments.map(d => d.originalFilename).slice(0, 3).join(', ')}${selectedDocuments.length > 3 ? ` and ${selectedDocuments.length - 3} more` : ''}...`
-        : 'Please select at least one document first.';
+    const documentIds = selectedDocuments.map(d => d.id);
     
-    const assistantResponse = `Analyzing financial data for: "${userMessage}". ${docSummary}`;
+    // Show user message and loading state immediately
+    const loadingMessage = selectedDocuments.length === 1 
+      ? `Analyzing ${selectedDocuments[0].originalFilename}...`
+      : `Analyzing ${selectedDocuments.length} documents...`;
     
-    // Update UI immediately
     setChatMessages(prev => [
       ...prev,
       { role: "user", content: userMessage },
-      { role: "assistant", content: assistantResponse }
+      { role: "assistant", content: loadingMessage }
     ]);
     setAiPrompt("");
     
-    // Save messages to database (session timestamp is auto-updated)
     try {
       // Save user message
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'user',
         content: userMessage,
-        model: 'openai'
+        model: 'gpt-5'
       });
       
-      // Save assistant response  
+      // Call real AI analysis endpoint
+      const response = await apiRequest('POST', '/api/chat/analyze', {
+        question: userMessage,
+        documentIds,
+        industry: 'finance'
+      });
+      
+      const data = await response.json();
+      const aiResponse = data.analysis || "Unable to generate analysis";
+      
+      // Update chat with real AI response
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: "assistant", content: aiResponse };
+        return newMessages;
+      });
+      
+      // Save AI response to database
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'assistant',
-        content: assistantResponse,
-        model: 'openai'
+        content: aiResponse,
+        model: 'gpt-5'
       });
     } catch (err) {
-      console.error('Failed to save messages:', err);
+      console.error('Failed to analyze documents:', err);
+      
+      // Show error message
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { 
+          role: "assistant", 
+          content: "I encountered an error analyzing your documents. Please try again or select different documents." 
+        };
+        return newMessages;
+      });
     }
   };
 

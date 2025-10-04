@@ -1760,6 +1760,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI-powered document analysis endpoint
+  app.post('/api/chat/analyze', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { question, documentIds, industry } = req.body;
+
+      if (!question || !documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Question and document IDs required" });
+      }
+
+      // Fetch documents
+      const documents = await storage.getDocumentsByIds(documentIds);
+      
+      if (documents.length === 0) {
+        return res.status(404).json({ message: "No documents found" });
+      }
+
+      // Initialize OpenAI client
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      // Build context from documents - use extracted text or OCR text
+      let documentContext = documents.map(doc => {
+        const content = doc.extractedText || doc.ocrText || 'No content extracted';
+        const preview = content.substring(0, 1500); // Limit to 1500 chars per doc for speed
+        return `Document: ${doc.originalFilename}\nContent: ${preview}${content.length > 1500 ? '...' : ''}`;
+      }).join('\n\n---\n\n');
+
+      // Create industry-specific system prompt
+      const systemPrompts = {
+        finance: "You are a financial document analyst. Analyze financial statements, invoices, tax documents, and transaction records. Extract key figures, identify trends, detect anomalies, and ensure compliance. Be precise with numbers and dates.",
+        medical: "You are a medical document analyst. Review clinical records, lab results, prescriptions, and medical reports. Extract patient information, diagnoses, treatments, and ensure HIPAA compliance.",
+        legal: "You are a legal document analyst. Review contracts, agreements, legal briefs, and court documents. Extract key clauses, identify risks, ensure compliance, and summarize legal obligations.",
+        logistics: "You are a logistics document analyst. Process shipping manifests, customs forms, BOLs, and tracking documents. Extract tracking info, verify compliance, and analyze route efficiency."
+      };
+
+      const systemPrompt = systemPrompts[industry as keyof typeof systemPrompts] || "You are a professional document analyst. Provide clear, accurate insights based on the documents provided.";
+
+      // Call GPT-5 for analysis
+      const response = await openai.chat.completions.create({
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}` }
+        ],
+        max_completion_tokens: 800, // Limit response for speed
+      });
+
+      const analysis = response.choices[0].message.content || "Unable to generate analysis";
+
+      res.json({ analysis, documentsAnalyzed: documents.length });
+    } catch (error) {
+      console.error("Error in AI analysis:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to analyze documents" 
+      });
+    }
+  });
+
   // OCR Health Check endpoint - REAL OCR TESTING
   app.get('/api/ocr/health', isAuthenticated, async (req, res) => {
     try {

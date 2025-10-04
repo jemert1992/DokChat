@@ -162,6 +162,7 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   getDocument(id: number): Promise<Document | undefined>;
   getDocuments(): Promise<Document[]>;
+  getDocumentsByIds(ids: number[]): Promise<Document[]>;
   getUserDocuments(userId: string, limit?: number): Promise<Document[]>;
   getDocumentsByDateRange(startDate: Date, endDate: Date): Promise<Document[]>;
   updateDocumentStatus(id: number, status: string, progress?: number, message?: string): Promise<void>;
@@ -511,6 +512,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(documents)
       .orderBy(desc(documents.createdAt));
+  }
+
+  async getDocumentsByIds(ids: number[]): Promise<Document[]> {
+    if (ids.length === 0) return [];
+    const { inArray } = await import('drizzle-orm');
+    return await db
+      .select()
+      .from(documents)
+      .where(inArray(documents.id, ids));
   }
 
   async getUserDocuments(userId: string, limit: number = 50): Promise<Document[]> {

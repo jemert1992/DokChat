@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Send, MessageCircle, Sparkles } from 'lucide-react';
+import { Trash2, Send, MessageCircle, Sparkles, History, Plus } from 'lucide-react';
 
 interface ChatMessage {
   id?: number;
@@ -24,6 +25,16 @@ interface ChatResponse {
   relevantSections: string[];
 }
 
+interface ChatSession {
+  id: number;
+  userId: string;
+  industry: string;
+  documentIds: number[];
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface DocumentChatProps {
   documentId: number;
   documentTitle: string;
@@ -32,14 +43,22 @@ interface DocumentChatProps {
 export default function DocumentChat({ documentId, documentTitle }: DocumentChatProps) {
   const [question, setQuestion] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch chat history
+  // Fetch chat history for current document
   const { data: chatHistory, isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/documents/${documentId}/chat/history`],
-    enabled: isExpanded && !!documentId,
+    enabled: isExpanded && !!documentId && !showHistory,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch all chat sessions for history view
+  const { data: chatSessions, isLoading: isLoadingSessions } = useQuery<ChatSession[]>({
+    queryKey: ['/api/chat-sessions'],
+    enabled: isExpanded && showHistory,
     refetchOnWindowFocus: false,
   });
 
@@ -148,19 +167,40 @@ export default function DocumentChat({ documentId, documentTitle }: DocumentChat
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center space-x-2">
             <MessageCircle className="w-5 h-5 text-primary" />
-            <span>Document Chat</span>
+            <span>{showHistory ? 'Chat History' : 'Document Chat'}</span>
           </CardTitle>
           <div className="flex items-center space-x-2">
-            {chatHistory && chatHistory.length > 0 && (
+            {showHistory ? (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => clearHistoryMutation.mutate()}
-                disabled={clearHistoryMutation.isPending}
-                data-testid="button-clear-chat"
+                onClick={() => setShowHistory(false)}
+                data-testid="button-back-to-chat"
               >
-                <Trash2 className="w-4 h-4" />
+                Back
               </Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory(true)}
+                  data-testid="button-view-history"
+                >
+                  <History className="w-4 h-4" />
+                </Button>
+                {chatHistory && chatHistory.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => clearHistoryMutation.mutate()}
+                    disabled={clearHistoryMutation.isPending}
+                    data-testid="button-clear-chat"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </>
             )}
             <Button
               variant="ghost"
@@ -173,96 +213,165 @@ export default function DocumentChat({ documentId, documentTitle }: DocumentChat
           </div>
         </div>
         <p className="text-sm text-muted-foreground truncate">
-          {documentTitle}
+          {showHistory ? 'View and manage your chat sessions' : documentTitle}
         </p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading chat history...</p>
-              </div>
+        {showHistory ? (
+          /* History Area */
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 border-b">
+              <Button
+                onClick={() => {
+                  toast({
+                    title: "New Chat",
+                    description: "Clear the current chat to start a new conversation!",
+                  });
+                  clearHistoryMutation.mutate();
+                  setShowHistory(false);
+                }}
+                className="w-full flex items-center justify-center space-x-2"
+                data-testid="button-new-chat"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Chat</span>
+              </Button>
             </div>
-          ) : chatHistory && chatHistory.length > 0 ? (
-            chatHistory.map((message, index) => (
-              <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-lg p-3 ${
-                  message.role === 'user' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {message.content}
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-2">
+                {isLoadingSessions ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-opacity-20">
-                    <span className="text-xs opacity-70">
-                      {formatTimestamp(message.timestamp)}
-                    </span>
-                    {message.role === 'assistant' && (
-                      <div className="flex items-center space-x-1">
-                        {message.confidence && (
-                          <Badge variant="secondary" className="text-xs">
-                            {Math.round(message.confidence * 100)}%
-                          </Badge>
-                        )}
-                        {message.model && (
-                          <Badge className={`text-xs ${getModelColor(message.model)}`}>
-                            {getModelIcon(message.model)} {message.model.toUpperCase()}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
+                ) : chatSessions && chatSessions.length > 0 ? (
+                  chatSessions.map((session) => (
+                    <Card 
+                      key={session.id} 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => {
+                        toast({
+                          title: "Session Selected",
+                          description: `Viewing: ${session.title}`,
+                        });
+                      }}
+                      data-testid={`chat-session-${session.id}`}
+                    >
+                      <CardContent className="p-3">
+                        <h4 className="font-semibold text-sm mb-1">{session.title}</h4>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {session.industry} • {new Date(session.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {session.documentIds.length} document{session.documentIds.length !== 1 ? 's' : ''}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <History className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <p className="text-muted-foreground mb-2">No chat sessions yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      Start chatting to create your first session!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        ) : (
+          /* Messages Area */
+          <>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading chat history...</p>
                   </div>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="flex items-center justify-center h-full text-center">
-              <div>
-                <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground mb-2">No messages yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Ask me anything about this document!
-                </p>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="border-t p-4 flex-shrink-0">
-          <div className="flex space-x-2">
-            <Input
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask about this document..."
-              disabled={sendMessageMutation.isPending}
-              className="flex-1"
-              data-testid="input-chat-question"
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!question.trim() || sendMessageMutation.isPending}
-              size="sm"
-              data-testid="button-send-message"
-            >
-              {sendMessageMutation.isPending ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : chatHistory && chatHistory.length > 0 ? (
+                chatHistory.map((message, index) => (
+                  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-lg p-3 ${
+                      message.role === 'user' 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.content}
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-opacity-20">
+                        <span className="text-xs opacity-70">
+                          {formatTimestamp(message.timestamp)}
+                        </span>
+                        {message.role === 'assistant' && (
+                          <div className="flex items-center space-x-1">
+                            {message.confidence && (
+                              <Badge variant="secondary" className="text-xs">
+                                {Math.round(message.confidence * 100)}%
+                              </Badge>
+                            )}
+                            {message.model && (
+                              <Badge className={`text-xs ${getModelColor(message.model)}`}>
+                                {getModelIcon(message.model)} {message.model.toUpperCase()}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <Send className="w-4 h-4" />
+                <div className="flex items-center justify-center h-full text-center">
+                  <div>
+                    <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <p className="text-muted-foreground mb-2">No messages yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      Ask me anything about this document!
+                    </p>
+                  </div>
+                </div>
               )}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Powered by OpenAI and Gemini AI models
-          </p>
-        </div>
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="border-t p-4 flex-shrink-0">
+              <div className="flex space-x-2">
+                <Input
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask about this document..."
+                  disabled={sendMessageMutation.isPending}
+                  className="flex-1"
+                  data-testid="input-chat-question"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!question.trim() || sendMessageMutation.isPending}
+                  size="sm"
+                  data-testid="button-send-message"
+                >
+                  {sendMessageMutation.isPending ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Powered by OpenAI and Gemini AI models
+              </p>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

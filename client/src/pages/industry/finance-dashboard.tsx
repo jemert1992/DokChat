@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Receipt,
   CheckSquare,
-  Square
+  Square,
+  History
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
@@ -30,12 +31,14 @@ import { Link, useLocation } from "wouter";
 import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
+import ChatHistorySidebar from "@/components/chat-history-sidebar";
 
 export default function FinanceDashboard() {
   const [, setLocation] = useLocation();
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
     { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" }
   ]);
@@ -228,6 +231,31 @@ export default function FinanceDashboard() {
     setSelectedDocuments([]);
   };
 
+  const handleSelectChatSession = async (session: any) => {
+    // Load the documents from the session
+    const sessionDocs = documents?.filter(doc => 
+      session.documentIds.includes(doc.id)
+    ) || [];
+    
+    setSelectedDocuments(sessionDocs);
+    setCurrentSessionId(session.id);
+    
+    // Load chat messages
+    try {
+      const response = await apiRequest('GET', `/api/chat-sessions/${session.id}/messages`);
+      const messages = await response.json();
+      
+      if (messages && messages.length > 0) {
+        setChatMessages([
+          { role: "assistant", content: "I'm your financial document AI assistant. Upload financial statements, invoices, tax documents, audit reports, or transaction records and I'll help you extract key figures, detect anomalies, analyze trends, and ensure compliance. You can select multiple documents for bulk analysis. What financial insights do you need?" },
+          ...messages.map((m: any) => ({ role: m.role, content: m.content }))
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to load session messages:', err);
+    }
+  };
+
   const financeDocuments = documents?.filter(doc => 
     doc.industry === 'finance' || 
     doc.originalFilename?.toLowerCase().includes('finance') ||
@@ -266,9 +294,20 @@ export default function FinanceDashboard() {
             </p>
           </div>
         </div>
-        <Badge className="bg-emerald-100 text-emerald-800 px-4 py-2">
-          Finance Industry
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsHistoryOpen(true)}
+            data-testid="button-open-history"
+            className="flex items-center gap-2"
+          >
+            <History className="h-4 w-4" />
+            Chat History
+          </Button>
+          <Badge className="bg-emerald-100 text-emerald-800 px-4 py-2">
+            Finance Industry
+          </Badge>
+        </div>
       </div>
 
       {/* Main Content Tabs */}
@@ -618,6 +657,15 @@ export default function FinanceDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Chat History Sidebar */}
+      <ChatHistorySidebar
+        industry="finance"
+        onSelectSession={handleSelectChatSession}
+        currentSessionId={currentSessionId}
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+      />
     </div>
   );
 }

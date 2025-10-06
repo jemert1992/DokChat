@@ -115,7 +115,7 @@ export class VisionService {
       }));
 
       // Check for handwriting detection
-      const [handwritingResult] = await this.client.documentTextDetection(imagePath);
+      const [handwritingResult] = await this.client!.documentTextDetection(imagePath);
       const handwritingDetected = this.detectHandwriting(handwritingResult);
 
       // Detect language using Vision API results
@@ -148,8 +148,15 @@ export class VisionService {
   }
 
   // Limited PDF extraction for quick mode - only processes first N pages
-  async extractTextFromPDFLimited(pdfPath: string, maxPages: number = 5): Promise<OCRResult> {
+  async extractTextFromPDFLimited(
+    pdfPath: string, 
+    maxPages: number = 5,
+    progressCallback?: (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => void
+  ): Promise<OCRResult> {
     let tempDir: string | null = null;
+    const startTime = Date.now();
+    const avgTimePerPage: number[] = []; // Track time for each page to estimate remaining time
+    
     try {
       // Ensure Vision client is properly initialized
       this.ensureInitialized();
@@ -166,7 +173,8 @@ export class VisionService {
       
       // Limit to first N pages
       const imageResults = allImageResults.slice(0, maxPages);
-      console.log(`⚡ Processing ${imageResults.length} of ${allImageResults.length} pages for quick analysis`);
+      const totalPages = imageResults.length;
+      console.log(`⚡ Processing ${totalPages} of ${allImageResults.length} pages for quick analysis`);
       
       if (imageResults.length === 0) {
         return {
@@ -187,15 +195,18 @@ export class VisionService {
       let detectedLanguage = 'en';
 
       for (let i = 0; i < imageResults.length; i++) {
+        const pageStartTime = Date.now();
         const imagePath = imageResults[i];
-        console.log(`⚡ Quick processing page ${i + 1}/${imageResults.length}: ${imagePath}`);
+        const currentPage = i + 1;
+        
+        console.log(`⚡ Quick processing page ${currentPage}/${totalPages}: ${imagePath}`);
         
         try {
           const pageResult = await this.extractTextFromImage(imagePath);
           pageResults.push(pageResult);
           
           if (pageResult.text.trim()) {
-            combinedText += `--- Page ${i + 1} ---\n${pageResult.text}\n\n`;
+            combinedText += `--- Page ${currentPage} ---\n${pageResult.text}\n\n`;
           }
           
           allBlocks.push(...pageResult.blocks);
@@ -209,8 +220,22 @@ export class VisionService {
             detectedLanguage = pageResult.language;
           }
           
+          // Track time for this page
+          const pageProcessingTime = Date.now() - pageStartTime;
+          avgTimePerPage.push(pageProcessingTime);
+          
+          // Calculate estimated time remaining
+          const avgTime = avgTimePerPage.reduce((a, b) => a + b, 0) / avgTimePerPage.length;
+          const pagesRemaining = totalPages - currentPage;
+          const estimatedTimeRemaining = Math.round((avgTime * pagesRemaining) / 1000); // in seconds
+          
+          // Send progress update
+          if (progressCallback) {
+            progressCallback(currentPage, totalPages, estimatedTimeRemaining);
+          }
+          
         } catch (pageError) {
-          console.error(`❌ Error processing PDF page ${i + 1}:`, pageError);
+          console.error(`❌ Error processing PDF page ${currentPage}:`, pageError);
         }
       }
 

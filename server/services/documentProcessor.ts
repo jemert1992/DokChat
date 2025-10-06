@@ -45,25 +45,42 @@ export class DocumentProcessor {
     const startTime = Date.now();
     
     try {
-      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting quick document analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 10, 'Starting quick analysis mode', 'initialization');
-
       const document = await storage.getDocument(documentId);
       if (!document) {
         throw new Error('Document not found');
       }
+      
+      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting quick document analysis...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Starting quick analysis mode', 'initialization');
 
       // Stage 1: Text Extraction (OCR) - QUICK VERSION (process all pages up to 250)
       await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
-      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
-      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250);
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
+      
+      // Create progress callback for page-by-page updates
+      const ocrProgressCallback = (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => {
+        const progressPercent = Math.round(30 + (currentPage / totalPages) * 30); // OCR is 30-60% of total
+        const timeMsg = estimatedTimeRemaining > 0 
+          ? `~${estimatedTimeRemaining}s remaining` 
+          : 'Almost done';
+        this.sendWebSocketUpdate(
+          document.userId,
+          documentId, 
+          'processing', 
+          progressPercent, 
+          `Processing page ${currentPage} of ${totalPages} (${timeMsg})`, 
+          'ocr'
+        );
+      };
+      
+      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250, ocrProgressCallback);
       
       // Get OCR results
       const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
       
       // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED
       await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running quick AI analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Performing essential analysis with Gemini', 'ai_analysis');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Performing essential analysis with Gemini', 'ai_analysis');
       
       // Use Gemini for quick mode (faster and more cost-effective)
       const quickAIResult = await this.multiAIService.analyzeDocumentWithSingleModel(
@@ -75,14 +92,14 @@ export class DocumentProcessor {
       
       // Stage 3: Basic Entity Extraction - REQUIRED
       await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting key entities...');
-      this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting essential entities', 'entity_extraction');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 80, 'Extracting essential entities', 'entity_extraction');
       
       // Extract only essential entities
       const entities = this.extractEssentialEntities(quickAIResult);
       
       // Stage 4: Save Results
       await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 95, 'Saving quick analysis results', 'saving');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Saving quick analysis results', 'saving');
       
       const processingResult: ProcessingResult = {
         extractedText: ocrResults.text,
@@ -127,6 +144,7 @@ export class DocumentProcessor {
       // Mark as completed
       await storage.updateDocumentStatus(documentId, 'completed', 100, 'Quick analysis completed');
       this.sendWebSocketUpdate(
+        document.userId,
         documentId, 
         'completed', 
         100, 
@@ -137,6 +155,11 @@ export class DocumentProcessor {
       console.log(`✅ Quick document processing completed for document ${documentId} in ${Date.now() - startTime}ms`);
     } catch (error) {
       console.error(`Error in quick processing for document ${documentId}:`, error);
+      
+      // Get userId for error WebSocket update
+      const doc = await storage.getDocument(documentId);
+      const userId = doc?.userId || 'unknown';
+      
       await storage.updateDocumentStatus(
         documentId, 
         'error', 
@@ -144,6 +167,7 @@ export class DocumentProcessor {
         error instanceof Error ? error.message : 'Unknown error'
       );
       this.sendWebSocketUpdate(
+        userId,
         documentId,
         'failed',
         0,
@@ -180,22 +204,22 @@ export class DocumentProcessor {
     const startTime = Date.now();
     
     try {
-      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting document processing...');
-      this.sendWebSocketUpdate(documentId, 'processing', 10, 'Starting multi-AI document analysis', 'initialization');
-
       const document = await storage.getDocument(documentId);
       if (!document) {
         throw new Error('Document not found');
       }
 
+      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting document processing...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Starting multi-AI document analysis', 'initialization');
+
       // Stage 1: Text Extraction (OCR temporarily simplified)
       await storage.updateDocumentStatus(documentId, 'processing', 20, 'Extracting text from document...');
-      this.sendWebSocketUpdate(documentId, 'processing', 20, 'Running text extraction', 'ocr');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 20, 'Running text extraction', 'ocr');
       const extractedText = await this.extractText(document.filePath, document.mimeType);
       
       // Stage 2: Multi-AI Analysis (OpenAI + Gemini + Anthropic)
       await storage.updateDocumentStatus(documentId, 'processing', 40, 'Analyzing with multiple AI models...');
-      this.sendWebSocketUpdate(documentId, 'processing', 40, 'Running OpenAI, Gemini, and Anthropic analysis', 'ai_analysis');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 40, 'Running OpenAI, Gemini, and Anthropic analysis', 'ai_analysis');
       
       // Get OCR results and pass them to avoid double processing
       const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
@@ -210,7 +234,7 @@ export class DocumentProcessor {
       
       // Stage 3: Run Advanced Features in PARALLEL for speed
       await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running advanced analysis features...');
-      this.sendWebSocketUpdate(documentId, 'processing', 60, 'Parallel processing: Template-free, RAG, and Intelligence analysis', 'parallel_analysis');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Parallel processing: Template-free, RAG, and Intelligence analysis', 'parallel_analysis');
       
       // Run template-free and RAG enhancement in parallel since they're independent
       const [templateFreeResult, ragResult] = await Promise.allSettled([
@@ -254,7 +278,7 @@ export class DocumentProcessor {
 
       // Stage 6: Advanced Confidence Calculation (NEW FEATURE)
       await storage.updateDocumentStatus(documentId, 'processing', 75, 'Calculating advanced confidence metrics...');
-      this.sendWebSocketUpdate(documentId, 'processing', 75, 'Computing enterprise-grade confidence scores', 'advanced_confidence');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 75, 'Computing enterprise-grade confidence scores', 'advanced_confidence');
       
       let advancedConfidenceMetrics = null;
       let finalConfidence = multiAIResult.consensus.confidence; // Fallback to basic confidence
@@ -278,9 +302,9 @@ export class DocumentProcessor {
         
         // Build RAG context if available
         const ragContext = ragEnhancedResults ? {
-          similarity: ragEnhancedResults.similarity || 0.7,
-          historicalConfidence: ragEnhancedResults.historicalConfidence || 0.75,
-          sampleSize: ragEnhancedResults.sampleSize || 0
+          similarity: (ragEnhancedResults as any).similarity || 0.7,
+          historicalConfidence: (ragEnhancedResults as any).historicalConfidence || 0.75,
+          sampleSize: (ragEnhancedResults as any).sampleSize || 0
         } : undefined;
         
         // Build template-free context if available
@@ -304,12 +328,12 @@ export class DocumentProcessor {
         
       } catch (error) {
         console.warn('⚠️ Advanced confidence calculation failed, using basic confidence:', error instanceof Error ? error.message : error);
-        this.sendWebSocketUpdate(documentId, 'processing', 77, 'Advanced confidence failed, using standard confidence', 'advanced_confidence_error');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 77, 'Advanced confidence failed, using standard confidence', 'advanced_confidence_error');
       }
 
       // Stage 7: Advanced Document Intelligence Analysis (NEW INTEGRATION)
       await storage.updateDocumentStatus(documentId, 'processing', 78, 'Running advanced document intelligence...');
-      this.sendWebSocketUpdate(documentId, 'processing', 78, 'Analyzing document relationships, compliance, and risk factors', 'advanced_intelligence');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 78, 'Analyzing document relationships, compliance, and risk factors', 'advanced_intelligence');
       
       let advancedIntelligenceResult = null;
       try {
@@ -344,21 +368,21 @@ export class DocumentProcessor {
         
       } catch (error) {
         console.warn('⚠️ Advanced document intelligence failed, continuing with standard processing:', error instanceof Error ? error.message : error);
-        this.sendWebSocketUpdate(documentId, 'processing', 79, 'Advanced intelligence failed, using standard analysis', 'advanced_intelligence_error');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 79, 'Advanced intelligence failed, using standard analysis', 'advanced_intelligence_error');
       }
 
       // Stage 8: Enhanced Entity Extraction  
       await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting enhanced entities...');
-      this.sendWebSocketUpdate(documentId, 'processing', 80, 'Extracting industry-specific entities', 'entity_extraction');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 80, 'Extracting industry-specific entities', 'entity_extraction');
       const entities = this.combineEntities(multiAIResult, templateFreeResults, ragEnhancedResults);
       
       // Stage 4: Consensus Analysis
       await storage.updateDocumentStatus(documentId, 'processing', 85, 'Generating consensus analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 85, 'Creating consensus from multiple AI models', 'consensus');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 85, 'Creating consensus from multiple AI models', 'consensus');
       
       // Stage 5: Save Enhanced Results
       await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving comprehensive analysis...');
-      this.sendWebSocketUpdate(documentId, 'processing', 95, 'Saving multi-AI analysis results', 'saving');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Saving multi-AI analysis results', 'saving');
       
       const processingResult: ProcessingResult = {
         extractedText: multiAIResult.ocrResults.text,
@@ -475,6 +499,7 @@ export class DocumentProcessor {
       
       // Send completion update with full results
       this.sendWebSocketUpdate(
+        document.userId,
         documentId, 
         'completed', 
         100, 
@@ -493,14 +518,19 @@ export class DocumentProcessor {
       console.error(`Error processing document ${documentId}:`, error);
       const errorMessage = `Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
       
+      // Get userId for error WebSocket update
+      const doc = await storage.getDocument(documentId);
+      const userId = doc?.userId || 'unknown';
+      
       await storage.updateDocumentStatus(documentId, 'error', 0, errorMessage);
-      this.sendWebSocketUpdate(documentId, 'failed', 0, errorMessage, 'error');
+      this.sendWebSocketUpdate(userId, documentId, 'failed', 0, errorMessage, 'error');
       
       throw error;
     }
   }
 
   private sendWebSocketUpdate(
+    userId: string,
     documentId: number, 
     status: 'queued' | 'processing' | 'completed' | 'failed', 
     progress: number, 
@@ -510,8 +540,6 @@ export class DocumentProcessor {
     processingTime?: number
   ) {
     if (this.websocketService) {
-      // Get userId from document - we'll need to modify this to pass userId
-      const userId = String(documentId); // Simplified for now
       this.websocketService.sendProcessingUpdate(userId, {
         documentId: String(documentId),
         status,
@@ -524,7 +552,7 @@ export class DocumentProcessor {
     }
   }
 
-  private combineEntities(multiAIResult: any, templateFreeResults?: any): Array<{type: string, value: string, confidence: number}> {
+  private combineEntities(multiAIResult: any, templateFreeResults?: any, ragEnhancedResults?: any): Array<{type: string, value: string, confidence: number}> {
     const entities: Array<{type: string, value: string, confidence: number}> = [];
     
     // Combine entities from OpenAI analysis
@@ -915,7 +943,12 @@ export class DocumentProcessor {
   }
 
   // Quick text extraction for fast processing (limits pages for PDFs)
-  private async extractTextQuick(filePath: string, mimeType?: string, maxPages: number = 250): Promise<string> {
+  private async extractTextQuick(
+    filePath: string, 
+    mimeType?: string, 
+    maxPages: number = 250,
+    progressCallback?: (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => void
+  ): Promise<string> {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
       
@@ -927,7 +960,7 @@ export class DocumentProcessor {
       // For PDFs, only process first few pages in quick mode
       if (fileExtension === '.pdf') {
         console.log(`⚡ Quick PDF extraction - processing only first ${maxPages} pages`);
-        const limitedOcrResult = await this.visionService.extractTextFromPDFLimited(filePath, maxPages);
+        const limitedOcrResult = await this.visionService.extractTextFromPDFLimited(filePath, maxPages, progressCallback);
         return limitedOcrResult.text;
       }
       

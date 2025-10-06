@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { 
   FileText, 
   MessageSquare, 
@@ -24,7 +25,8 @@ import {
   Heart,
   CheckSquare,
   Square,
-  History
+  History,
+  Loader2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
@@ -33,6 +35,7 @@ import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
 import ChatHistorySidebar from "@/components/chat-history-sidebar";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function MedicalDashboard() {
   const [, setLocation] = useLocation();
@@ -48,6 +51,9 @@ export default function MedicalDashboard() {
   const { data: documents } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
+
+  // WebSocket for real-time progress updates
+  const { processingUpdates } = useWebSocket();
 
   // Auto-load most recent chat session on mount
   useEffect(() => {
@@ -364,6 +370,9 @@ export default function MedicalDashboard() {
                   {medicalDocuments.length > 0 ? (
                     medicalDocuments.map((doc) => {
                       const isSelected = selectedDocuments.some(d => d.id === doc.id);
+                      const progressUpdate = processingUpdates.find(u => u.documentId === String(doc.id));
+                      const isProcessing = progressUpdate?.status === 'processing';
+                      
                       return (
                         <motion.div
                           key={doc.id}
@@ -389,10 +398,25 @@ export default function MedicalDashboard() {
                                 {isSelected && (
                                   <Badge variant="outline" className="text-xs">Selected</Badge>
                                 )}
+                                {isProcessing && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    {progressUpdate.progress}%
+                                  </Badge>
+                                )}
                               </div>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
-                              </p>
+                              {isProcessing ? (
+                                <div className="space-y-1 mt-2">
+                                  <Progress value={progressUpdate.progress} className="h-1.5" />
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {progressUpdate.message}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                                </p>
+                              )}
                               {doc.aiConfidence && (
                                 <div className="flex items-center gap-2 mt-2">
                                   <div className="flex items-center gap-1">

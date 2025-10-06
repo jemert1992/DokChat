@@ -105,9 +105,14 @@ export class MultiAIService {
     this.securityService = new AdvancedSecurityService();
     this.multiLanguageService = new MultiLanguageService();
     
-    // Anthropic integration disabled (no API key available)
-    this.anthropic = null;
-    console.log('⚠️  Anthropic integration disabled - no API key provided');
+    // Initialize Anthropic if API key is available
+    if (process.env.ANTHROPIC_API_KEY) {
+      this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      console.log('✅ Anthropic Claude 3.5 Sonnet integration enabled');
+    } else {
+      this.anthropic = null;
+      console.log('⚠️  Anthropic integration disabled - no API key provided');
+    }
     
     console.log('🚀 Revolutionary MultiAI Service initialized with industry-specific capabilities');
   }

@@ -1777,9 +1777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No documents found" });
       }
 
-      // Initialize Gemini client - using Google's AI for seamless integration with Vision API
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      // Initialize Claude client - using Anthropic's Claude 3.5 Sonnet for superior document analysis
+      const Anthropic = await import('@anthropic-ai/sdk');
+      const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
 
       // Smart chunking for large documents (handles 150-200 page documents)
       const chunkDocument = (text: string, maxChars: number = 100000): string[] => {
@@ -1921,23 +1921,25 @@ FORMATTING RULES:
 - Add line breaks between sections for readability
 - Provide clear, accurate insights based on the documents provided.`;
 
-      // Call Gemini for analysis - using gemini-2.5-flash for fast, reliable responses
-      console.log(`🤖 Calling Gemini with ${documents.length} documents, context length: ${documentContext.length} chars`);
+      // Call Claude 3.5 Sonnet for analysis - superior document understanding with 200K context
+      console.log(`🤖 Calling Claude 3.5 Sonnet with ${documents.length} documents, context length: ${documentContext.length} chars`);
       
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        config: {
-          systemInstruction: systemPrompt,
-        },
-        contents: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}`
+      const response = await anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{
+          role: "user",
+          content: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}`
+        }]
       });
 
-      console.log(`✅ Gemini response received:`, {
-        hasText: !!response.text,
-        contentPreview: response.text?.substring(0, 100)
+      console.log(`✅ Claude response received:`, {
+        hasContent: response.content && response.content.length > 0,
+        contentPreview: response.content[0]?.type === 'text' ? response.content[0].text.substring(0, 100) : 'N/A'
       });
 
-      const analysis = response.text || "Unable to generate analysis";
+      const analysis = response.content[0]?.type === 'text' ? response.content[0].text : "Unable to generate analysis";
 
       res.json({ analysis, documentsAnalyzed: documents.length });
     } catch (error) {

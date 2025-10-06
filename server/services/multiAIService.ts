@@ -117,6 +117,36 @@ export class MultiAIService {
     console.log('🚀 Revolutionary MultiAI Service initialized with industry-specific capabilities');
   }
 
+  /**
+   * Retry API calls with exponential backoff for handling overloaded services
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        const isLastAttempt = attempt === maxRetries - 1;
+        const isRetryableError = error?.status === 503 || error?.status === 529 || 
+                                error?.message?.includes('overloaded') ||
+                                error?.message?.includes('UNAVAILABLE');
+        
+        if (isLastAttempt || !isRetryableError) {
+          throw error;
+        }
+        
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`⏳ ${operationName} overloaded (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error('Retry logic failed');
+  }
+
   async analyzeDocument(
     text: string, 
     industry: string, 
@@ -255,9 +285,9 @@ export class MultiAIService {
       const amounts = result.analysis.match(moneyRegex) || [];
       const emails = result.analysis.match(emailRegex) || [];
       
-      dates.forEach(date => entities.push({ type: 'date', value: date, confidence: 80 }));
-      amounts.forEach(amount => entities.push({ type: 'money', value: amount, confidence: 80 }));
-      emails.forEach(email => entities.push({ type: 'email', value: email, confidence: 85 }));
+      dates.forEach((date: string) => entities.push({ type: 'date', value: date, confidence: 80 }));
+      amounts.forEach((amount: string) => entities.push({ type: 'money', value: amount, confidence: 80 }));
+      emails.forEach((email: string) => entities.push({ type: 'email', value: email, confidence: 85 }));
     }
     
     return entities;
@@ -266,8 +296,8 @@ export class MultiAIService {
   private async analyzeWithGemini(text: string, industry: string) {
     try {
       const [summary, sentiment] = await Promise.all([
-        geminiSummarize(text),
-        geminiAnalyze(text)
+        this.retryWithBackoff(() => geminiSummarize(text), 'Gemini Summarize'),
+        this.retryWithBackoff(() => geminiAnalyze(text), 'Gemini Analyze')
       ]);
 
       // Generate industry-specific insights
@@ -312,11 +342,11 @@ Respond with JSON format:
   "riskFactors": ["risk1", "risk2"]
 }`;
 
-      const response = await this.anthropic.messages.create({
+      const response = await this.retryWithBackoff(() => this.anthropic!.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
-      });
+      }), 'Claude Anthropic');
 
       const content = response.content[0];
       if (content.type !== 'text') {
@@ -1284,25 +1314,6 @@ Respond with JSON format:
     };
   }
 
-  private calculateAccuracyScore(results: MultiAIResult, confidence: number): number {
-    // Enhanced accuracy calculation
-    let accuracyScore = confidence * 0.7; // Base accuracy from confidence
-    
-    // Add bonuses for comprehensive results
-    if (results.openai?.insights && results.openai.insights.length > 2) {
-      accuracyScore += 0.1;
-    }
-    
-    if (results.gemini?.insights && results.gemini.insights.length > 2) {
-      accuracyScore += 0.1;
-    }
-    
-    if (results.anthropic?.confidence && results.anthropic.confidence > 0.8) {
-      accuracyScore += 0.1;
-    }
-    
-    return Math.min(accuracyScore, 0.95);
-  }
 
   private isImageOrPDF(mimeType?: string): boolean {
     if (!mimeType) return false;

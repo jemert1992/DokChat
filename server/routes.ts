@@ -1921,10 +1921,35 @@ FORMATTING RULES:
 - Add line breaks between sections for readability
 - Provide clear, accurate insights based on the documents provided.`;
 
+      // Retry logic for API calls with exponential backoff
+      const retryWithBackoff = async <T>(
+        fn: () => Promise<T>,
+        maxRetries: number = 3,
+        baseDelay: number = 1000
+      ): Promise<T> => {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            return await fn();
+          } catch (error: any) {
+            const isLastAttempt = attempt === maxRetries - 1;
+            const isRetryableError = error?.status === 503 || error?.status === 529;
+            
+            if (isLastAttempt || !isRetryableError) {
+              throw error;
+            }
+            
+            const delay = baseDelay * Math.pow(2, attempt);
+            console.log(`⏳ API overloaded (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+        throw new Error('Retry logic failed');
+      };
+
       // Call Claude 3.5 Sonnet for analysis - superior document understanding with 200K context
       console.log(`🤖 Calling Claude 3.5 Sonnet with ${documents.length} documents, context length: ${documentContext.length} chars`);
       
-      const response = await anthropic.messages.create({
+      const response = await retryWithBackoff(() => anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 4096,
         system: systemPrompt,
@@ -1932,7 +1957,7 @@ FORMATTING RULES:
           role: "user",
           content: `Based on these ${documents.length} document(s):\n\n${documentContext}\n\nQuestion: ${question}`
         }]
-      });
+      }));
 
       console.log(`✅ Claude response received:`, {
         hasContent: response.content && response.content.length > 0,

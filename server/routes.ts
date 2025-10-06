@@ -1800,17 +1800,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return chunks;
       };
 
-      // Find relevant chunks based on question keywords
+      // Find relevant chunks based on question keywords (improved with fuzzy matching)
       const findRelevantChunks = (chunks: string[], question: string, maxChunks: number = 5): string[] => {
-        const questionWords = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        const questionWords = question.toLowerCase()
+          .split(/\s+/)
+          .filter(w => w.length > 3)
+          .map(w => w.replace(/[^a-z0-9]/g, '')); // normalize
         
-        const scored = chunks.map(chunk => {
+        const scored = chunks.map((chunk, idx) => {
           const lowerChunk = chunk.toLowerCase();
-          const score = questionWords.reduce((sum, word) => {
-            const matches = (lowerChunk.match(new RegExp(word, 'g')) || []).length;
-            return sum + matches;
-          }, 0);
-          return { chunk, score };
+          let score = 0;
+          
+          // Keyword matching with position weighting (earlier mentions score higher)
+          questionWords.forEach(word => {
+            const regex = new RegExp(word, 'gi');
+            const matches = lowerChunk.match(regex);
+            if (matches) {
+              score += matches.length * (chunks.length - idx + 1); // Position weight
+            }
+          });
+          
+          // If no matches found, still include first and last chunks for context
+          if (score === 0 && (idx === 0 || idx === chunks.length - 1)) {
+            score = 1;
+          }
+          
+          return { chunk, score, idx };
         });
         
         // Sort by relevance and take top chunks
@@ -1824,15 +1839,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let documentContext = documents.map(doc => {
         const content = doc.extractedText || 'No content extracted';
         
-        // For large documents (>50k chars), use smart chunking
-        if (content.length > 50000) {
+        // For documents >15k chars, use smart chunking (handles 150-200 page docs)
+        if (content.length > 15000) {
           const chunks = chunkDocument(content, 20000);
-          const relevantChunks = findRelevantChunks(chunks, question, 3);
+          const relevantChunks = findRelevantChunks(chunks, question, 5);
           const preview = relevantChunks.join('\n...\n');
-          return `Document: ${doc.originalFilename} (${chunks.length} sections, showing most relevant)\nContent: ${preview}`;
+          
+          // Count pages from page markers
+          const pageMatches = content.match(/--- Page \d+ ---/g);
+          const pageCount = pageMatches ? pageMatches.length : 'unknown';
+          
+          return `Document: ${doc.originalFilename} (${pageCount} pages total, ${chunks.length} sections analyzed, showing ${relevantChunks.length} most relevant)\nContent: ${preview}`;
         } else {
-          // For smaller documents, use full content
-          return `Document: ${doc.originalFilename}\nContent: ${content}`;
+          // For smaller documents, use full content but still count pages
+          const pageMatches = content.match(/--- Page \d+ ---/g);
+          const pageCount = pageMatches ? pageMatches.length : 'unknown';
+          return `Document: ${doc.originalFilename} (${pageCount} pages)\nContent: ${content}`;
         }
       }).join('\n\n---\n\n');
 

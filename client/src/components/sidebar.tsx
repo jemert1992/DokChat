@@ -103,8 +103,8 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
         dark:from-gray-900 dark:via-gray-850 dark:to-gray-800
         border-r border-gray-200/80 dark:border-gray-700/80
         transition-all duration-300 ease-in-out
-        shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50
-        z-40
+        shadow-lg shadow-gray-200/30 dark:shadow-gray-900/30
+        z-10
         lg:translate-x-0
         ${isCollapsed ? '' : 'max-lg:w-full max-lg:translate-x-[-100%]'}
         backdrop-blur-sm

@@ -98,7 +98,7 @@ export default function Dashboard() {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 min-h-screen">
+        <div className="flex-1 min-h-screen ml-72 transition-all duration-300">
           <ModernHeader user={user} onCreateNew={scrollToUpload} />
 
           <div className="px-8 py-8">

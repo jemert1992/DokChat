@@ -133,6 +133,52 @@ export const processingJobs = pgTable("processing_jobs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// OCR Cache for document deduplication and cost savings
+export const ocrCache = pgTable("ocr_cache", {
+  id: serial("id").primaryKey(),
+  documentHash: varchar("document_hash", { length: 64 }).notNull().unique(),
+  extractedText: text("extracted_text").notNull(),
+  ocrConfidence: real("ocr_confidence").notNull(),
+  pageCount: integer("page_count").notNull(),
+  metadata: jsonb("metadata"),
+  cacheHits: integer("cache_hits").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
+});
+
+// Document classification results
+export const documentClassifications = pgTable("document_classifications", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  documentType: varchar("document_type", { length: 100 }).notNull(),
+  complexity: varchar("complexity", { length: 20 }).notNull(),
+  hasTable: boolean("has_table").default(false),
+  hasChart: boolean("has_chart").default(false),
+  hasHandwriting: boolean("has_handwriting").default(false),
+  language: varchar("language", { length: 10 }).notNull(),
+  pageCount: integer("page_count").notNull(),
+  recommendedProcessor: varchar("recommended_processor", { length: 50 }).notNull(),
+  confidence: real("confidence").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// API cost tracking
+export const apiCostTracking = pgTable("api_cost_tracking", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  apiService: varchar("api_service", { length: 50 }).notNull(), // 'vision_api', 'gemini', 'claude', etc.
+  operationType: varchar("operation_type", { length: 50 }).notNull(), // 'ocr', 'analysis', 'classification', etc.
+  pageCount: integer("page_count"),
+  tokenCount: integer("token_count"),
+  estimatedCost: real("estimated_cost").notNull(),
+  actualCost: real("actual_cost"),
+  currency: varchar("currency", { length: 3 }).default('USD'),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Medical Industry Tables
 export const medicalDocuments = pgTable("medical_documents", {
   id: serial("id").primaryKey(),

@@ -184,6 +184,23 @@ export interface IStorage {
   // Industry configuration operations
   getIndustryConfiguration(industry: string): Promise<IndustryConfiguration | undefined>;
   
+  // OCR Cache operations
+  getCachedOCR(documentHash: string): Promise<any | null>;
+  cacheOCRResult(result: any): Promise<void>;
+  deleteOldCachedOCR(cutoffDate: Date): Promise<number>;
+  getOCRCacheCount(): Promise<number>;
+  getOCRCacheHitStats(): Promise<{ cacheHits: number; totalPagesSaved: number }>;
+  
+  // Document classification operations
+  saveDocumentClassification(classification: any): Promise<void>;
+  getDocumentClassification(documentId: number): Promise<any | null>;
+  
+  // API cost tracking operations
+  trackAPIcost(cost: any): Promise<void>;
+  getAPIcostByDocument(documentId: number): Promise<any[]>;
+  getAPIcostByUser(userId: string, startDate?: Date, endDate?: Date): Promise<any[]>;
+  getTotalAPICost(userId?: string): Promise<number>;
+  
   // Chat operations
   saveChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatHistory(documentId: number, limit?: number): Promise<ChatMessage[]>;
@@ -654,6 +671,128 @@ export class DatabaseStorage implements IStorage {
       .from(industryConfigurations)
       .where(eq(industryConfigurations.industry, industry));
     return config;
+  }
+
+  // OCR Cache operations
+  async getCachedOCR(documentHash: string): Promise<any | null> {
+    const [cached] = await db
+      .select()
+      .from(schema.ocrCache)
+      .where(eq(schema.ocrCache.documentHash, documentHash));
+    
+    if (cached) {
+      // Update cache hit counter and last accessed time
+      await db
+        .update(schema.ocrCache)
+        .set({ 
+          cacheHits: sql`${schema.ocrCache.cacheHits} + 1`,
+          lastAccessedAt: new Date()
+        })
+        .where(eq(schema.ocrCache.documentHash, documentHash));
+    }
+    
+    return cached || null;
+  }
+
+  async cacheOCRResult(result: any): Promise<void> {
+    await db
+      .insert(schema.ocrCache)
+      .values({
+        documentHash: result.documentHash,
+        extractedText: result.extractedText,
+        ocrConfidence: result.ocrConfidence,
+        pageCount: result.pageCount,
+        metadata: result.metadata || {},
+        cacheHits: 0,
+      })
+      .onConflictDoNothing();
+  }
+
+  async deleteOldCachedOCR(cutoffDate: Date): Promise<number> {
+    const result = await db
+      .delete(schema.ocrCache)
+      .where(lt(schema.ocrCache.createdAt, cutoffDate));
+    return result.rowCount || 0;
+  }
+
+  async getOCRCacheCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.ocrCache);
+    return result[0]?.count || 0;
+  }
+
+  async getOCRCacheHitStats(): Promise<{ cacheHits: number; totalPagesSaved: number }> {
+    const result = await db
+      .select({
+        totalHits: sql<number>`sum(${schema.ocrCache.cacheHits})::int`,
+        totalPages: sql<number>`sum(${schema.ocrCache.cacheHits} * ${schema.ocrCache.pageCount})::int`,
+      })
+      .from(schema.ocrCache);
+    
+    return {
+      cacheHits: result[0]?.totalHits || 0,
+      totalPagesSaved: result[0]?.totalPages || 0,
+    };
+  }
+
+  // Document classification operations
+  async saveDocumentClassification(classification: any): Promise<void> {
+    await db.insert(schema.documentClassifications).values(classification);
+  }
+
+  async getDocumentClassification(documentId: number): Promise<any | null> {
+    const [classification] = await db
+      .select()
+      .from(schema.documentClassifications)
+      .where(eq(schema.documentClassifications.documentId, documentId))
+      .orderBy(desc(schema.documentClassifications.createdAt))
+      .limit(1);
+    return classification || null;
+  }
+
+  // API cost tracking operations
+  async trackAPIcost(cost: any): Promise<void> {
+    await db.insert(schema.apiCostTracking).values(cost);
+  }
+
+  async getAPIcostByDocument(documentId: number): Promise<any[]> {
+    return await db
+      .select()
+      .from(schema.apiCostTracking)
+      .where(eq(schema.apiCostTracking.documentId, documentId))
+      .orderBy(desc(schema.apiCostTracking.createdAt));
+  }
+
+  async getAPIcostByUser(userId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
+    let query = db
+      .select()
+      .from(schema.apiCostTracking)
+      .where(eq(schema.apiCostTracking.userId, userId));
+    
+    if (startDate && endDate) {
+      query = query.where(
+        and(
+          gte(schema.apiCostTracking.createdAt, startDate),
+          lte(schema.apiCostTracking.createdAt, endDate)
+        )
+      );
+    }
+    
+    return await query.orderBy(desc(schema.apiCostTracking.createdAt));
+  }
+
+  async getTotalAPICost(userId?: string): Promise<number> {
+    let query = db
+      .select({ total: sql<number>`sum(${schema.apiCostTracking.estimatedCost})::float` })
+      .from(schema.apiCostTracking);
+    
+    if (userId) {
+      query = query.where(eq(schema.apiCostTracking.userId, userId));
+    }
+    
+    const result = await query;
+    return result[0]?.total || 0;
   }
 
   // Chat operations

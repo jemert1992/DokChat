@@ -196,14 +196,18 @@ export class DocumentProcessor {
       });
 
       // Mark as completed
+      const processingTimeMs = Date.now() - startTime;
       await storage.updateDocumentStatus(documentId, 'completed', 100, 'Quick analysis completed');
       this.sendWebSocketUpdate(
         document.userId,
         documentId, 
         'completed', 
         100, 
-        `Quick analysis completed in ${Math.round((Date.now() - startTime) / 1000)} seconds`,
-        'completed'
+        `Quick analysis completed in ${Math.round(processingTimeMs / 1000)} seconds`,
+        'completed',
+        'Gemini Flash',
+        processingTimeMs,
+        document.originalFilename
       );
 
       console.log(`✅ Quick document processing completed for document ${documentId} in ${Date.now() - startTime}ms`);
@@ -560,7 +564,8 @@ export class DocumentProcessor {
         `Document processed in ${totalTime}ms using ${multiAIResult.consensus.recommendedModel}`, 
         'completed',
         multiAIResult.consensus.recommendedModel,
-        totalTime
+        totalTime,
+        document.originalFilename
       );
 
       // Send document complete notification with analysis

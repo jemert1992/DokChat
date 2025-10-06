@@ -1781,11 +1781,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-      // Build context from documents - use extracted text
+      // Build context from documents - use extracted text (increased to 15000 chars for multi-page support)
       let documentContext = documents.map(doc => {
         const content = doc.extractedText || 'No content extracted';
-        const preview = content.substring(0, 1500); // Limit to 1500 chars per doc for speed
-        return `Document: ${doc.originalFilename}\nContent: ${preview}${content.length > 1500 ? '...' : ''}`;
+        const preview = content.substring(0, 15000); // Increased limit to capture multiple pages
+        return `Document: ${doc.originalFilename}\nContent: ${preview}${content.length > 15000 ? '...' : ''}`;
       }).join('\n\n---\n\n');
 
       // Create industry-specific system prompt with formatting instructions

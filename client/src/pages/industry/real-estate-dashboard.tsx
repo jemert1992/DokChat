@@ -19,9 +19,10 @@ import {
   FileSearch,
   Sparkles,
   Download,
-  Home as HomeIcon,
-  TrendingUp,
+  Home,
   MapPin,
+  FileCheck,
+  Shield,
   CheckSquare,
   Square,
   History,
@@ -174,37 +175,36 @@ export default function RealEstateDashboard() {
         industry: 'real_estate'
       });
 
-      const result = await response.json();
+      const data = await response.json();
+      const aiResponse = data.analysis || "Unable to generate analysis";
       
       setChatMessages(prev => {
         const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = {
-          role: "assistant",
-          content: result.analysis || result.message || 'Analysis complete.'
-        };
+        newMessages[newMessages.length - 1] = { role: "assistant", content: aiResponse };
         return newMessages;
       });
 
       await apiRequest('POST', `/api/chat-sessions/${currentSessionId}/messages`, {
         role: 'assistant',
-        content: result.analysis || result.message || 'Analysis complete.',
+        content: aiResponse,
         model: 'gemini-2.5-flash'
       });
 
-    } catch (error: any) {
-      console.error('AI analysis error:', error);
+    } catch (err) {
+      console.error('Failed to analyze documents:', err);
+      
       setChatMessages(prev => {
         const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = {
-          role: "assistant",
-          content: `Error: ${error.message || 'Failed to analyze documents. Please try again.'}`
+        newMessages[newMessages.length - 1] = { 
+          role: "assistant", 
+          content: "I encountered an error analyzing your documents. Please try again or select different documents." 
         };
         return newMessages;
       });
     }
   };
 
-  const handleDocumentToggle = (doc: Document) => {
+  const toggleDocumentSelection = (doc: Document) => {
     setSelectedDocuments(prev => {
       const isSelected = prev.some(d => d.id === doc.id);
       if (isSelected) {
@@ -215,25 +215,36 @@ export default function RealEstateDashboard() {
     });
   };
 
-  const handleSelectSession = (session: any) => {
-    if (!documents) return;
-    
-    const sessionDocs = documents.filter(doc => 
+  const selectAllDocuments = () => {
+    const completedDocs = realEstateDocuments.filter(doc => doc.status === 'completed');
+    setSelectedDocuments(completedDocs);
+  };
+
+  const deselectAllDocuments = () => {
+    setSelectedDocuments([]);
+  };
+
+  const handleSelectChatSession = async (session: any) => {
+    const sessionDocs = documents?.filter(doc => 
       session.documentIds.includes(doc.id)
-    );
+    ) || [];
     
-    setCurrentSessionId(session.id);
     setSelectedDocuments(sessionDocs);
+    setCurrentSessionId(session.id);
     
-    apiRequest('GET', `/api/chat-sessions/${session.id}/messages`)
-      .then(res => res.json())
-      .then((messages: any[]) => {
+    try {
+      const response = await apiRequest('GET', `/api/chat-sessions/${session.id}/messages`);
+      const messages = await response.json();
+      
+      if (messages && messages.length > 0) {
         setChatMessages([
           { role: "assistant", content: "I'm your real estate document AI assistant. Upload property listings, purchase agreements, lease contracts, title documents, or inspection reports and I'll help you extract property details, analyze terms, identify risks, and ensure compliance. You can select multiple documents for bulk analysis. What real estate insights do you need?" },
-          ...messages.map(m => ({ role: m.role, content: m.content }))
+          ...messages.map((m: any) => ({ role: m.role, content: m.content }))
         ]);
-      })
-      .catch(err => console.error('Failed to load messages:', err));
+      }
+    } catch (err) {
+      console.error('Failed to load session messages:', err);
+    }
   };
 
   const realEstateDocuments = (documents || []).filter(doc => 
@@ -242,252 +253,369 @@ export default function RealEstateDashboard() {
     !doc.industry
   ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+  const quickActions = [
+    { icon: MapPin, label: "Extract Property Info", action: "Extract all property details, addresses, square footage, and pricing from this document" },
+    { icon: FileCheck, label: "Analyze Terms", action: "Analyze lease terms, purchase conditions, and contract clauses in this document" },
+    { icon: AlertCircle, label: "Identify Risks", action: "Identify potential risks, compliance issues, and red flags in this document" },
+    { icon: Shield, label: "Compliance Check", action: "Verify compliance with real estate regulations and identify any discrepancies" }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-850 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl shadow-lg">
-                <Building2 className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  Real Estate Intelligence
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  AI-powered property document analysis
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setLocation('/dashboard')}
-              className="gap-2"
-              data-testid="button-back-to-dashboard"
-            >
-              <HomeIcon className="h-4 w-4" />
-              Dashboard
-            </Button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setLocation('/')}
+            data-testid="button-back-home"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Building2 className="h-8 w-8 text-orange-600" />
+              Real Estate Intelligence
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              AI-powered property document analysis
+            </p>
           </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <motion.div
-            className="lg:col-span-2 space-y-6"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsHistoryOpen(true)}
+            data-testid="button-open-history"
+            className="flex items-center gap-2"
           >
-            <Card className="shadow-lg border-orange-100 dark:border-gray-700">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Brain className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                    <CardTitle className="text-2xl">AI Property Analysis</CardTitle>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className="gap-2"
-                    data-testid="button-toggle-history"
-                  >
-                    <History className="h-4 w-4" />
-                    {isHistoryOpen ? 'Hide' : 'Show'} History
-                  </Button>
-                </div>
-                <CardDescription>
-                  Select documents and ask questions about property details, contracts, or compliance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <ScrollArea className="h-[400px] pr-4">
-                    {chatMessages.map((msg, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
-                      >
-                        <div className={`inline-block max-w-[80%] p-4 rounded-2xl ${
-                          msg.role === 'user' 
-                            ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white' 
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            {msg.role === 'assistant' && <Brain className="h-5 w-5 flex-shrink-0 mt-0.5" />}
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </ScrollArea>
-
-                  <div className="flex gap-2">
-                    <Textarea
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="Ask about property values, contract terms, compliance issues..."
-                      className="min-h-[80px] resize-none"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      data-testid="textarea-ai-prompt"
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!aiPrompt.trim() || selectedDocuments.length === 0}
-                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 self-end"
-                      data-testid="button-send-message"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {selectedDocuments.length === 0 && (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Select at least one document to start analyzing
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {selectedDocuments.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <FileText className="h-4 w-4" />
-                      <span>{selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <DocumentUploadZone 
-              industry="real_estate"
-            />
-          </motion.div>
-
-          <motion.div
-            className="lg:col-span-1 space-y-6"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="shadow-lg border-orange-100 dark:border-gray-700">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
-                <CardTitle className="flex items-center gap-2">
-                  <FileSearch className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                  Your Documents
-                </CardTitle>
-                <CardDescription>Select documents for AI analysis</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <ScrollArea className="h-[500px] pr-4">
-                  {realEstateDocuments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>No documents yet</p>
-                      <p className="text-sm mt-1">Upload your first property document</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {realEstateDocuments.map((doc) => {
-                        const isSelected = selectedDocuments.some(d => d.id === doc.id);
-                        const progressUpdate = processingUpdates.find(u => u.documentId === String(doc.id));
-                        const isProcessing = progressUpdate?.status === 'processing';
-                        
-                        return (
-                          <motion.div
-                            key={doc.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <button
-                              onClick={() => handleDocumentToggle(doc)}
-                              className={`w-full p-3 rounded-lg border-2 transition-all ${
-                                isSelected
-                                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                                  : 'border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-700'
-                              }`}
-                              data-testid={`checkbox-document-${doc.id}`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5">
-                                  {isSelected ? (
-                                    <CheckSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                                  ) : (
-                                    <Square className="h-5 w-5 text-gray-400" />
-                                  )}
-                                </div>
-                                <div className="flex-1 text-left">
-                                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                                    {doc.originalFilename}
-                                  </p>
-                                  <div className="flex flex-col gap-1 mt-1">
-                                    <div className="flex items-center gap-2">
-                                      <Badge 
-                                        variant={
-                                          progressUpdate?.status === 'completed' || doc.status === 'completed' 
-                                            ? 'default' 
-                                            : progressUpdate?.status === 'failed' || doc.status === 'error'
-                                            ? 'destructive'
-                                            : 'secondary'
-                                        } 
-                                        className="text-xs"
-                                      >
-                                        {isProcessing ? (
-                                          <span className="flex items-center gap-1">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            {progressUpdate.progress}%
-                                          </span>
-                                        ) : (
-                                          progressUpdate?.status || doc.status
-                                        )}
-                                      </Badge>
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                                        {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}
-                                      </span>
-                                    </div>
-                                    
-                                    {isProcessing && (
-                                      <div className="space-y-1">
-                                        <Progress value={progressUpdate.progress} className="h-1.5" />
-                                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                                          {progressUpdate.message}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </motion.div>
+            <History className="h-4 w-4" />
+            Chat History
+          </Button>
+          <Badge className="bg-orange-100 text-orange-800 px-4 py-2">
+            Real Estate Industry
+          </Badge>
         </div>
       </div>
 
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="documents" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documents & Upload
+          </TabsTrigger>
+          <TabsTrigger value="ai-chat" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            AI Assistant
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Property Documents</CardTitle>
+              <CardDescription>
+                Upload property listings, agreements, contracts, or inspection reports for AI analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DocumentUploadZone industry="real_estate" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Recent Property Documents</CardTitle>
+                  <CardDescription>
+                    Select documents to analyze with AI
+                  </CardDescription>
+                </div>
+                {realEstateDocuments.some(doc => doc.status === 'completed') && (
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={selectedDocuments.length > 0 ? deselectAllDocuments : selectAllDocuments}
+                      data-testid="button-toggle-all"
+                    >
+                      {selectedDocuments.length > 0 ? (
+                        <>
+                          <Square className="h-4 w-4 mr-2" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="h-4 w-4 mr-2" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {selectedDocuments.length > 0 && (
+                <Badge className="mt-2 bg-orange-100 text-orange-800">
+                  {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-3">
+                  {realEstateDocuments.length > 0 ? (
+                    realEstateDocuments.map((doc) => {
+                      const isSelected = selectedDocuments.some(d => d.id === doc.id);
+                      const progressUpdate = processingUpdates.find(u => u.documentId === String(doc.id));
+                      const isProcessing = progressUpdate?.status === 'processing';
+                      
+                      return (
+                        <motion.div
+                          key={doc.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-all ${
+                            isSelected ? 'border-orange-500 bg-orange-50 dark:bg-orange-950' : ''
+                          }`}
+                        >
+                          <div className="flex gap-3 items-start">
+                            {doc.status === 'completed' && (
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleDocumentSelection(doc)}
+                                className="mt-1"
+                                data-testid={`checkbox-doc-${doc.id}`}
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-orange-600" />
+                                <p className="font-medium">{doc.originalFilename}</p>
+                                {isSelected && (
+                                  <Badge variant="outline" className="text-xs">Selected</Badge>
+                                )}
+                                {isProcessing && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    {progressUpdate.progress}%
+                                  </Badge>
+                                )}
+                              </div>
+                              {isProcessing ? (
+                                <div className="space-y-1 mt-2">
+                                  <Progress value={progressUpdate.progress} className="h-1.5" />
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {progressUpdate.message}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {doc.status === 'completed' ? 'Ready for analysis' : `Status: ${doc.status}`}
+                                </p>
+                              )}
+                              {doc.aiConfidence && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                    <span className="text-xs">Confidence: {doc.aiConfidence}%</span>
+                                  </div>
+                                  {doc.documentType && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {doc.documentType}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Link href={`/document/${doc.id}`}>
+                                <Button size="sm" variant="outline" data-testid={`button-view-${doc.id}`}>
+                                  View Details
+                                </Button>
+                              </Link>
+                              {doc.status === 'completed' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => {
+                                    if (!isSelected) {
+                                      toggleDocumentSelection(doc);
+                                    }
+                                    const aiTab = document.querySelector('[value="ai-chat"]') as HTMLElement;
+                                    aiTab?.click();
+                                  }}
+                                  data-testid={`button-analyze-${doc.id}`}
+                                >
+                                  <Brain className="h-3 w-3 mr-1" />
+                                  Analyze
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No property documents uploaded yet</p>
+                      <p className="text-sm mt-2">Upload your first document above to get started</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Chat Tab */}
+        <TabsContent value="ai-chat" className="space-y-4 mt-4">
+          {selectedDocuments.length > 0 ? (
+            <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950">
+              <FileText className="h-4 w-4 text-orange-600" />
+              <AlertDescription>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Analyzing {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''}:
+                    </p>
+                    <div className="space-y-1">
+                      {selectedDocuments.slice(0, 5).map((doc) => (
+                        <div key={doc.id} className="text-sm flex items-center gap-2">
+                          <CheckCircle className="h-3 w-3 text-orange-600" />
+                          <span>{doc.originalFilename}</span>
+                        </div>
+                      ))}
+                      {selectedDocuments.length > 5 && (
+                        <p className="text-sm text-gray-600">
+                          ... and {selectedDocuments.length - 5} more documents
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={deselectAllDocuments}
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Please select at least one document from the Documents tab to start analysis
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-orange-600" />
+                  <CardTitle>Real Estate AI Assistant</CardTitle>
+                </div>
+              </div>
+              <CardDescription>
+                Ask questions about your property documents or use quick actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Quick Actions */}
+              {selectedDocuments.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <Button
+                        key={action.label}
+                        variant="outline"
+                        className="h-auto py-4 px-4 flex flex-col items-center gap-2 text-center hover:bg-orange-50 dark:hover:bg-orange-950 hover:border-orange-300"
+                        onClick={() => {
+                          setAiPrompt(action.action);
+                          setTimeout(() => handleSendMessage(), 100);
+                        }}
+                        data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        <Icon className="h-5 w-5 text-orange-600" />
+                        <span className="text-sm font-medium">{action.label}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Chat Messages */}
+              <ScrollArea className="h-[500px] border rounded-lg p-4">
+                <div className="space-y-4">
+                  {chatMessages.map((msg, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[80%] rounded-lg p-4 ${
+                        msg.role === 'user' 
+                          ? 'bg-orange-600 text-white' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      }`}>
+                        {msg.role === 'assistant' && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="h-4 w-4 text-orange-600" />
+                            <span className="text-xs font-semibold text-orange-600">AI Assistant</span>
+                          </div>
+                        )}
+                        <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Input Area */}
+              <div className="flex gap-2">
+                <Textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder={selectedDocuments.length > 0 ? "Ask about property values, contract terms, compliance issues..." : "Select documents first..."}
+                  className="min-h-[80px]"
+                  disabled={selectedDocuments.length === 0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  data-testid="textarea-ai-prompt"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!aiPrompt.trim() || selectedDocuments.length === 0}
+                  className="px-6"
+                  data-testid="button-send-message"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Chat History Sidebar */}
       <ChatHistorySidebar
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        onSelectSession={handleSelectSession}
+        onSelectSession={handleSelectChatSession}
         industry="real_estate"
         currentSessionId={currentSessionId}
       />

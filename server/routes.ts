@@ -1781,11 +1781,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-      // Build context from documents - use extracted text (increased to 15000 chars for multi-page support)
+      // Smart chunking for large documents (handles 150-200 page documents)
+      const chunkDocument = (text: string, maxChars: number = 100000): string[] => {
+        // Split by page markers if present
+        const pages = text.split(/--- Page \d+ ---/);
+        const chunks: string[] = [];
+        let currentChunk = '';
+        
+        for (const page of pages) {
+          if ((currentChunk + page).length > maxChars && currentChunk) {
+            chunks.push(currentChunk);
+            currentChunk = page;
+          } else {
+            currentChunk += page;
+          }
+        }
+        if (currentChunk) chunks.push(currentChunk);
+        return chunks;
+      };
+
+      // Find relevant chunks based on question keywords
+      const findRelevantChunks = (chunks: string[], question: string, maxChunks: number = 5): string[] => {
+        const questionWords = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        
+        const scored = chunks.map(chunk => {
+          const lowerChunk = chunk.toLowerCase();
+          const score = questionWords.reduce((sum, word) => {
+            const matches = (lowerChunk.match(new RegExp(word, 'g')) || []).length;
+            return sum + matches;
+          }, 0);
+          return { chunk, score };
+        });
+        
+        // Sort by relevance and take top chunks
+        return scored
+          .sort((a, b) => b.score - a.score)
+          .slice(0, maxChunks)
+          .map(s => s.chunk);
+      };
+
+      // Build context from documents with smart chunking
       let documentContext = documents.map(doc => {
         const content = doc.extractedText || 'No content extracted';
-        const preview = content.substring(0, 15000); // Increased limit to capture multiple pages
-        return `Document: ${doc.originalFilename}\nContent: ${preview}${content.length > 15000 ? '...' : ''}`;
+        
+        // For large documents (>50k chars), use smart chunking
+        if (content.length > 50000) {
+          const chunks = chunkDocument(content, 20000);
+          const relevantChunks = findRelevantChunks(chunks, question, 3);
+          const preview = relevantChunks.join('\n...\n');
+          return `Document: ${doc.originalFilename} (${chunks.length} sections, showing most relevant)\nContent: ${preview}`;
+        } else {
+          // For smaller documents, use full content
+          return `Document: ${doc.originalFilename}\nContent: ${content}`;
+        }
       }).join('\n\n---\n\n');
 
       // Create industry-specific system prompt with formatting instructions
@@ -1828,7 +1876,17 @@ FORMATTING RULES:
 - Break information into digestible paragraphs (2-3 sentences max)
 - Use **bold** for tracking numbers, dates, and critical information
 - Add line breaks between sections for readability
-- Analyze route efficiency and compliance clearly`
+- Analyze route efficiency and compliance clearly`,
+
+        real_estate: `You are a real estate document analyst. Review property leases, purchase agreements, title documents, and property records.
+
+FORMATTING RULES:
+- Structure your response with clear sections using headers (e.g., "## Property Details", "## Key Terms", "## Compliance")
+- Use bullet points (•) for lists of terms, conditions, and property features
+- Break information into digestible paragraphs (2-3 sentences max)
+- Use **bold** for property addresses, dates, amounts, and critical terms
+- Add line breaks between sections for readability
+- Highlight important lease terms, renewal options, and obligations clearly`
       };
 
       const systemPrompt = systemPrompts[industry as keyof typeof systemPrompts] || `You are a professional document analyst. 

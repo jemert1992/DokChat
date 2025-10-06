@@ -245,13 +245,13 @@ export default function MedicalDashboard() {
     }
   };
 
-  const medicalDocuments = documents?.filter(doc => 
+  const medicalDocuments = (documents || []).filter(doc => 
     doc.industry === 'medical' || 
     doc.originalFilename?.toLowerCase().includes('medical') ||
     doc.originalFilename?.toLowerCase().includes('patient') ||
     doc.originalFilename?.toLowerCase().includes('clinical') ||
     doc.originalFilename?.toLowerCase().includes('lab')
-  ) || [];
+  ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const quickActions = [
     { icon: FileSearch, label: "Extract Patient Info", action: "Extract all patient demographics, medical record numbers, and personal information from this document" },

@@ -244,13 +244,13 @@ export default function LegalDashboard() {
     }
   };
 
-  const legalDocuments = documents?.filter(doc => 
+  const legalDocuments = (documents || []).filter(doc => 
     doc.industry === 'legal' || 
     doc.originalFilename?.toLowerCase().includes('legal') ||
     doc.originalFilename?.toLowerCase().includes('contract') ||
     doc.originalFilename?.toLowerCase().includes('agreement') ||
     doc.originalFilename?.toLowerCase().includes('court')
-  ) || [];
+  ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const quickActions = [
     { icon: FileSearch, label: "Extract Key Clauses", action: "Extract all important clauses and terms from this legal document" },

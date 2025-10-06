@@ -236,11 +236,11 @@ export default function RealEstateDashboard() {
       .catch(err => console.error('Failed to load messages:', err));
   };
 
-  const realEstateDocuments = documents?.filter(doc => 
+  const realEstateDocuments = (documents || []).filter(doc => 
     doc.industry === 'real_estate' || 
     doc.industry === 'general' ||
     !doc.industry
-  ) || [];
+  ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-850 dark:to-gray-900">

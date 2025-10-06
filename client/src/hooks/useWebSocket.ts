@@ -129,12 +129,12 @@ export function useWebSocket() {
         if (message.status === 'completed') {
           toast({
             title: "Document Processed",
-            description: `Document completed using ${message.aiModel || 'AI'} in ${message.processingTime ? (message.processingTime / 1000).toFixed(1) + 's' : 'unknown time'}`,
+            description: `${message.documentName || 'Document'} completed using ${message.aiModel || 'AI'} in ${message.processingTime ? (message.processingTime / 1000).toFixed(0) : '?'}s`,
           });
         } else if (message.status === 'failed') {
           toast({
             title: "Processing Failed",
-            description: message.message,
+            description: `${message.documentName || 'Document'}: ${message.message}`,
             variant: "destructive",
           });
         }

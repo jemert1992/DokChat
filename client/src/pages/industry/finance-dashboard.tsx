@@ -262,13 +262,13 @@ export default function FinanceDashboard() {
     }
   };
 
-  const financeDocuments = documents?.filter(doc => 
+  const financeDocuments = (documents || []).filter(doc => 
     doc.industry === 'finance' || 
     doc.originalFilename?.toLowerCase().includes('finance') ||
     doc.originalFilename?.toLowerCase().includes('invoice') ||
     doc.originalFilename?.toLowerCase().includes('statement') ||
     doc.originalFilename?.toLowerCase().includes('tax')
-  ) || [];
+  ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const quickActions = [
     { icon: DollarSign, label: "Extract Amounts", action: "Extract all monetary amounts, transactions, and financial figures from this document" },

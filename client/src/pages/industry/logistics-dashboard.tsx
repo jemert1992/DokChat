@@ -244,13 +244,13 @@ export default function LogisticsDashboard() {
     }
   };
 
-  const logisticsDocuments = documents?.filter(doc => 
+  const logisticsDocuments = (documents || []).filter(doc => 
     doc.industry === 'logistics' || 
     doc.originalFilename?.toLowerCase().includes('logistics') ||
     doc.originalFilename?.toLowerCase().includes('shipping') ||
     doc.originalFilename?.toLowerCase().includes('customs') ||
     doc.originalFilename?.toLowerCase().includes('manifest')
-  ) || [];
+  ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const quickActions = [
     { icon: Package, label: "Extract Tracking Info", action: "Extract all tracking numbers, package IDs, and shipping details" },

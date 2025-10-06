@@ -210,7 +210,7 @@ export class DocumentProcessor {
       }
 
       await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting document processing...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Starting multi-AI document analysis', 'initialization');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Starting multi-AI document analysis', 'initialization', undefined, undefined, document.originalFilename);
 
       // Stage 1: Text Extraction (OCR temporarily simplified)
       await storage.updateDocumentStatus(documentId, 'processing', 20, 'Extracting text from document...');
@@ -537,11 +537,13 @@ export class DocumentProcessor {
     message: string, 
     stage?: string,
     aiModel?: string,
-    processingTime?: number
+    processingTime?: number,
+    documentName?: string
   ) {
     if (this.websocketService) {
       this.websocketService.sendProcessingUpdate(userId, {
         documentId: String(documentId),
+        documentName,
         status,
         progress,
         message,

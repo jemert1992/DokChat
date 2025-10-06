@@ -3,6 +3,7 @@ import { Server } from 'http';
 
 export interface ProcessingUpdate {
   documentId: string;
+  documentName?: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
   progress: number;
   message: string;

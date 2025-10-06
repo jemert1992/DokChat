@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import DocumentCardSkeleton from "@/components/DocumentCardSkeleton";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import Sidebar from "@/components/sidebar";
+import FloatingNav from "@/components/floating-nav";
 import ModernHeader from "@/components/modern-header";
 import IndustryCapabilities from "@/components/template-cards";
 import ModernAnalyticsWidgets from "@/components/modern-analytics-widgets";
@@ -91,14 +91,13 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex">
-        <Sidebar 
-          user={user} 
-          currentPage="dashboard"
-        />
+      <FloatingNav 
+        user={user} 
+        currentPage="dashboard"
+      />
 
-        {/* Main Content Area */}
-        <div className="flex-1 min-h-screen ml-72 transition-all duration-300">
+      {/* Main Content Area - Full Width */}
+      <div className="flex-1 min-h-screen">
           <ModernHeader user={user} onCreateNew={scrollToUpload} />
 
           <div className="px-8 py-8">
@@ -268,7 +267,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

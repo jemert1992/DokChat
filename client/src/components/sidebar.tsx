@@ -49,6 +49,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
                        user.industry === 'finance' ? 'Finance Intelligence' :
                        user.industry === 'legal' ? 'Legal Intelligence' :
                        user.industry === 'logistics' ? 'Logistics Intelligence' :
+                       user.industry === 'real_estate' ? 'Real Estate Intelligence' :
                        'Business Intelligence';
 
   const navItems = [
@@ -65,6 +66,7 @@ export default function Sidebar({ user, currentPage, onNavigate }: SidebarProps)
             user.industry === 'finance' ? '/finance' :
             user.industry === 'legal' ? '/legal' :
             user.industry === 'logistics' ? '/logistics' :
+            user.industry === 'real_estate' ? '/real-estate' :
             '/dashboard',
       gradient: 'from-purple-500 to-pink-500',
       pulse: true

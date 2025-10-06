@@ -57,6 +57,9 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
     queryKey: ["/api/documents", documentId],
     enabled: !!user && !!documentId,
     retry: false,
+    refetchInterval: (query) => {
+      return query.state.data?.status === 'processing' ? 3000 : false;
+    },
   });
 
   const handleExport = () => {
@@ -218,28 +221,28 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className={`w-3 h-3 ${getStatusColor(progressUpdate?.status || document?.status || 'unknown')} rounded-full`}></div>
+                    <div className={`w-3 h-3 ${getStatusColor(document?.status || 'unknown')} rounded-full`}></div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                        {progressUpdate?.status === 'processing' && (
+                        {document.status === 'processing' && progressUpdate?.status === 'processing' && (
                           <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
                         )}
                         {document.status === 'completed' ? 'Analysis Complete' : 
                          document.status === 'processing' ? 'Processing...' : 
                          'Analysis Failed'}
-                        {progressUpdate?.status === 'processing' && (
+                        {document.status === 'processing' && progressUpdate?.status === 'processing' && (
                           <span className="text-sm font-normal text-blue-600">
                             {progressUpdate.progress}%
                           </span>
                         )}
                       </h3>
                       <p className="text-muted-foreground">
-                        {progressUpdate?.message || 
+                        {document.status === 'processing' && progressUpdate?.message ? progressUpdate.message :
                          (document.status === 'completed' ? 'Document processed successfully with high confidence' :
                           document.status === 'processing' ? document.processingMessage || 'Processing document...' :
                           document.processingMessage || 'Processing failed')}
                       </p>
-                      {progressUpdate?.status === 'processing' && (
+                      {document.status === 'processing' && progressUpdate?.status === 'processing' && (
                         <div className="mt-3">
                           <Progress value={progressUpdate.progress} className="h-2" />
                         </div>

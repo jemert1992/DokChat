@@ -53,10 +53,10 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
 
-      // Stage 1: Text Extraction (OCR) - QUICK VERSION (limited pages)
+      // Stage 1: Text Extraction (OCR) - QUICK VERSION (process all pages up to 250)
       await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
-      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Extracting text from first 5 pages', 'ocr');
-      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 5);
+      this.sendWebSocketUpdate(documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
+      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250);
       
       // Get OCR results
       const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
@@ -915,7 +915,7 @@ export class DocumentProcessor {
   }
 
   // Quick text extraction for fast processing (limits pages for PDFs)
-  private async extractTextQuick(filePath: string, mimeType?: string, maxPages: number = 5): Promise<string> {
+  private async extractTextQuick(filePath: string, mimeType?: string, maxPages: number = 250): Promise<string> {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
       

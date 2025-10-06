@@ -83,12 +83,15 @@ export class DocumentProcessor {
         await storage.updateDocumentStatus(documentId, 'processing', 25, 'Using cached OCR results (cost savings!)');
         this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Found cached OCR - skipping extraction', 'cache_hit');
         
+        // Construct consistent ocrResults from cache (with metadata guard for legacy entries)
         extractedText = cachedOCR.extractedText;
         ocrResults = {
           text: cachedOCR.extractedText,
           confidence: cachedOCR.ocrConfidence,
           pageCount: cachedOCR.pageCount,
+          metadata: cachedOCR.metadata || {},
           fromCache: true,
+          cacheHit: true,
         };
       } else {
         console.log(`ℹ️  OCR cache MISS - performing OCR for document ${documentId}`);

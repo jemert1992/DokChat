@@ -162,11 +162,10 @@ export default function RealEstateDashboard() {
         model: 'gemini-2.5-flash'
       });
 
-      const response = await apiRequest('POST', '/api/multi-ai/analyze', {
+      const response = await apiRequest('POST', '/api/chat/analyze', {
+        question: userMessage,
         documentIds,
-        industry: 'real_estate',
-        prompt: userMessage,
-        sessionId: currentSessionId
+        industry: 'real_estate'
       });
 
       const result = await response.json();

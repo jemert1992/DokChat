@@ -134,6 +134,26 @@ Platform now supports processing 150-200+ page documents with intelligent chunki
 - Resolved PDF processing race condition by creating unique temporary directories per document
 - Improved keyword matching with normalization and fuzzy matching for better relevance scoring
 
+#### AI Model Upgrade & API Resilience (October 2024)
+Upgraded chat analysis AI from Gemini to Claude 3.5 Sonnet for superior document understanding, with automatic retry logic for high availability:
+
+- **Claude 3.5 Sonnet Integration**: Primary AI model for chat-based document analysis
+  - 200K token context window for comprehensive large document analysis
+  - 92% accuracy on complex data extraction tasks
+  - Superior performance on charts, tables, and handwritten text
+  - Cost-effective at $3/M tokens vs $10/M for GPT-4
+  - Model: claude-3-5-sonnet-20241022
+- **Automatic Retry Logic**: Exponential backoff system for API reliability
+  - Handles API overload errors (503, 529) automatically
+  - 3 retry attempts with 1s, 2s, 4s delays
+  - Applies to both Claude (chat analysis) and Gemini (quick processing)
+  - Graceful degradation with informative error messages
+  - Zero user intervention required during temporary API outages
+- **Dual AI System**: 
+  - Claude for chat-based analysis (superior accuracy)
+  - Gemini for quick document processing (speed optimized)
+  - Automatic failover ensures continuous service
+
 ## External Dependencies
 
 ### AI & Machine Learning Services

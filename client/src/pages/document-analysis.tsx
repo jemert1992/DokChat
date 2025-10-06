@@ -373,21 +373,40 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
 
             {document.status === 'processing' && (
               <Card>
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Processing Document</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {document.processingMessage || 'Analyzing your document...'}
+                <CardContent className="p-12 text-center">
+                  {/* Large Spinning Loader */}
+                  <Loader2 className="w-20 h-20 mx-auto mb-6 animate-spin text-primary" />
+                  
+                  {/* Processing Status */}
+                  <h3 className="text-2xl font-bold text-foreground mb-3" data-testid="text-processing-title">
+                    Processing Document
+                  </h3>
+                  
+                  {/* Live Status Message from WebSocket */}
+                  <p className="text-muted-foreground mb-6 text-lg" data-testid="text-processing-message">
+                    {progressUpdate?.message || document.processingMessage || 'Starting document analysis...'}
                   </p>
-                  <div className="w-full bg-muted rounded-full h-2 mb-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${document.processingProgress || 0}%` }}
-                    ></div>
+                  
+                  {/* Progress Bar with Percentage */}
+                  <div className="max-w-md mx-auto mb-4">
+                    <Progress 
+                      value={progressUpdate?.progress || document.processingProgress || 0} 
+                      className="h-3 mb-3" 
+                      data-testid="progress-bar"
+                    />
+                    <p className="text-sm font-semibold text-primary" data-testid="text-progress-percentage">
+                      {progressUpdate?.progress || document.processingProgress || 0}% complete
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {document.processingProgress || 0}% complete
-                  </p>
+                  
+                  {/* Processing Details */}
+                  {progressUpdate?.message && (
+                    <div className="mt-6 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Real-time updates via Google Vision OCR and AI analysis
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

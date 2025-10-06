@@ -109,9 +109,9 @@ Implemented bulk document analysis capabilities with persistent chat sessions:
 - **Smart Session Management**: Automatically loads existing sessions when the same documents are selected
 - **Real AI Document Analysis**: Google Gemini 2.5 Flash powered analysis with industry-specific prompts
   - Endpoint: POST `/api/chat/analyze` for real-time document analysis
-  - Smart document chunking: First 1500 chars per document for speed
+  - Smart document chunking: Keyword-based retrieval for large documents (>15k chars)
   - Gemini 2.5 Flash for lightning-fast responses (seamlessly integrates with Google Vision OCR)
-  - Industry-specific system prompts for finance, medical, legal, logistics
+  - Industry-specific system prompts for finance, medical, legal, logistics, and real estate
   - **Enhanced Formatting** (October 2024): AI responses now render with:
     - Headers (## syntax) → styled `<h3>` elements for clear sections
     - Bold text (**text**) → `<strong>` for emphasis on key figures
@@ -120,11 +120,19 @@ Implemented bulk document analysis capabilities with persistent chat sessions:
   - **Larger Chat Interface**: Increased from 300px to 500px height for better readability
 - **Chat History Restoration**: Previous conversations with AI responses are restored when reselecting the same document set
 
+#### Large Document Support (October 2024)
+Platform now supports processing 150-200+ page documents with intelligent chunking:
+
+- **Increased OCR Capacity**: Quick mode now processes up to 250 pages (increased from 5 pages)
+- **Smart Chunking Algorithm**: Documents over 15k characters are automatically chunked into 20k sections
+- **Relevance-Based Retrieval**: Keyword-based scoring with position weighting identifies the most relevant 5 sections
+- **Page Count Detection**: AI now receives accurate page counts from page markers in OCR results
+- **Multi-Industry Support**: Real estate added as fifth industry with specialized property document analysis prompts
+
 #### Performance Optimizations
-- Fixed OCR bottleneck: Quick mode now properly limits PDF processing to first 5 pages
-- Improved document processing speed with `extractTextQuick` method optimization
 - Enhanced routing with both industry-specific and legacy route support
 - Resolved PDF processing race condition by creating unique temporary directories per document
+- Improved keyword matching with normalization and fuzzy matching for better relevance scoring
 
 ## External Dependencies
 

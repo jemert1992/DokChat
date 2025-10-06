@@ -6,6 +6,8 @@ import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import { RAGService } from "./ragService";
 import { AdvancedConfidenceService } from "./advancedConfidenceService";
 import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntelligenceService";
+import { DocumentClassifierService } from "./documentClassifier";
+import { OCRCacheService } from "./ocrCache";
 import fs from "fs/promises";
 import path from "path";
 
@@ -28,6 +30,8 @@ export class DocumentProcessor {
   private ragService: RAGService;
   private advancedConfidenceService: AdvancedConfidenceService;
   private advancedIntelligenceService: AdvancedDocumentIntelligenceService;
+  private classifierService: DocumentClassifierService;
+  private ocrCacheService: OCRCacheService;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
@@ -37,6 +41,8 @@ export class DocumentProcessor {
     this.ragService = new RAGService();
     this.advancedConfidenceService = new AdvancedConfidenceService();
     this.advancedIntelligenceService = new AdvancedDocumentIntelligenceService();
+    this.classifierService = new DocumentClassifierService();
+    this.ocrCacheService = new OCRCacheService();
     this.websocketService = websocketService || null;
   }
 
@@ -50,12 +56,46 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
       
-      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Starting quick document analysis...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Starting quick analysis mode', 'initialization');
+      await storage.updateDocumentStatus(documentId, 'processing', 5, 'Initializing intelligent processing...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 5, 'Starting quick analysis mode', 'initialization');
 
-      // Stage 1: Text Extraction (OCR) - QUICK VERSION (process all pages up to 250)
-      await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
+      // Stage 0: Document Classification (determines optimal processing path)
+      console.log(`🔍 Classifying document ${documentId}...`);
+      const classification = await this.classifierService.classifyDocument(document.filePath, document.mimeType);
+      console.log(`✅ Document classified as: ${classification.documentType} (${classification.complexity} complexity)`);
+      
+      // Save classification results
+      await storage.saveDocumentClassification({
+        documentId,
+        ...classification,
+      });
+      
+      // Stage 0.5: Check OCR Cache (huge cost savings!)
+      console.log(`🔍 Checking OCR cache for document ${documentId}...`);
+      const documentHash = await this.ocrCacheService.generateDocumentHash(document.filePath);
+      const cachedOCR = await this.ocrCacheService.getCachedResult(documentHash);
+      
+      let extractedText: string;
+      let ocrResults: any;
+      
+      if (cachedOCR) {
+        console.log(`✅ OCR cache HIT! Skipping OCR for document ${documentId}`);
+        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Using cached OCR results (cost savings!)');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Found cached OCR - skipping extraction', 'cache_hit');
+        
+        extractedText = cachedOCR.extractedText;
+        ocrResults = {
+          text: cachedOCR.extractedText,
+          confidence: cachedOCR.ocrConfidence,
+          pageCount: cachedOCR.pageCount,
+          fromCache: true,
+        };
+      } else {
+        console.log(`ℹ️  OCR cache MISS - performing OCR for document ${documentId}`);
+        
+        // Stage 1: Text Extraction (OCR) - QUICK VERSION (process all pages up to 250)
+        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
       
       // Create progress callback for page-by-page updates
       const ocrProgressCallback = (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => {
@@ -73,10 +113,21 @@ export class DocumentProcessor {
         );
       };
       
-      const extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250, ocrProgressCallback);
-      
-      // Get OCR results
-      const ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
+        extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250, ocrProgressCallback);
+        
+        // Get OCR results
+        ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
+        
+        // Cache the OCR results for future use
+        console.log(`💾 Caching OCR results for document ${documentId}`);
+        await this.ocrCacheService.cacheResult(
+          documentHash,
+          ocrResults.text,
+          ocrResults.confidence,
+          ocrResults.pageCount || classification.pageCount || 1,
+          { industry: document.industry, mimeType: document.mimeType }
+        );
+      }
       
       // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED
       await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running quick AI analysis...');

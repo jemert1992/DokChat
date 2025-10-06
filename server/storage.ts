@@ -5,6 +5,9 @@ import {
   extractedEntities,
   processingJobs,
   industryConfigurations,
+  ocrCache,
+  documentClassifications,
+  apiCostTracking,
   chatSessions,
   chatMessages,
   medicalDocuments,
@@ -677,18 +680,18 @@ export class DatabaseStorage implements IStorage {
   async getCachedOCR(documentHash: string): Promise<any | null> {
     const [cached] = await db
       .select()
-      .from(schema.ocrCache)
-      .where(eq(schema.ocrCache.documentHash, documentHash));
+      .from(ocrCache)
+      .where(eq(ocrCache.documentHash, documentHash));
     
     if (cached) {
       // Update cache hit counter and last accessed time
       await db
-        .update(schema.ocrCache)
+        .update(ocrCache)
         .set({ 
-          cacheHits: sql`${schema.ocrCache.cacheHits} + 1`,
+          cacheHits: sql`${ocrCache.cacheHits} + 1`,
           lastAccessedAt: new Date()
         })
-        .where(eq(schema.ocrCache.documentHash, documentHash));
+        .where(eq(ocrCache.documentHash, documentHash));
     }
     
     return cached || null;
@@ -696,7 +699,7 @@ export class DatabaseStorage implements IStorage {
 
   async cacheOCRResult(result: any): Promise<void> {
     await db
-      .insert(schema.ocrCache)
+      .insert(ocrCache)
       .values({
         documentHash: result.documentHash,
         extractedText: result.extractedText,
@@ -710,25 +713,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOldCachedOCR(cutoffDate: Date): Promise<number> {
     const result = await db
-      .delete(schema.ocrCache)
-      .where(lt(schema.ocrCache.createdAt, cutoffDate));
+      .delete(ocrCache)
+      .where(lt(ocrCache.createdAt, cutoffDate));
     return result.rowCount || 0;
   }
 
   async getOCRCacheCount(): Promise<number> {
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(schema.ocrCache);
+      .from(ocrCache);
     return result[0]?.count || 0;
   }
 
   async getOCRCacheHitStats(): Promise<{ cacheHits: number; totalPagesSaved: number }> {
     const result = await db
       .select({
-        totalHits: sql<number>`sum(${schema.ocrCache.cacheHits})::int`,
-        totalPages: sql<number>`sum(${schema.ocrCache.cacheHits} * ${schema.ocrCache.pageCount})::int`,
+        totalHits: sql<number>`sum(${ocrCache.cacheHits})::int`,
+        totalPages: sql<number>`sum(${ocrCache.cacheHits} * ${ocrCache.pageCount})::int`,
       })
-      .from(schema.ocrCache);
+      .from(ocrCache);
     
     return {
       cacheHits: result[0]?.totalHits || 0,
@@ -738,60 +741,64 @@ export class DatabaseStorage implements IStorage {
 
   // Document classification operations
   async saveDocumentClassification(classification: any): Promise<void> {
-    await db.insert(schema.documentClassifications).values(classification);
+    await db.insert(documentClassifications).values(classification);
   }
 
   async getDocumentClassification(documentId: number): Promise<any | null> {
     const [classification] = await db
       .select()
-      .from(schema.documentClassifications)
-      .where(eq(schema.documentClassifications.documentId, documentId))
-      .orderBy(desc(schema.documentClassifications.createdAt))
+      .from(documentClassifications)
+      .where(eq(documentClassifications.documentId, documentId))
+      .orderBy(desc(documentClassifications.createdAt))
       .limit(1);
     return classification || null;
   }
 
   // API cost tracking operations
   async trackAPIcost(cost: any): Promise<void> {
-    await db.insert(schema.apiCostTracking).values(cost);
+    await db.insert(apiCostTracking).values(cost);
   }
 
   async getAPIcostByDocument(documentId: number): Promise<any[]> {
     return await db
       .select()
-      .from(schema.apiCostTracking)
-      .where(eq(schema.apiCostTracking.documentId, documentId))
-      .orderBy(desc(schema.apiCostTracking.createdAt));
+      .from(apiCostTracking)
+      .where(eq(apiCostTracking.documentId, documentId))
+      .orderBy(desc(apiCostTracking.createdAt));
   }
 
   async getAPIcostByUser(userId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
-    let query = db
+    const baseQuery = db
       .select()
-      .from(schema.apiCostTracking)
-      .where(eq(schema.apiCostTracking.userId, userId));
+      .from(apiCostTracking)
+      .where(eq(apiCostTracking.userId, userId));
     
     if (startDate && endDate) {
-      query = query.where(
-        and(
-          gte(schema.apiCostTracking.createdAt, startDate),
-          lte(schema.apiCostTracking.createdAt, endDate)
+      return await baseQuery
+        .where(
+          and(
+            eq(apiCostTracking.userId, userId),
+            gte(apiCostTracking.createdAt, startDate),
+            lte(apiCostTracking.createdAt, endDate)
+          )
         )
-      );
+        .orderBy(desc(apiCostTracking.createdAt));
     }
     
-    return await query.orderBy(desc(schema.apiCostTracking.createdAt));
+    return await baseQuery.orderBy(desc(apiCostTracking.createdAt));
   }
 
   async getTotalAPICost(userId?: string): Promise<number> {
-    let query = db
-      .select({ total: sql<number>`sum(${schema.apiCostTracking.estimatedCost})::float` })
-      .from(schema.apiCostTracking);
+    const baseQuery = db
+      .select({ total: sql<number>`sum(${apiCostTracking.estimatedCost})::float` })
+      .from(apiCostTracking);
     
     if (userId) {
-      query = query.where(eq(schema.apiCostTracking.userId, userId));
+      const result = await baseQuery.where(eq(apiCostTracking.userId, userId));
+      return result[0]?.total || 0;
     }
     
-    const result = await query;
+    const result = await baseQuery;
     return result[0]?.total || 0;
   }
 

@@ -8,7 +8,8 @@ export interface CachedOCRResult {
   ocrConfidence: number;
   pageCount: number;
   metadata: any;
-  cachedAt: Date;
+  createdAt: Date;
+  lastAccessedAt: Date;
 }
 
 /**
@@ -83,7 +84,8 @@ export class OCRCacheService {
         ocrConfidence,
         pageCount,
         metadata,
-        cachedAt: new Date(),
+        createdAt: new Date(),
+        lastAccessedAt: new Date(),
       };
 
       // Store in database

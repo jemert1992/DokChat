@@ -210,13 +210,25 @@ export default function RealEstateDashboard() {
     });
   };
 
-  const handleLoadSession = (sessionId: number, sessionDocs: Document[], messages: any[]) => {
-    setCurrentSessionId(sessionId);
+  const handleSelectSession = (session: any) => {
+    if (!documents) return;
+    
+    const sessionDocs = documents.filter(doc => 
+      session.documentIds.includes(doc.id)
+    );
+    
+    setCurrentSessionId(session.id);
     setSelectedDocuments(sessionDocs);
-    setChatMessages([
-      { role: "assistant", content: "I'm your real estate document AI assistant. Upload property listings, purchase agreements, lease contracts, title documents, or inspection reports and I'll help you extract property details, analyze terms, identify risks, and ensure compliance. You can select multiple documents for bulk analysis. What real estate insights do you need?" },
-      ...messages.map(m => ({ role: m.role, content: m.content }))
-    ]);
+    
+    apiRequest('GET', `/api/chat-sessions/${session.id}/messages`)
+      .then(res => res.json())
+      .then((messages: any[]) => {
+        setChatMessages([
+          { role: "assistant", content: "I'm your real estate document AI assistant. Upload property listings, purchase agreements, lease contracts, title documents, or inspection reports and I'll help you extract property details, analyze terms, identify risks, and ensure compliance. You can select multiple documents for bulk analysis. What real estate insights do you need?" },
+          ...messages.map(m => ({ role: m.role, content: m.content }))
+        ]);
+      })
+      .catch(err => console.error('Failed to load messages:', err));
   };
 
   const realEstateDocuments = documents?.filter(doc => 
@@ -357,8 +369,7 @@ export default function RealEstateDashboard() {
             </Card>
 
             <DocumentUploadZone 
-              industry="real_estate" 
-              showIndustryPrompt={false}
+              industry="real_estate"
             />
           </motion.div>
 
@@ -420,7 +431,7 @@ export default function RealEstateDashboard() {
                                       {doc.status}
                                     </Badge>
                                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                                      {new Date(doc.uploadedAt).toLocaleDateString()}
+                                      {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}
                                     </span>
                                   </div>
                                 </div>
@@ -441,9 +452,9 @@ export default function RealEstateDashboard() {
       <ChatHistorySidebar
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        onLoadSession={handleLoadSession}
+        onSelectSession={handleSelectSession}
         industry="real_estate"
-        documents={documents || []}
+        currentSessionId={currentSessionId}
       />
     </div>
   );

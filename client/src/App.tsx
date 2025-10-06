@@ -16,6 +16,7 @@ import MedicalDashboard from "@/pages/industry/medical-dashboard";
 import LegalDashboard from "@/pages/industry/legal-dashboard";
 import FinanceDashboard from "@/pages/industry/finance-dashboard";
 import LogisticsDashboard from "@/pages/industry/logistics-dashboard";
+import RealEstateDashboard from "@/pages/industry/real-estate-dashboard";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -48,10 +49,12 @@ function Router() {
           <Route path="/legal" component={LegalDashboard} />
           <Route path="/finance" component={FinanceDashboard} />
           <Route path="/logistics" component={LogisticsDashboard} />
+          <Route path="/real-estate" component={RealEstateDashboard} />
           <Route path="/industry/medical" component={MedicalDashboard} />
           <Route path="/industry/legal" component={LegalDashboard} />
           <Route path="/industry/finance" component={FinanceDashboard} />
           <Route path="/industry/logistics" component={LogisticsDashboard} />
+          <Route path="/industry/real-estate" component={RealEstateDashboard} />
           {/* Legacy routes for backward compatibility */}
           <Route path="/medical/patient-dashboard" component={MedicalDashboard} />
           <Route path="/medical/clinical-analytics" component={MedicalDashboard} />
@@ -61,6 +64,7 @@ function Router() {
           <Route path="/finance/transaction-monitoring" component={FinanceDashboard} />
           <Route path="/logistics/control-center" component={LogisticsDashboard} />
           <Route path="/logistics/shipment-tracking" component={LogisticsDashboard} />
+          <Route path="/real-estate/property-analysis" component={RealEstateDashboard} />
         </>
       )}
       <Route component={NotFound} />

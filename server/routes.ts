@@ -1946,11 +1946,11 @@ FORMATTING RULES:
         throw new Error('Retry logic failed');
       };
 
-      // Call Claude 3.5 Sonnet for analysis - superior document understanding with 200K context
-      console.log(`🤖 Calling Claude 3.5 Sonnet with ${documents.length} documents, context length: ${documentContext.length} chars`);
+      // Call Claude Sonnet 4.5 for analysis - superior document understanding with 200K context
+      console.log(`🤖 Calling Claude Sonnet 4.5 with ${documents.length} documents, context length: ${documentContext.length} chars`);
       
       const response = await retryWithBackoff(() => anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         system: systemPrompt,
         messages: [{

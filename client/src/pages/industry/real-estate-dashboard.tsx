@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { 
   FileText, 
   MessageSquare, 
@@ -23,7 +24,8 @@ import {
   MapPin,
   CheckSquare,
   Square,
-  History
+  History,
+  Loader2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Document } from "@shared/schema";
@@ -32,6 +34,7 @@ import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
 import ChatHistorySidebar from "@/components/chat-history-sidebar";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function RealEstateDashboard() {
   const [, setLocation] = useLocation();
@@ -47,6 +50,9 @@ export default function RealEstateDashboard() {
   const { data: documents } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
+
+  // WebSocket for real-time progress updates
+  const { processingUpdates } = useWebSocket();
 
   // Auto-load most recent chat session on mount
   useEffect(() => {
@@ -398,6 +404,9 @@ export default function RealEstateDashboard() {
                     <div className="space-y-2">
                       {realEstateDocuments.map((doc) => {
                         const isSelected = selectedDocuments.some(d => d.id === doc.id);
+                        const progressUpdate = processingUpdates.find(u => u.documentId === String(doc.id));
+                        const isProcessing = progressUpdate?.status === 'processing';
+                        
                         return (
                           <motion.div
                             key={doc.id}
@@ -425,13 +434,40 @@ export default function RealEstateDashboard() {
                                   <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
                                     {doc.originalFilename}
                                   </p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant={doc.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
-                                      {doc.status}
-                                    </Badge>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                      {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}
-                                    </span>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <div className="flex items-center gap-2">
+                                      <Badge 
+                                        variant={
+                                          progressUpdate?.status === 'completed' || doc.status === 'completed' 
+                                            ? 'default' 
+                                            : progressUpdate?.status === 'failed' || doc.status === 'error'
+                                            ? 'destructive'
+                                            : 'secondary'
+                                        } 
+                                        className="text-xs"
+                                      >
+                                        {isProcessing ? (
+                                          <span className="flex items-center gap-1">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            {progressUpdate.progress}%
+                                          </span>
+                                        ) : (
+                                          progressUpdate?.status || doc.status
+                                        )}
+                                      </Badge>
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}
+                                      </span>
+                                    </div>
+                                    
+                                    {isProcessing && (
+                                      <div className="space-y-1">
+                                        <Progress value={progressUpdate.progress} className="h-1.5" />
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                          {progressUpdate.message}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>

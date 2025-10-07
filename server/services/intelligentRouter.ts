@@ -185,24 +185,29 @@ export class IntelligentDocumentRouter {
 
     progressCallback?.(30, 'Running multimodal transformer analysis...');
 
-    // Use Gemini Flash 2.0 for fast document processing
-    const model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: 'application/pdf'
+    // Use Gemini Flash 2.5 for fast document processing
+    const result = await this.gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: 'application/pdf'
+              }
+            },
+            {
+              text: 'Extract all text content from this document. Preserve formatting, structure, and page breaks. Return the complete text exactly as it appears.'
+            }
+          ]
         }
-      },
-      {
-        text: 'Extract all text content from this document. Preserve formatting, structure, and page breaks. Return the complete text exactly as it appears.'
-      }
-    ]);
+      ]
+    });
 
     progressCallback?.(90, 'Synthesizing document embeddings...');
 
-    const extractedText = result.response.text();
+    const extractedText = result.text || '';
     const processingTime = Date.now() - startTime;
 
     // Estimate page count from text length
@@ -217,7 +222,7 @@ export class IntelligentDocumentRouter {
       metadata: {
         pageCount: estimatedPages,
         processingTime: processingTime,
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.5-flash'
       }
     };
   }

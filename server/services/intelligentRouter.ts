@@ -52,13 +52,19 @@ export class IntelligentDocumentRouter {
   async routeDocument(filePath: string, mimeType: string): Promise<RoutingDecision> {
     const fileExt = path.extname(filePath).toLowerCase();
     
+    console.log(`🧭 Routing document: ${path.basename(filePath)}, mimeType: ${mimeType}, ext: ${fileExt}`);
+    
     // Check if it's a PDF
     if (mimeType === 'application/pdf' || fileExt === '.pdf') {
       // Check if PDF has embedded text (native PDF) or is scanned
       const hasTextLayer = await this.checkPDFTextLayer(filePath);
       
+      console.log(`📊 PDF Text Layer Detection Result: ${hasTextLayer ? '✅ TEXT-BASED' : '❌ SCANNED/IMAGE'}`);
+      console.log(`🔑 Gemini available: ${this.gemini ? 'YES' : 'NO'}`);
+      
       if (hasTextLayer && this.gemini) {
         // Native PDF with text - Gemini is fastest and most accurate
+        console.log(`🚀 ROUTING TO: Gemini Native (10-20s processing)`);
         return {
           method: 'gemini_native',
           reason: 'PDF with embedded text - using Gemini native multimodal processing for optimal speed and accuracy',
@@ -67,9 +73,11 @@ export class IntelligentDocumentRouter {
         };
       } else {
         // Scanned PDF or image-based - needs OCR
+        const reason = !hasTextLayer ? 'Scanned PDF or image-based document' : 'Gemini not available';
+        console.log(`🐌 ROUTING TO: OCR Vision (30-90s processing) - Reason: ${reason}`);
         return {
           method: 'ocr_vision',
-          reason: 'Scanned PDF or image-based document - using Google Vision OCR for text extraction',
+          reason: `${reason} - using Google Vision OCR for text extraction`,
           confidence: 0.90,
           estimatedTime: 60 // 30-90 seconds depending on pages
         };
@@ -103,12 +111,19 @@ export class IntelligentDocumentRouter {
       const fileBuffer = await fs.readFile(filePath);
       const pdfContent = fileBuffer.toString('latin1');
       
-      // Simple heuristic: look for text content markers
-      // PDFs with text layer have /Font, /Type /Font, and text objects
-      const hasFont = pdfContent.includes('/Font') || pdfContent.includes('/Type /Font');
-      const hasText = pdfContent.includes('BT') && pdfContent.includes('ET'); // BeginText/EndText operators
+      // Enhanced detection: look for multiple text indicators
+      // PDFs with text layer have fonts, text objects, and content streams
+      const hasFont = pdfContent.includes('/Font') || pdfContent.includes('/Type /Font') || pdfContent.includes('/BaseFont');
+      const hasTextOperators = pdfContent.includes('BT') && pdfContent.includes('ET'); // BeginText/EndText operators
+      const hasTj = pdfContent.includes('Tj') || pdfContent.includes('TJ'); // Text showing operators
+      const hasText = pdfContent.includes('/Type/Page') && (hasTextOperators || hasTj);
       
-      return hasFont && hasText;
+      // If we find fonts and text content, it's a text-based PDF
+      const isTextPDF = hasFont && hasText;
+      
+      console.log(`📄 PDF Text Layer Check: hasFont=${hasFont}, hasTextOperators=${hasTextOperators}, hasTj=${hasTj}, isTextPDF=${isTextPDF}`);
+      
+      return isTextPDF;
     } catch (error) {
       console.error('Error checking PDF text layer:', error);
       return false; // Assume scanned if can't determine

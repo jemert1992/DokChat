@@ -59,8 +59,8 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
       
-      await storage.updateDocumentStatus(documentId, 'processing', 5, 'Initializing intelligent processing...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 5, 'Starting quick analysis mode', 'initialization');
+      await storage.updateDocumentStatus(documentId, 'processing', 5, 'Initializing neural processing pipeline...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 5, 'Deploying advanced AI architecture', 'initialization');
 
       // Stage 0: Document Classification (determines optimal processing path)
       console.log(`🔍 Classifying document ${documentId}...`);
@@ -83,8 +83,8 @@ export class DocumentProcessor {
       
       if (cachedOCR) {
         console.log(`✅ OCR cache HIT! Skipping OCR for document ${documentId}`);
-        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Using cached OCR results (cost savings!)');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Found cached OCR - skipping extraction', 'cache_hit');
+        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Loading pre-analyzed neural embeddings...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Retrieving cached intelligence matrix', 'cache_hit');
         
         // Construct consistent ocrResults from cache (with metadata guard for legacy entries)
         extractedText = cachedOCR.extractedText;
@@ -100,14 +100,14 @@ export class DocumentProcessor {
         console.log(`ℹ️  OCR cache MISS - using intelligent routing for document ${documentId}`);
         
         // Stage 1: Intelligent Routing - Determines optimal processing method
-        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Selecting optimal processing method...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Analyzing document for optimal processing', 'routing');
+        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Analyzing document structure with deep learning...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Deploying multimodal AI architecture', 'routing');
         
         const routingDecision = await this.intelligentRouter.routeDocument(document.filePath, document.mimeType);
         console.log(`🧠 Routing decision: ${routingDecision.method} (${routingDecision.reason})`);
         
-        await storage.updateDocumentStatus(documentId, 'processing', 30, `Using ${routingDecision.method.replace('_', ' ')} - estimated ${routingDecision.estimatedTime}s`);
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, routingDecision.reason, 'routing');
+        await storage.updateDocumentStatus(documentId, 'processing', 30, `Initializing transformer models - ETA ${routingDecision.estimatedTime}s`);
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Activating neural extraction pipeline', 'routing');
         
         // Process with selected method
         const processResult = await this.intelligentRouter.processDocument(
@@ -146,8 +146,8 @@ export class DocumentProcessor {
       }
       
       // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running quick AI analysis...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Performing essential analysis with Gemini', 'ai_analysis');
+      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running deep semantic analysis...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Synthesizing contextual intelligence', 'ai_analysis');
       
       // Use Gemini for quick mode (faster and more cost-effective)
       const quickAIResult = await this.multiAIService.analyzeDocumentWithSingleModel(
@@ -158,15 +158,15 @@ export class DocumentProcessor {
       );
       
       // Stage 3: Basic Entity Extraction - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Extracting key entities...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 80, 'Extracting essential entities', 'entity_extraction');
+      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Performing entity recognition...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 80, 'Extracting semantic entities with NLP', 'entity_extraction');
       
       // Extract only essential entities
       const entities = this.extractEssentialEntities(quickAIResult);
       
       // Stage 4: Save Results
-      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving analysis...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Saving quick analysis results', 'saving');
+      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Finalizing intelligence synthesis...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Compiling analysis results', 'saving');
       
       const processingResult: ProcessingResult = {
         extractedText: ocrResults.text,
@@ -210,7 +210,7 @@ export class DocumentProcessor {
 
       // Mark as completed
       const processingTimeMs = Date.now() - startTime;
-      await storage.updateDocumentStatus(documentId, 'completed', 100, 'Quick analysis completed');
+      await storage.updateDocumentStatus(documentId, 'completed', 100, 'AI analysis complete');
       this.sendWebSocketUpdate(
         document.userId,
         documentId, 

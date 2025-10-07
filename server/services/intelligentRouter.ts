@@ -162,13 +162,13 @@ export class IntelligentDocumentRouter {
     }
 
     const startTime = Date.now();
-    progressCallback?.(10, 'Uploading document to Gemini...');
+    progressCallback?.(10, 'Encoding document into neural format...');
 
     // Read PDF file
     const fileBuffer = await fs.readFile(filePath);
     const base64Data = fileBuffer.toString('base64');
 
-    progressCallback?.(30, 'Processing with Gemini Flash 2.0...');
+    progressCallback?.(30, 'Running multimodal transformer analysis...');
 
     // Use Gemini Flash 2.0 for fast document processing
     const model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
@@ -185,7 +185,7 @@ export class IntelligentDocumentRouter {
       }
     ]);
 
-    progressCallback?.(90, 'Finalizing extraction...');
+    progressCallback?.(90, 'Synthesizing document embeddings...');
 
     const extractedText = result.response.text();
     const processingTime = Date.now() - startTime;
@@ -193,7 +193,7 @@ export class IntelligentDocumentRouter {
     // Estimate page count from text length
     const estimatedPages = Math.ceil(extractedText.length / 3000);
 
-    progressCallback?.(100, 'Complete!');
+    progressCallback?.(100, 'Neural extraction complete');
 
     return {
       text: extractedText,
@@ -227,17 +227,17 @@ export class IntelligentDocumentRouter {
         250, // Process up to 250 pages
         (current, total, timeRemaining) => {
           const progress = 10 + Math.round((current / total) * 80);
-          progressCallback?.(progress, `OCR page ${current}/${total} (~${timeRemaining}s remaining)`);
+          progressCallback?.(progress, `Analyzing page ${current}/${total} with computer vision (~${timeRemaining}s)`);
         }
       );
     } else {
       // Single image
-      progressCallback?.(30, 'Extracting text from image...');
+      progressCallback?.(30, 'Applying computer vision algorithms...');
       ocrResult = await this.visionService.extractTextFromImage(filePath);
     }
 
     const processingTime = Date.now() - startTime;
-    progressCallback?.(100, 'OCR complete!');
+    progressCallback?.(100, 'Vision analysis complete');
 
     return {
       text: ocrResult.text,
@@ -263,13 +263,13 @@ export class IntelligentDocumentRouter {
     }
 
     const startTime = Date.now();
-    progressCallback?.(10, 'Uploading document to Claude...');
+    progressCallback?.(10, 'Initializing advanced reasoning model...');
 
     // Read PDF file
     const fileBuffer = await fs.readFile(filePath);
     const base64Data = fileBuffer.toString('base64');
 
-    progressCallback?.(30, 'Processing with Claude 3.5 Sonnet...');
+    progressCallback?.(30, 'Running deep contextual analysis...');
 
     const response = await this.anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',

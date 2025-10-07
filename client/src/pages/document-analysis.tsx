@@ -200,7 +200,11 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
-                  onClick={() => setLocation(`/${user.industry}`)}
+                  onClick={() => {
+                    // Map industry to route (real_estate -> real-estate)
+                    const industryRoute = user.industry === 'real_estate' ? 'real-estate' : user.industry;
+                    setLocation(`/${industryRoute}`);
+                  }}
                   variant="default"
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   data-testid="button-intelligence"

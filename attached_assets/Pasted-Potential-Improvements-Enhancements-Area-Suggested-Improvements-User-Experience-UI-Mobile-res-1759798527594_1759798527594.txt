@@ -1,0 +1,50 @@
+Potential Improvements / Enhancements
+
+Area	Suggested Improvements
+User Experience & UI	- Mobile responsiveness: test/fix touch targets, layout breaks, and menu toggle behavior
+- Enhance sidebar/floating navigation for smaller screens
+- Add or refine loading spinners and skeletons everywhere data loads
+- Make industry dashboards visually distinct with unique color schemes
+- Show explicit error states and recovery flows for failed document uploads/processes
+Frontend Logic	- Optimize state refresh after signup/profile/industry changes (already improved but keep validating for edge cases)
+- Add optimistic UI updates for document and chat actions
+- Use ErrorBoundary broadly for key flows
+- Address any remaining desktop/mobile viewport bugs (manual testing required)
+AI & Analytics	- Further modularize AI prompt logic—enable easy swap of models/providers
+- Add transparency: "Analyzing with X model" indicators for users
+- Track API usage/costs per user/admin dashboard
+- Offer confidence scores with every AI extract
+Security	- Ensure all API endpoints have strict user-based auth checks
+- Add/verify security headers (manual browser check required)
+- Test/fix rate limiting on critical endpoints
+- Run external vulnerability scans pre-deploy
+Performance & Infra	- Batch processing for large/multi-page files
+- Lazy load chat/doc history for huge accounts
+- Add robust progress and retry logic for long/unstable uploads
+- Audit and bump dependencies for security/perf patches
+Code Quality/Testing	- Expand test coverage for edge-case doc types/industry flows
+- Add integration tests for failed login/signup/auth states
+- Test real-time doc/chat flows with simulated network lag
+- Expand WebSocket stress testing/scripts
+Analytics & Reporting	- Add export and reporting for document analytics and chat history
+- Offer admin an overview of usage, active users, API spend, failures, etc.
+Onboarding & Docs	- Supply in-app step-by-step guides or videos (especially for new industry features)
+- Add tooltips/help docs to UI for advanced features
+Miscellaneous	- Consider dark mode support and user personalization
+- Enable markdown and attachment support in chat
+- Develop basic plugin/export architecture for custom business logic
+Summary of Manual Checks Needed:
+
+WebSocket real-time flows (document, chat, notification)
+
+Full mobile device testing for all pages
+
+Verify all new admin/industry flows for both fresh signups and existing users
+
+Next Steps:
+
+Prioritize urgent UI/UX gaps and security hardening before public demo.
+
+Perform a round of cross-device usability testing and patch visible breaks.
+
+Deploy integration tests for real-time/document workflows not covered by unit tests.

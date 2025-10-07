@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated, hashPassword } from "./auth";
 import passport from "passport";
 import multer from "multer";
 import path from "path";
+import rateLimit from "express-rate-limit";
 import { DocumentProcessor } from "./services/documentProcessor";
 import { WebSocketService } from "./services/websocketService";
 import { IndustryConfigService } from "./services/industryConfig";
@@ -40,6 +41,31 @@ import testAIEndpoints from "./test-ai-endpoints";
 import testMultiLanguageEndpoints from "./test-multilanguage-comprehensive";
 import fs from "fs/promises";
 import sharp from "sharp";
+
+// Rate limiters for different endpoint types
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: 'Too many authentication attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 uploads per minute
+  message: 'Upload limit exceeded, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  message: 'Too many requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -137,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Registration route
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
       const { email, password, firstName, lastName } = req.body;
       
@@ -321,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Single document upload route (backward compatibility)
-  app.post('/api/documents/upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
+  app.post('/api/documents/upload', uploadLimiter, isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
       const userId = req.user.id;
       const file = req.file;

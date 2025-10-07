@@ -184,7 +184,7 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Document Intelligence Dashboard
+              {industryConfig.dashboardTitle}
             </h1>
             <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 font-medium">
               <i className="fas fa-circle text-xs mr-1.5"></i>

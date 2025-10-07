@@ -199,6 +199,15 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <Button 
+                  onClick={() => setLocation(`/${user.industry}`)}
+                  variant="default"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  data-testid="button-intelligence"
+                >
+                  <i className="fas fa-brain mr-2"></i>
+                  AI Intelligence
+                </Button>
                 <Button onClick={handleExport} data-testid="button-export">
                   <i className="fas fa-download mr-2"></i>
                   Export Results
@@ -249,7 +258,7 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                   {document.status === 'completed' && (
                     <div className="text-right">
                       <div className="text-3xl font-bold text-green-600 mb-1" data-testid="text-confidence-score">
-                        {Math.round((document.aiConfidence || 0) * 100)}%
+                        {Math.round(document.aiConfidence || 0)}%
                       </div>
                       <div className="text-sm text-muted-foreground">Confidence Score</div>
                     </div>
@@ -261,19 +270,19 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                       <div className="text-xl font-semibold text-foreground">OCR Quality</div>
                       <div className="text-2xl font-bold text-blue-600" data-testid="text-ocr-confidence">
-                        {Math.round((document.ocrConfidence || 0) * 100)}%
+                        {Math.round(document.ocrConfidence || 0)}%
                       </div>
                     </div>
                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                       <div className="text-xl font-semibold text-foreground">AI Analysis</div>
                       <div className="text-2xl font-bold text-green-600" data-testid="text-ai-confidence">
-                        {Math.round((document.aiConfidence || 0) * 100)}%
+                        {Math.round(document.aiConfidence || 0)}%
                       </div>
                     </div>
                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                       <div className="text-xl font-semibold text-foreground">Data Extraction</div>
                       <div className="text-2xl font-bold text-purple-600" data-testid="text-extraction-score">
-                        {Math.round(((document.ocrConfidence || 0) + (document.aiConfidence || 0)) / 2 * 100)}%
+                        {Math.round(((document.ocrConfidence || 0) + (document.aiConfidence || 0)) / 2)}%
                       </div>
                     </div>
                   </div>
@@ -329,7 +338,7 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                                 </p>
                                 {entity.confidenceScore && (
                                   <Badge variant="secondary" className="mt-2">
-                                    {Math.round(entity.confidenceScore * 100)}% confidence
+                                    {Math.round(entity.confidenceScore)}% confidence
                                   </Badge>
                                 )}
                               </div>

@@ -35,9 +35,12 @@ import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
 import ChatHistorySidebar from "@/components/chat-history-sidebar";
+import FloatingNav from "@/components/floating-nav";
+import { useAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function RealEstateDashboard() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -260,10 +263,17 @@ export default function RealEstateDashboard() {
     { icon: Shield, label: "Compliance Check", action: "Verify compliance with real estate regulations and identify any discrepancies" }
   ];
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+      <FloatingNav user={user} currentPage="/real-estate" />
+      
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
@@ -611,14 +621,15 @@ export default function RealEstateDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* Chat History Sidebar */}
-      <ChatHistorySidebar
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        onSelectSession={handleSelectChatSession}
-        industry="real_estate"
-        currentSessionId={currentSessionId}
-      />
+        {/* Chat History Sidebar */}
+        <ChatHistorySidebar
+          isOpen={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+          onSelectSession={handleSelectChatSession}
+          industry="real_estate"
+          currentSessionId={currentSessionId}
+        />
+      </div>
     </div>
   );
 }

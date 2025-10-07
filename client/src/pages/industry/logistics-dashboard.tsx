@@ -34,9 +34,12 @@ import DocumentUploadZone from "@/components/document-upload-zone";
 import { motion } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
 import ChatHistorySidebar from "@/components/chat-history-sidebar";
+import FloatingNav from "@/components/floating-nav";
+import { useAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function LogisticsDashboard() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -259,10 +262,17 @@ export default function LogisticsDashboard() {
     { icon: Truck, label: "Route Analysis", action: "Analyze delivery routes and suggest optimizations" }
   ];
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+      <FloatingNav user={user} currentPage="/logistics" />
+      
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
@@ -657,14 +667,15 @@ export default function LogisticsDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* Chat History Sidebar */}
-      <ChatHistorySidebar
-        industry="logistics"
-        onSelectSession={handleSelectChatSession}
-        currentSessionId={currentSessionId}
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-      />
+        {/* Chat History Sidebar */}
+        <ChatHistorySidebar
+          industry="logistics"
+          onSelectSession={handleSelectChatSession}
+          currentSessionId={currentSessionId}
+          isOpen={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+        />
+      </div>
     </div>
   );
 }

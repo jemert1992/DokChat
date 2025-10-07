@@ -8,6 +8,7 @@ import { AdvancedConfidenceService } from "./advancedConfidenceService";
 import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntelligenceService";
 import { DocumentClassifierService } from "./documentClassifier";
 import { OCRCacheService } from "./ocrCache";
+import { IntelligentDocumentRouter } from "./intelligentRouter";
 import fs from "fs/promises";
 import path from "path";
 
@@ -32,6 +33,7 @@ export class DocumentProcessor {
   private advancedIntelligenceService: AdvancedDocumentIntelligenceService;
   private classifierService: DocumentClassifierService;
   private ocrCacheService: OCRCacheService;
+  private intelligentRouter: IntelligentDocumentRouter;
   private websocketService: WebSocketService | null = null;
 
   constructor(websocketService?: WebSocketService) {
@@ -43,6 +45,7 @@ export class DocumentProcessor {
     this.advancedIntelligenceService = new AdvancedDocumentIntelligenceService();
     this.classifierService = new DocumentClassifierService();
     this.ocrCacheService = new OCRCacheService();
+    this.intelligentRouter = new IntelligentDocumentRouter();
     this.websocketService = websocketService || null;
   }
 
@@ -94,52 +97,51 @@ export class DocumentProcessor {
           cacheHit: true,
         };
       } else {
-        console.log(`ℹ️  OCR cache MISS - performing OCR for document ${documentId}`);
+        console.log(`ℹ️  OCR cache MISS - using intelligent routing for document ${documentId}`);
         
-        // Stage 1: Text Extraction (OCR) - QUICK VERSION (process all pages up to 250)
-        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Quick text extraction...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
-      
-      // Create progress callback for page-by-page updates
-      let lastDbUpdateProgress = 0;
-      const ocrProgressCallback = async (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => {
-        const progressPercent = Math.round(30 + (currentPage / totalPages) * 30); // OCR is 30-60% of total
-        const timeMsg = estimatedTimeRemaining > 0 
-          ? `~${estimatedTimeRemaining}s remaining` 
-          : 'Almost done';
-        const message = `Processing page ${currentPage} of ${totalPages} (${timeMsg})`;
+        // Stage 1: Intelligent Routing - Determines optimal processing method
+        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Selecting optimal processing method...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Analyzing document for optimal processing', 'routing');
         
-        // Always send WebSocket update for real-time UI
-        this.sendWebSocketUpdate(
-          document.userId,
-          documentId, 
-          'processing', 
-          progressPercent, 
-          message, 
-          'ocr'
+        const routingDecision = await this.intelligentRouter.routeDocument(document.filePath, document.mimeType);
+        console.log(`🧠 Routing decision: ${routingDecision.method} (${routingDecision.reason})`);
+        
+        await storage.updateDocumentStatus(documentId, 'processing', 30, `Using ${routingDecision.method.replace('_', ' ')} - estimated ${routingDecision.estimatedTime}s`);
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, routingDecision.reason, 'routing');
+        
+        // Process with selected method
+        const processResult = await this.intelligentRouter.processDocument(
+          document.filePath,
+          routingDecision.method,
+          (progress, message) => {
+            const progressPercent = Math.round(30 + (progress / 100) * 30); // Text extraction is 30-60%
+            this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
+          }
         );
         
-        // Update database every 5% to persist progress (avoid too many DB writes)
-        if (progressPercent - lastDbUpdateProgress >= 5 || currentPage === totalPages) {
-          await storage.updateDocumentStatus(documentId, 'processing', progressPercent, message);
-          lastDbUpdateProgress = progressPercent;
-        }
-      };
-      
-        const quickOcrResult = await this.visionService.extractTextFromPDFLimited(document.filePath, 250, ocrProgressCallback);
-        extractedText = quickOcrResult.text;
+        extractedText = processResult.text;
+        ocrResults = {
+          text: processResult.text,
+          confidence: processResult.confidence * 100, // Convert to 0-100 range
+          metadata: {
+            ...processResult.metadata,
+            processingMethod: processResult.method,
+            routingReason: routingDecision.reason
+          },
+        };
         
-        // Use quick OCR results directly instead of doing full OCR again
-        ocrResults = quickOcrResult;
-        
-        // Cache the OCR results for future use
-        console.log(`💾 Caching OCR results for document ${documentId}`);
+        // Cache the results for future use
+        console.log(`💾 Caching extraction results for document ${documentId}`);
         await this.ocrCacheService.cacheResult(
           documentHash,
           ocrResults.text,
           ocrResults.confidence,
-          ocrResults.pageCount || classification.pageCount || 1,
-          { industry: document.industry, mimeType: document.mimeType }
+          processResult.metadata.pageCount || classification.pageCount || 1,
+          { 
+            industry: document.industry, 
+            mimeType: document.mimeType,
+            processingMethod: processResult.method
+          }
         );
       }
       

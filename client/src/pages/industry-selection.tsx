@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { queryClient } from "@/lib/queryClient";
 
 type Industry = 'medical' | 'legal' | 'logistics' | 'finance' | 'real_estate' | 'general';
 
@@ -39,7 +40,8 @@ export default function IndustrySelection() {
       const response = await apiRequest("PUT", "/api/user/industry", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Industry Selected",
         description: "Your workspace has been customized for your industry.",

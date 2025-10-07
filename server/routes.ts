@@ -100,6 +100,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
+  // Apply general rate limiting to all API routes (specific limiters will override this)
+  app.use('/api/', apiLimiter);
+
   // Auth middleware
   await setupAuth(app);
 
@@ -209,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login route
-  app.post('/api/auth/login', (req, res, next) => {
+  app.post('/api/auth/login', authLimiter, (req, res, next) => {
     passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
         return res.status(500).json({ message: 'Authentication error' });
@@ -292,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk document upload route
-  app.post('/api/documents/upload-bulk', isAuthenticated, upload.array('documents', 20), async (req: any, res) => {
+  app.post('/api/documents/upload-bulk', uploadLimiter, isAuthenticated, upload.array('documents', 20), async (req: any, res) => {
     try {
       const userId = req.user.id;
       const files = req.files as Express.Multer.File[];

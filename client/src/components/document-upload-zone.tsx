@@ -21,6 +21,8 @@ interface UploadProgress {
   fileName: string;
   progress: number;
   status: 'uploading' | 'completed' | 'failed';
+  error?: string;
+  file?: File;
 }
 
 export default function DocumentUploadZone({ industry, onUploadComplete }: DocumentUploadZoneProps) {
@@ -60,7 +62,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       setUploadProgresses([]);
       setIsUploading(false);
     },
-    onError: (error) => {
+    onError: (error, files) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -73,12 +75,21 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         return;
       }
       
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload documents";
+      
+      // Mark all files as failed and store the files for retry
+      setUploadProgresses(prev => prev.map(p => ({
+        ...p,
+        status: 'failed' as const,
+        error: errorMessage,
+        file: files.find(f => f.name === p.fileName)
+      })));
+      
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload documents. Please try again.",
+        description: `${errorMessage}. You can retry the failed uploads.`,
         variant: "destructive",
       });
-      setUploadProgresses([]);
       setIsUploading(false);
     },
   });
@@ -116,7 +127,8 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       progresses.push({
         fileName: file.name,
         progress: 0,
-        status: 'uploading'
+        status: 'uploading',
+        file: file
       });
     });
 
@@ -168,6 +180,47 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
 
   const handleClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleRetry = (failedFile: UploadProgress) => {
+    if (!failedFile.file) return;
+    
+    // Reset the file's progress
+    setUploadProgresses(prev => prev.map(p => 
+      p.fileName === failedFile.fileName 
+        ? { ...p, progress: 0, status: 'uploading' as const, error: undefined }
+        : p
+    ));
+    
+    setIsUploading(true);
+    
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      setUploadProgresses(prev => {
+        const updatedProgresses = prev.map(p => {
+          if (p.fileName === failedFile.fileName && p.status === 'uploading' && p.progress < 90) {
+            return {
+              ...p,
+              progress: Math.min(90, p.progress + Math.random() * 20)
+            };
+          }
+          return p;
+        });
+        
+        const currentProgress = updatedProgresses.find(p => p.fileName === failedFile.fileName);
+        if (currentProgress && currentProgress.progress >= 90) {
+          clearInterval(progressInterval);
+        }
+        
+        return updatedProgresses;
+      });
+    }, 200);
+    
+    uploadMutation.mutate([failedFile.file]);
+  };
+
+  const handleClearFailed = () => {
+    setUploadProgresses(prev => prev.filter(p => p.status !== 'failed'));
   };
 
   return (
@@ -266,23 +319,74 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
         />
 
         {/* Upload Progress for Multiple Files */}
-        {isUploading && uploadProgresses.length > 0 && (
+        {uploadProgresses.length > 0 && (
           <div className="mt-4 space-y-3 animate-slideIn" data-testid="upload-progress">
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
               <span className="flex items-center">
-                <LoadingSpinner size="sm" className="mr-2" />
-                Uploading {uploadProgresses.length} document{uploadProgresses.length > 1 ? 's' : ''}<span className="loading-dots"></span>
+                {isUploading && <LoadingSpinner size="sm" className="mr-2" />}
+                {isUploading ? (
+                  <>Uploading {uploadProgresses.filter(p => p.status === 'uploading').length} document{uploadProgresses.filter(p => p.status === 'uploading').length !== 1 ? 's' : ''}<span className="loading-dots"></span></>
+                ) : (
+                  <>Upload Status</>
+                )}
               </span>
+              {uploadProgresses.some(p => p.status === 'failed') && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleClearFailed}
+                  className="text-xs h-6"
+                  data-testid="button-clear-failed"
+                >
+                  Clear Failed
+                </Button>
+              )}
             </div>
             {uploadProgresses.map((file, index) => (
               <div key={index} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="truncate max-w-[200px]">{file.fileName}</span>
-                  <span data-testid={`progress-percentage-${index}`} className="font-semibold">
-                    {Math.round(file.progress)}%
-                  </span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {file.status === 'failed' && (
+                      <i className="fas fa-exclamation-circle text-red-500" data-testid={`icon-failed-${index}`}></i>
+                    )}
+                    {file.status === 'completed' && (
+                      <i className="fas fa-check-circle text-green-500" data-testid={`icon-success-${index}`}></i>
+                    )}
+                    {file.status === 'uploading' && (
+                      <i className="fas fa-spinner fa-spin text-blue-500" data-testid={`icon-uploading-${index}`}></i>
+                    )}
+                    <span className="truncate max-w-[180px]" title={file.fileName}>{file.fileName}</span>
+                  </div>
+                  {file.status === 'failed' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRetry(file)}
+                      className="h-6 text-xs ml-2"
+                      data-testid={`button-retry-${index}`}
+                    >
+                      <i className="fas fa-redo mr-1"></i>
+                      Retry
+                    </Button>
+                  ) : (
+                    <span data-testid={`progress-percentage-${index}`} className="font-semibold ml-2">
+                      {Math.round(file.progress)}%
+                    </span>
+                  )}
                 </div>
-                <Progress value={file.progress} className="h-2 transition-all duration-300" />
+                {file.error && (
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1" data-testid={`error-message-${index}`}>
+                    {file.error}
+                  </p>
+                )}
+                {file.status !== 'failed' && (
+                  <Progress 
+                    value={file.progress} 
+                    className={`h-2 transition-all duration-300 ${
+                      file.status === 'completed' ? 'bg-green-100' : ''
+                    }`} 
+                  />
+                )}
               </div>
             ))}
           </div>

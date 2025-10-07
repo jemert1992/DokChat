@@ -185,29 +185,33 @@ export class IntelligentDocumentRouter {
 
     progressCallback?.(30, 'Running multimodal transformer analysis...');
 
-    // Use Gemini Flash 2.5 for fast document processing
-    const result = await this.gemini.models.generateContent({
+    console.log(`🤖 Calling Gemini API with ${Math.round(base64Data.length / 1024)}KB PDF...`);
+
+    // Use Gemini Flash 2.5 for fast document processing with timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000);
+    });
+
+    const geminiPromise = this.gemini.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
         {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: 'application/pdf'
-              }
-            },
-            {
-              text: 'Extract all text content from this document. Preserve formatting, structure, and page breaks. Return the complete text exactly as it appears.'
-            }
-          ]
-        }
+          inlineData: {
+            data: base64Data,
+            mimeType: 'application/pdf'
+          }
+        },
+        'Extract all text content from this document. Preserve formatting, structure, and page breaks. Return the complete text exactly as it appears.'
       ]
     });
+
+    const result = await Promise.race([geminiPromise, timeoutPromise]);
+    console.log(`✅ Gemini API call completed successfully`);
 
     progressCallback?.(90, 'Synthesizing document embeddings...');
 
     const extractedText = result.text || '';
+    console.log(`📝 Extracted ${extractedText.length} characters from PDF`);
     const processingTime = Date.now() - startTime;
 
     // Estimate page count from text length

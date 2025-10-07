@@ -188,8 +188,9 @@ export class IntelligentDocumentRouter {
     console.log(`🤖 Calling Gemini API with ${Math.round(base64Data.length / 1024)}KB PDF...`);
 
     // Use Gemini Flash 2.5 for fast document processing with timeout
+    // Large PDFs (50+ pages) can take 90-120 seconds, so use 2 minute timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000);
+      setTimeout(() => reject(new Error('Gemini API timeout after 120 seconds')), 120000);
     });
 
     const geminiPromise = this.gemini.models.generateContent({
@@ -265,7 +266,7 @@ export class IntelligentDocumentRouter {
 
     return {
       text: ocrResult.text,
-      confidence: ocrResult.confidence / 100, // Convert to 0-1 range
+      confidence: ocrResult.confidence, // Vision service already returns 0-1 range
       method: 'ocr_vision',
       metadata: {
         processingTime: processingTime,

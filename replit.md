@@ -130,6 +130,10 @@ Platform now supports processing 150-200+ page documents with intelligent chunki
 - **Multi-Industry Support**: Real estate added as fifth industry with specialized property document analysis prompts
 
 #### Performance Optimizations
+- **Parallel Batch OCR Processing (October 2024)**: Processes 10 pages simultaneously instead of sequentially
+  - Reduced 51-page document OCR from ~5 minutes to under 1 minute (3-5x speedup)
+  - Batch processing with Promise.all for optimal API utilization
+  - Applies to both quick mode and full document processing
 - Enhanced routing with both industry-specific and legacy route support
 - Resolved PDF processing race condition by creating unique temporary directories per document
 - Improved keyword matching with normalization and fuzzy matching for better relevance scoring

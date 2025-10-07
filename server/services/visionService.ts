@@ -186,58 +186,76 @@ export class VisionService {
         };
       }
 
-      // Process limited pages
+      // Process pages in parallel batches for speed
       const pageResults: OCRResult[] = [];
       const allBlocks: OCRResult['blocks'] = [];
-      let combinedText = '';
       let totalConfidence = 0;
       let handwritingDetected = false;
       let detectedLanguage = 'en';
-
-      for (let i = 0; i < imageResults.length; i++) {
-        const pageStartTime = Date.now();
-        const imagePath = imageResults[i];
-        const currentPage = i + 1;
+      const BATCH_SIZE = 10; // Process 10 pages simultaneously
+      
+      let processedPages = 0;
+      
+      // Process in batches
+      for (let batchStart = 0; batchStart < imageResults.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, imageResults.length);
+        const batch = imageResults.slice(batchStart, batchEnd);
+        const batchStartTime = Date.now();
         
-        console.log(`⚡ Quick processing page ${currentPage}/${totalPages}: ${imagePath}`);
+        console.log(`⚡ Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: pages ${batchStart + 1}-${batchEnd} (${batch.length} pages in parallel)`);
         
-        try {
-          const pageResult = await this.extractTextFromImage(imagePath);
-          pageResults.push(pageResult);
-          
-          if (pageResult.text.trim()) {
-            combinedText += `--- Page ${currentPage} ---\n${pageResult.text}\n\n`;
+        // Process batch in parallel
+        const batchPromises = batch.map(async (imagePath, batchIndex) => {
+          const pageNumber = batchStart + batchIndex + 1;
+          try {
+            const pageResult = await this.extractTextFromImage(imagePath);
+            return { pageNumber, pageResult, success: true };
+          } catch (pageError) {
+            console.error(`❌ Error processing PDF page ${pageNumber}:`, pageError);
+            return { pageNumber, pageResult: null, success: false };
           }
-          
-          allBlocks.push(...pageResult.blocks);
-          totalConfidence += pageResult.confidence;
-          
-          if (pageResult.handwritingDetected) {
-            handwritingDetected = true;
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Collect results in order
+        for (const { pageNumber, pageResult, success } of batchResults.sort((a, b) => a.pageNumber - b.pageNumber)) {
+          if (success && pageResult) {
+            pageResults.push(pageResult);
+            allBlocks.push(...pageResult.blocks);
+            totalConfidence += pageResult.confidence;
+            
+            if (pageResult.handwritingDetected) {
+              handwritingDetected = true;
+            }
+            if (pageResult.language !== 'en') {
+              detectedLanguage = pageResult.language;
+            }
           }
-          
-          if (pageResult.language !== 'en') {
-            detectedLanguage = pageResult.language;
-          }
-          
-          // Track time for this page
-          const pageProcessingTime = Date.now() - pageStartTime;
-          avgTimePerPage.push(pageProcessingTime);
-          
-          // Calculate estimated time remaining
-          const avgTime = avgTimePerPage.reduce((a, b) => a + b, 0) / avgTimePerPage.length;
-          const pagesRemaining = totalPages - currentPage;
-          const estimatedTimeRemaining = Math.round((avgTime * pagesRemaining) / 1000); // in seconds
-          
-          // Send progress update
-          if (progressCallback) {
-            progressCallback(currentPage, totalPages, estimatedTimeRemaining);
-          }
-          
-        } catch (pageError) {
-          console.error(`❌ Error processing PDF page ${currentPage}:`, pageError);
+          processedPages++;
+        }
+        
+        // Track batch time and estimate remaining
+        const batchTime = Date.now() - batchStartTime;
+        avgTimePerPage.push(batchTime / batch.length);
+        
+        const avgTime = avgTimePerPage.reduce((a, b) => a + b, 0) / avgTimePerPage.length;
+        const pagesRemaining = totalPages - processedPages;
+        const estimatedTimeRemaining = Math.round((avgTime * pagesRemaining) / 1000);
+        
+        // Send progress update after each batch
+        if (progressCallback) {
+          await progressCallback(processedPages, totalPages, estimatedTimeRemaining);
         }
       }
+      
+      // Build combined text from results
+      let combinedText = '';
+      pageResults.forEach((result, index) => {
+        if (result.text.trim()) {
+          combinedText += `--- Page ${index + 1} ---\n${result.text}\n\n`;
+        }
+      });
 
       const avgConfidence = pageResults.length > 0 ? totalConfidence / pageResults.length : 0;
 
@@ -293,53 +311,78 @@ export class VisionService {
         };
       }
 
-      // Process each page image with OCR
+      // Process pages in parallel batches for speed
       const pageResults: OCRResult[] = [];
       const allBlocks: OCRResult['blocks'] = [];
-      let combinedText = '';
       let totalConfidence = 0;
       let handwritingDetected = false;
       let detectedLanguage = 'en';
       const startTime = Date.now();
-
-      for (let i = 0; i < imageResults.length; i++) {
-        const imagePath = imageResults[i];
-        console.log(`🔍 Processing PDF page ${i + 1}/${imageResults.length}: ${imagePath}`);
+      const BATCH_SIZE = 10; // Process 10 pages simultaneously
+      const avgTimePerPage: number[] = [];
+      
+      let processedPages = 0;
+      
+      // Process in batches
+      for (let batchStart = 0; batchStart < imageResults.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, imageResults.length);
+        const batch = imageResults.slice(batchStart, batchEnd);
+        const batchStartTime = Date.now();
         
-        try {
-          const pageResult = await this.extractTextFromImage(imagePath);
-          pageResults.push(pageResult);
-          
-          // Combine results
-          if (pageResult.text.trim()) {
-            combinedText += `--- Page ${i + 1} ---\n${pageResult.text}\n\n`;
+        console.log(`🔍 Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}: pages ${batchStart + 1}-${batchEnd} (${batch.length} pages in parallel)`);
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (imagePath, batchIndex) => {
+          const pageNumber = batchStart + batchIndex + 1;
+          try {
+            const pageResult = await this.extractTextFromImage(imagePath);
+            return { pageNumber, pageResult, success: true };
+          } catch (pageError) {
+            console.error(`❌ Error processing PDF page ${pageNumber}:`, pageError);
+            return { pageNumber, pageResult: null, success: false, error: pageError };
           }
-          
-          allBlocks.push(...pageResult.blocks);
-          totalConfidence += pageResult.confidence;
-          
-          if (pageResult.handwritingDetected) {
-            handwritingDetected = true;
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Collect results in order
+        for (const { pageNumber, pageResult, success, error } of batchResults.sort((a, b) => a.pageNumber - b.pageNumber)) {
+          if (success && pageResult) {
+            pageResults.push(pageResult);
+            allBlocks.push(...pageResult.blocks);
+            totalConfidence += pageResult.confidence;
+            
+            if (pageResult.handwritingDetected) {
+              handwritingDetected = true;
+            }
+            if (pageResult.language !== 'en') {
+              detectedLanguage = pageResult.language;
+            }
           }
-          
-          if (pageResult.language !== 'en') {
-            detectedLanguage = pageResult.language;
-          }
-          
-          // Call progress callback if provided
-          if (progressCallback) {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const avgTimePerPage = elapsed / (i + 1);
-            const remainingPages = imageResults.length - (i + 1);
-            const estimatedTimeRemaining = Math.round(avgTimePerPage * remainingPages);
-            await progressCallback(i + 1, imageResults.length, estimatedTimeRemaining);
-          }
-          
-        } catch (pageError) {
-          console.error(`❌ Error processing PDF page ${i + 1}:`, pageError);
-          combinedText += `--- Page ${i + 1} ---\n[OCR Error: ${pageError instanceof Error ? pageError.message : 'Unknown error'}]\n\n`;
+          processedPages++;
+        }
+        
+        // Track batch time and estimate remaining
+        const batchTime = Date.now() - batchStartTime;
+        avgTimePerPage.push(batchTime / batch.length);
+        
+        const avgTime = avgTimePerPage.reduce((a, b) => a + b, 0) / avgTimePerPage.length;
+        const pagesRemaining = imageResults.length - processedPages;
+        const estimatedTimeRemaining = Math.round((avgTime * pagesRemaining) / 1000);
+        
+        // Send progress update after each batch
+        if (progressCallback) {
+          await progressCallback(processedPages, imageResults.length, estimatedTimeRemaining);
         }
       }
+      
+      // Build combined text from results
+      let combinedText = '';
+      pageResults.forEach((result, index) => {
+        if (result.text.trim()) {
+          combinedText += `--- Page ${index + 1} ---\n${result.text}\n\n`;
+        }
+      });
 
       const avgConfidence = pageResults.length > 0 ? totalConfidence / pageResults.length : 0;
 

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export type Industry = 'medical' | 'legal' | 'logistics' | 'finance' | 'general';
+export type Industry = 'medical' | 'legal' | 'logistics' | 'finance' | 'real_estate' | 'general';
 
 export interface IndustryOption {
   id: Industry;
@@ -62,6 +62,15 @@ const defaultIndustries: IndustryOption[] = [
     iconBg: 'bg-green-600',
     description: 'Financial document analysis and compliance',
     documentTypes: 'Statements • Reports • Applications'
+  },
+  {
+    id: 'real_estate',
+    name: 'Real Estate',
+    icon: 'fas fa-home',
+    color: 'hover:border-indigo-600',
+    iconBg: 'bg-indigo-600',
+    description: 'Property transaction and real estate document intelligence',
+    documentTypes: 'Purchase contracts • Leases • Disclosures • Inspections'
   },
   {
     id: 'general',

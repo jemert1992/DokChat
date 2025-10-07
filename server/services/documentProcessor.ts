@@ -101,25 +101,36 @@ export class DocumentProcessor {
         this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text from all pages', 'ocr');
       
       // Create progress callback for page-by-page updates
-      const ocrProgressCallback = (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => {
+      let lastDbUpdateProgress = 0;
+      const ocrProgressCallback = async (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => {
         const progressPercent = Math.round(30 + (currentPage / totalPages) * 30); // OCR is 30-60% of total
         const timeMsg = estimatedTimeRemaining > 0 
           ? `~${estimatedTimeRemaining}s remaining` 
           : 'Almost done';
+        const message = `Processing page ${currentPage} of ${totalPages} (${timeMsg})`;
+        
+        // Always send WebSocket update for real-time UI
         this.sendWebSocketUpdate(
           document.userId,
           documentId, 
           'processing', 
           progressPercent, 
-          `Processing page ${currentPage} of ${totalPages} (${timeMsg})`, 
+          message, 
           'ocr'
         );
+        
+        // Update database every 5% to persist progress (avoid too many DB writes)
+        if (progressPercent - lastDbUpdateProgress >= 5 || currentPage === totalPages) {
+          await storage.updateDocumentStatus(documentId, 'processing', progressPercent, message);
+          lastDbUpdateProgress = progressPercent;
+        }
       };
       
-        extractedText = await this.extractTextQuick(document.filePath, document.mimeType, 250, ocrProgressCallback);
+        const quickOcrResult = await this.visionService.extractTextFromPDFLimited(document.filePath, 250, ocrProgressCallback);
+        extractedText = quickOcrResult.text;
         
-        // Get OCR results
-        ocrResults = await this.getOCRResults(document.filePath, document.mimeType, extractedText);
+        // Use quick OCR results directly instead of doing full OCR again
+        ocrResults = quickOcrResult;
         
         // Cache the OCR results for future use
         console.log(`💾 Caching OCR results for document ${documentId}`);

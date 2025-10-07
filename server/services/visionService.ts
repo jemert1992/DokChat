@@ -267,7 +267,7 @@ export class VisionService {
     }
   }
 
-  async extractTextFromPDF(pdfPath: string): Promise<OCRResult> {
+  async extractTextFromPDF(pdfPath: string, progressCallback?: (currentPage: number, totalPages: number, estimatedTimeRemaining: number) => void | Promise<void>): Promise<OCRResult> {
     let tempDir: string | null = null;
     try {
       // Ensure Vision client is properly initialized
@@ -300,6 +300,7 @@ export class VisionService {
       let totalConfidence = 0;
       let handwritingDetected = false;
       let detectedLanguage = 'en';
+      const startTime = Date.now();
 
       for (let i = 0; i < imageResults.length; i++) {
         const imagePath = imageResults[i];
@@ -323,6 +324,15 @@ export class VisionService {
           
           if (pageResult.language !== 'en') {
             detectedLanguage = pageResult.language;
+          }
+          
+          // Call progress callback if provided
+          if (progressCallback) {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const avgTimePerPage = elapsed / (i + 1);
+            const remainingPages = imageResults.length - (i + 1);
+            const estimatedTimeRemaining = Math.round(avgTimePerPage * remainingPages);
+            await progressCallback(i + 1, imageResults.length, estimatedTimeRemaining);
           }
           
         } catch (pageError) {

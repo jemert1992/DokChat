@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import Sidebar from "@/components/sidebar";
+import FloatingNav from "@/components/floating-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,13 +138,11 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
   if (documentLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="flex">
-          <Sidebar user={user} currentPage="analysis" />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading document analysis...</p>
-            </div>
+        <FloatingNav user={user} currentPage="analysis" />
+        <div className="flex-1 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading document analysis...</p>
           </div>
         </div>
       </div>
@@ -175,11 +173,10 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
 
   return (
     <div className={`min-h-screen bg-background industry-${user.industry}`}>
-      <div className="flex">
-        <Sidebar user={user} currentPage="analysis" />
+      <FloatingNav user={user} currentPage="analysis" />
 
-        {/* Analysis Content */}
-        <div className="flex-1">
+      {/* Analysis Content */}
+      <div className="flex-1">
           {/* Top Bar */}
           <div className="border-b border-border bg-card px-6 py-4">
             <div className="flex items-center justify-between">
@@ -430,23 +427,22 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
             )}
           </div>
         </div>
-      </div>
       
-      {/* Document Chat - Only show for completed documents */}
-      {document && document.status === 'completed' && (
-        <DocumentChat 
-          documentId={parseInt(documentId)} 
-          documentTitle={document.originalFilename} 
-        />
-      )}
+        {/* Document Chat - Only show for completed documents */}
+        {document && document.status === 'completed' && (
+          <DocumentChat 
+            documentId={parseInt(documentId)} 
+            documentTitle={document.originalFilename} 
+          />
+        )}
 
-      {/* Real-Time Collaboration Panel - Temporarily disabled to prevent infinite loops */}
-      {/* {document && document.status === 'completed' && (
-        <CollaborationPanel
-          documentId={parseInt(documentId)}
-          documentTitle={document.originalFilename}
-        />
-      )} */}
-    </div>
+        {/* Real-Time Collaboration Panel - Temporarily disabled to prevent infinite loops */}
+        {/* {document && document.status === 'completed' && (
+          <CollaborationPanel
+            documentId={parseInt(documentId)}
+            documentTitle={document.originalFilename}
+          />
+        )} */}
+      </div>
   );
 }

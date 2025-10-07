@@ -99,11 +99,11 @@ export default function FloatingNav({ user, currentPage }: FloatingNavProps) {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
-        className="fixed bottom-6 right-6 z-50"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50"
       >
         <Button
           onClick={() => setIsOpen(!isOpen)}
-          className="h-16 w-16 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
+          className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 active:scale-95"
           data-testid="button-open-nav"
         >
           <motion.div
@@ -119,7 +119,7 @@ export default function FloatingNav({ user, currentPage }: FloatingNavProps) {
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent 
           side="left" 
-          className="w-80 p-0 border-r-2 border-purple-200 dark:border-purple-800"
+          className="w-full sm:w-80 p-0 border-r-2 border-purple-200 dark:border-purple-800"
         >
           {/* Header with Profile */}
           <SheetHeader className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-750">
@@ -229,7 +229,7 @@ export default function FloatingNav({ user, currentPage }: FloatingNavProps) {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.4, type: "spring", stiffness: 260, damping: 20 }}
-        className="fixed bottom-6 left-6 z-50"
+        className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50"
       >
         <Button
           onClick={() => {
@@ -242,7 +242,7 @@ export default function FloatingNav({ user, currentPage }: FloatingNavProps) {
               }, 2000);
             }
           }}
-          className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-blue-500/50 transition-all duration-300"
+          className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-blue-500/50 transition-all duration-300 active:scale-95"
           data-testid="button-upload-floating"
         >
           <motion.div

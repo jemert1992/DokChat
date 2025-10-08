@@ -56,6 +56,10 @@ const StructuredDataSchema = z.object({
   overallAccuracy: z.number().min(0).max(1).optional().default(0.85)
 });
 
+// Generate TypeScript types from Zod schemas for type safety
+type DocumentStructure = z.infer<typeof DocumentStructureSchema>;
+type MultimodalAnalysis = z.infer<typeof MultimodalAnalysisSchema>;
+
 export interface AdvancedOCRResult {
   text: string;
   confidence: number;
@@ -66,24 +70,8 @@ export interface AdvancedOCRResult {
     content: string;
     confidence: number;
   }>;
-  documentStructure: {
-    documentType: string;
-    sections: Array<{
-      name: string;
-      content: string;
-      importance: 'critical' | 'high' | 'medium' | 'low';
-    }>;
-  };
-  multimodalAnalysis: {
-    textImageRelationships: Array<{
-      textId: string;
-      imageId: string;
-      relationship: string;
-      confidence: number;
-    }>;
-    semanticUnderstanding: string;
-    confidenceScore: number;
-  };
+  documentStructure: DocumentStructure;
+  multimodalAnalysis: MultimodalAnalysis;
 }
 
 export interface MultimodalProcessingOptions {

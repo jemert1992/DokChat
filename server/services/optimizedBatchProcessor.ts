@@ -7,6 +7,7 @@ import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import { RAGService } from "./ragService";
 import { AdvancedConfidenceService } from "./advancedConfidenceService";
 import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntelligenceService";
+import { metricsTrackingService } from "./metricsTrackingService";
 import os from "os";
 
 // Add type definitions for WebSocket update
@@ -416,6 +417,9 @@ export class OptimizedBatchProcessor {
 
       const totalTime = Date.now() - startTime;
       await storage.updateDocumentStatus(documentId, 'completed', 100, 'Optimized processing completed successfully');
+      
+      // Generate processing metrics report
+      await metricsTrackingService.generateReport(documentId);
       
       // Update metrics and batch progress
       this.updateProcessingMetrics(context, totalTime, true);

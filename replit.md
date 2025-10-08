@@ -57,6 +57,12 @@ The platform adapts through configuration-driven customization for:
 -   **General Business**: Versatile processing for common documents.
 
 ### Key Features and Enhancements
+-   **Hybrid RAG Pipeline (October 2024)**: Advanced Retrieval-Augmented Generation for long documents with:
+    -   **Smart Chunking**: 1-2K token chunks preserving metadata (page numbers, section headers)
+    -   **Dual-Filter Retrieval**: BM25 keyword search + Vector semantic reranking (40% BM25 + 60% semantic similarity)
+    -   **OpenAI Embeddings**: text-embedding-3-small for semantic understanding with cosine similarity scoring
+    -   **Citation-Based Responses**: Claude Sonnet 4.5 generates answers with explicit citations [1][2], confidence scores (0.0-1.0), and self-critique statements to reduce hallucination
+    -   **Automatic Activation**: RAG triggered for documents >5K characters (~1.2K tokens) with intelligent fallback to standard chat
 -   **Enhanced Landing Page**: Modern design with multi-provider authentication (Google, GitHub, Apple), Framer Motion animations, and responsive layout.
 -   **Simplified Industry Dashboards**: Two-tab structure (Documents & Upload, AI Assistant) with industry-specific quick actions.
 -   **Streamlined Navigation**: Essential items only: Dashboard, Industry-specific AI dashboard, Upload Documents, Recent Documents.

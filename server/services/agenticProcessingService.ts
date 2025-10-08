@@ -492,7 +492,7 @@ export class AgenticProcessingService {
   private complianceAgent: ComplianceAgent;
   
   constructor() {
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
     this.multiAIService = new MultiAIService();
     this.securityService = new SecurityService();
     this.industryConfigService = new IndustryConfigService();

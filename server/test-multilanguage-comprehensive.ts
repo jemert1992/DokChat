@@ -209,7 +209,7 @@ class MultiLanguageTestSuite {
 
   constructor() {
     this.multiLanguageService = new MultiLanguageService();
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
     this.multiAIService = new MultiAIService();
     this.entityExtraction = new EntityExtractionService();
     

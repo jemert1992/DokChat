@@ -19,15 +19,23 @@ export interface OCRResult {
 }
 
 export class VisionService {
+  private static instance: VisionService | null = null;
   private client: ImageAnnotatorClient | null = null;
   private isInitialized: boolean = false;
   private initializationError: string | null = null;
 
-  constructor() {
+  private constructor() {
     this.initializeClient().catch(error => {
       console.error('❌ Vision service initialization failed:', error);
       this.initializationError = error.message;
     });
+  }
+
+  static getInstance(): VisionService {
+    if (!VisionService.instance) {
+      VisionService.instance = new VisionService();
+    }
+    return VisionService.instance;
   }
 
   private async initializeClient() {

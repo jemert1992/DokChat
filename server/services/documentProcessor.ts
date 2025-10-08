@@ -39,7 +39,7 @@ export class DocumentProcessor {
 
   constructor(websocketService?: WebSocketService) {
     this.multiAIService = new MultiAIService();
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
     this.templateFreeService = new TemplateFreeExtractionService();
     this.ragService = new RAGService();
     this.advancedConfidenceService = new AdvancedConfidenceService();

@@ -54,7 +54,7 @@ export class IntelligentDocumentRouter {
     this.openai = clients.openai;
     
     // Initialize Vision service
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
   }
 
   /**

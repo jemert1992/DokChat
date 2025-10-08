@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const documentProcessor = new DocumentProcessor(websocketService);
   const industryConfigService = new IndustryConfigService();
   const chatService = new DocumentChatService();
-  const visionService = new VisionService();
+  const visionService = VisionService.getInstance();
   const agenticProcessingService = new AgenticProcessingService();
   const advancedAnalyticsService = new AdvancedAnalyticsService(websocketService);
   const enterpriseIntegrationService = new EnterpriseIntegrationService(websocketService, documentProcessor);

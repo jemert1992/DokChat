@@ -102,10 +102,11 @@ export interface MultimodalProcessingOptions {
  * with GPT-4 Vision for industry-leading multimodal document analysis
  */
 export class AdvancedVisionService {
+  private static instance: AdvancedVisionService | null = null;
   private visionClient: ImageAnnotatorClient;
   private openaiService: OpenAIService;
 
-  constructor() {
+  private constructor() {
     try {
       this.visionClient = new ImageAnnotatorClient({
         projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
@@ -116,6 +117,13 @@ export class AdvancedVisionService {
       console.error('Failed to initialize Advanced Vision Service:', error);
       throw new Error('Advanced Vision Service initialization failed');
     }
+  }
+
+  static getInstance(): AdvancedVisionService {
+    if (!AdvancedVisionService.instance) {
+      AdvancedVisionService.instance = new AdvancedVisionService();
+    }
+    return AdvancedVisionService.instance;
   }
 
   /**

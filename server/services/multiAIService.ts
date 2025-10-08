@@ -100,8 +100,8 @@ export class MultiAIService {
 
   constructor() {
     this.openaiService = new OpenAIService();
-    this.visionService = new VisionService();
-    this.advancedVisionService = new AdvancedVisionService();
+    this.visionService = VisionService.getInstance();
+    this.advancedVisionService = AdvancedVisionService.getInstance();
     this.securityService = new AdvancedSecurityService();
     this.multiLanguageService = new MultiLanguageService();
     

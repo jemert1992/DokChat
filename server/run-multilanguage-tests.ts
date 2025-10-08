@@ -207,7 +207,7 @@ class MultiLanguageTestRunner {
   constructor() {
     console.log('🌍 Initializing Multi-Language Test Runner for DOKTECH 3.0...');
     this.multiLanguageService = new MultiLanguageService();
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
     this.multiAIService = new MultiAIService();
     this.entityExtraction = new EntityExtractionService();
     

@@ -55,7 +55,7 @@ export class EnhancedDocumentProcessor {
   
   constructor(websocketService?: WebSocketService) {
     this.parallelProcessor = new ParallelProcessingService();
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
     this.multiAIService = new MultiAIService();
     this.templateFreeService = new TemplateFreeExtractionService();
     this.advancedIntelligenceService = new AdvancedDocumentIntelligenceService();

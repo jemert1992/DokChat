@@ -32,7 +32,7 @@ export class MultiLanguageService {
   private visionService: VisionService;
   
   constructor() {
-    this.visionService = new VisionService();
+    this.visionService = VisionService.getInstance();
   }
   
   // Supported languages for logistics documents

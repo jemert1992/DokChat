@@ -64,8 +64,8 @@ export class TemplateFreeExtractionService {
   constructor() {
     this.openaiService = new OpenAIService();
     this.multiAIService = new MultiAIService();
-    this.visionService = new VisionService();
-    this.advancedVisionService = new AdvancedVisionService();
+    this.visionService = VisionService.getInstance();
+    this.advancedVisionService = AdvancedVisionService.getInstance();
   }
 
   /**

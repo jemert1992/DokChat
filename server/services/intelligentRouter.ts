@@ -212,8 +212,21 @@ Respond with ONLY the JSON, no additional text.`
   async routeDocument(filePath: string, mimeType: string): Promise<RoutingDecision> {
     console.log(`🧭 Routing document: ${path.basename(filePath)}, mimeType: ${mimeType}`);
     
-    // Step 1: Pre-classify with Claude Sonnet 4.5
-    const classification = await this.preClassifyWithClaude(filePath, mimeType);
+    // SPEED OPTIMIZATION: Skip pre-classification for PDFs with text layers
+    const fileExt = path.extname(filePath).toLowerCase();
+    let classification: DocumentClassification;
+    
+    if (fileExt === '.pdf') {
+      const hasTextLayer = await this.checkPDFTextLayer(filePath);
+      if (hasTextLayer) {
+        console.log('⚡ PDF has text layer - skipping pre-classification');
+        classification = await this.basicClassification(filePath, mimeType);
+      } else {
+        classification = await this.preClassifyWithClaude(filePath, mimeType);
+      }
+    } else {
+      classification = await this.preClassifyWithClaude(filePath, mimeType);
+    }
 
     // Step 2: Determine routing based on classification and API availability
     const method = this.determineProcessingMethod(classification);

@@ -1363,6 +1363,50 @@ export const interfaceAdaptations = pgTable("interface_adaptations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Verification results for auto-QA second-pass validation
+export const verificationResults = pgTable("verification_results", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  originalExtraction: jsonb("original_extraction").notNull(),
+  verifiedExtraction: jsonb("verified_extraction").notNull(),
+  discrepancies: jsonb("discrepancies").default('[]'),
+  uncertaintyScore: real("uncertainty_score").notNull(),
+  needsManualReview: boolean("needs_manual_review").default(false),
+  reviewReason: text("review_reason"),
+  verificationModel: varchar("verification_model", { length: 50 }).default('claude-sonnet-4-verification'),
+  crossCheckModel: varchar("cross_check_model", { length: 50 }),
+  verificationStatus: varchar("verification_status", { length: 50 }).default('pending'),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_verification_document").on(table.documentId),
+  index("idx_verification_status").on(table.verificationStatus),
+  index("idx_verification_manual_review").on(table.needsManualReview),
+]);
+
+// Decision logs for Sonnet's reasoning trail
+export const decisionLogs = pgTable("decision_logs", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  verificationId: integer("verification_id").references(() => verificationResults.id),
+  stage: varchar("stage", { length: 100 }).notNull(),
+  decision: text("decision").notNull(),
+  reasoning: text("reasoning").notNull(),
+  inputData: jsonb("input_data"),
+  outputData: jsonb("output_data"),
+  confidence: real("confidence"),
+  modelUsed: varchar("model_used", { length: 50 }).notNull(),
+  processingTime: integer("processing_time"),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_decision_document").on(table.documentId),
+  index("idx_decision_stage").on(table.stage),
+  index("idx_decision_verification").on(table.verificationId),
+]);
+
 // Type exports for intelligent customization
 export type UserOnboardingProfile = typeof userOnboardingProfiles.$inferSelect;
 export type InsertUserOnboardingProfile = typeof userOnboardingProfiles.$inferInsert;
@@ -1378,3 +1422,9 @@ export type SmartAnalyticsConfig = typeof smartAnalyticsConfigs.$inferSelect;
 export type InsertSmartAnalyticsConfig = typeof smartAnalyticsConfigs.$inferInsert;
 export type InterfaceAdaptation = typeof interfaceAdaptations.$inferSelect;
 export type InsertInterfaceAdaptation = typeof interfaceAdaptations.$inferInsert;
+
+// Type exports for verification and decision logging
+export type VerificationResult = typeof verificationResults.$inferSelect;
+export type InsertVerificationResult = typeof verificationResults.$inferInsert;
+export type DecisionLog = typeof decisionLogs.$inferSelect;
+export type InsertDecisionLog = typeof decisionLogs.$inferInsert;

@@ -23,9 +23,11 @@ export class OpenAIService {
   private openai: OpenAI;
 
   constructor() {
-    this.openai = new OpenAI({ 
-      apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
-    });
+    const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+    this.openai = new OpenAI({ apiKey });
   }
 
   async analyzeDocument(text: string, industry: string): Promise<DocumentAnalysisResult> {

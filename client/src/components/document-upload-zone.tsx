@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getIndustryConfig } from "@/lib/industry-config";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useLocation } from "wouter";
 
 interface DocumentUploadZoneProps {
   industry: string;
@@ -34,6 +35,7 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const industryConfig = getIndustryConfig(industry);
+  const [, setLocation] = useLocation();
 
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -49,6 +51,8 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
     },
     onSuccess: (data) => {
       const count = data.documents ? data.documents.length : 1;
+      const firstDocumentId = data.documents?.[0]?.id;
+      
       toast({
         title: "Upload Successful",
         description: `${count} document${count > 1 ? 's have' : ' has'} been uploaded and ${count > 1 ? 'are' : 'is'} being processed.`,
@@ -61,6 +65,11 @@ export default function DocumentUploadZone({ industry, onUploadComplete }: Docum
       onUploadComplete?.();
       setUploadProgresses([]);
       setIsUploading(false);
+      
+      // Navigate to the first document's analysis page to watch processing
+      if (firstDocumentId) {
+        setLocation(`/document/${firstDocumentId}`);
+      }
     },
     onError: (error, files) => {
       if (isUnauthorizedError(error)) {

@@ -230,11 +230,11 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
           {/* Analysis Results */}
           <div className="p-6">
             {/* Enhanced Processing Status or Completion Status */}
-            {document.status === 'processing' && progressUpdate?.status === 'processing' ? (
+            {document.status === 'processing' ? (
               <EnhancedProcessingStatus
-                progress={progressUpdate.progress || 0}
-                message={progressUpdate.message}
-                stage={progressUpdate.stage}
+                progress={progressUpdate?.progress || 0}
+                message={progressUpdate?.message || 'Processing document...'}
+                stage={progressUpdate?.stage || 'upload'}
               />
             ) : document.status === 'completed' ? (
               <Card className="mb-6">

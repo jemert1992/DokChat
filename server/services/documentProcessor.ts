@@ -9,6 +9,7 @@ import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntellige
 import { DocumentClassifierService } from "./documentClassifier";
 import { OCRCacheService } from "./ocrCache";
 import { IntelligentDocumentRouter } from "./intelligentRouter";
+import { verificationService } from "./verificationService";
 import fs from "fs/promises";
 import path from "path";
 
@@ -158,11 +159,60 @@ export class DocumentProcessor {
       );
       
       // Stage 3: Basic Entity Extraction - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 80, 'Performing entity recognition...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 80, 'Extracting semantic entities with NLP', 'entity_extraction');
+      await storage.updateDocumentStatus(documentId, 'processing', 75, 'Performing entity recognition...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 75, 'Extracting semantic entities with NLP', 'entity_extraction');
       
       // Extract only essential entities
       const entities = this.extractEssentialEntities(quickAIResult);
+      
+      // Stage 3.5: Auto-QA Verification (Second-Pass Validation)
+      await storage.updateDocumentStatus(documentId, 'processing', 85, 'Running verification checks...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 85, 'Validating extracted data with Auto-QA', 'verification');
+      
+      let finalExtractedData = {
+        analysisMode: 'quick',
+        gemini: quickAIResult,
+        processingTime: Date.now() - startTime,
+        recommendedModel: 'gemini',
+      };
+      
+      try {
+        // Perform second-pass verification
+        const verificationResult = await verificationService.verifyExtraction(
+          documentId,
+          finalExtractedData,
+          extractedText,
+          document.industry
+        );
+        
+        // Store verification results
+        const verificationId = await verificationService.storeVerificationResult(
+          documentId,
+          finalExtractedData,
+          verificationResult,
+          'gemini-crosscheck'
+        );
+        
+        // Use verified extraction if available
+        if (verificationResult.verifiedExtraction) {
+          finalExtractedData = {
+            ...finalExtractedData,
+            ...verificationResult.verifiedExtraction,
+            verification: {
+              uncertaintyScore: verificationResult.uncertaintyScore,
+              discrepancies: verificationResult.discrepancies,
+              needsManualReview: verificationResult.needsManualReview,
+              reviewReason: verificationResult.reviewReason,
+              verificationId
+            }
+          };
+        }
+        
+        console.log(`✅ Verification complete: ${verificationResult.discrepancies.length} discrepancies, uncertainty ${(verificationResult.uncertaintyScore * 100).toFixed(1)}%`);
+      } catch (verificationError) {
+        console.error('Verification failed, using unverified data:', verificationError);
+        // Continue with unverified data if verification fails
+      }
       
       // Stage 4: Save Results
       await storage.updateDocumentStatus(documentId, 'processing', 95, 'Finalizing intelligence synthesis...');
@@ -170,12 +220,7 @@ export class DocumentProcessor {
       
       const processingResult: ProcessingResult = {
         extractedText: ocrResults.text,
-        extractedData: {
-          analysisMode: 'quick',
-          gemini: quickAIResult,
-          processingTime: Date.now() - startTime,
-          recommendedModel: 'gemini',
-        },
+        extractedData: finalExtractedData,
         ocrConfidence: ocrResults.confidence,
         aiConfidence: quickAIResult.confidence || 85, // Default confidence for quick mode
         entities,

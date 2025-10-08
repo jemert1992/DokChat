@@ -50,59 +50,64 @@ export class ParallelProcessingService extends EventEmitter {
     console.log(`🚀 Initializing parallel processing with ${this.maxWorkers} workers`);
   }
   
+  /**
+   * OPTIMIZED: Process all tasks in full parallel using Promise.all
+   * No sequential loops - max concurrency achieved
+   */
   async processInParallel(tasks: ProcessingTask[]): Promise<ProcessingResult[]> {
-    return new Promise(async (resolve) => {
-      const results: ProcessingResult[] = [];
-      const startTime = Date.now();
-      
-      // Sort tasks by priority
-      const sortedTasks = tasks.sort((a, b) => b.priority - a.priority);
-      
-      // Process tasks with batching
-      const batchSize = Math.ceil(sortedTasks.length / this.maxWorkers);
-      const batches: ProcessingTask[][] = [];
-      
-      for (let i = 0; i < sortedTasks.length; i += batchSize) {
-        batches.push(sortedTasks.slice(i, i + batchSize));
+    const startTime = Date.now();
+    
+    // Sort tasks by priority
+    const sortedTasks = tasks.sort((a, b) => b.priority - a.priority);
+    
+    console.log(`⚡ Processing ${sortedTasks.length} tasks in FULL PARALLEL (no batching)`);
+    
+    // Process ALL tasks in parallel using Promise.allSettled
+    const taskPromises = sortedTasks.map((task, index) => 
+      this.processTaskWithRetry(task, index)
+    );
+    
+    const taskResults = await Promise.allSettled(taskPromises);
+    
+    // Collect results
+    const results: ProcessingResult[] = taskResults.map((taskResult, index) => {
+      if (taskResult.status === 'fulfilled') {
+        return taskResult.value;
+      } else {
+        return {
+          id: sortedTasks[index].id,
+          success: false,
+          error: taskResult.reason?.message || 'Unknown error',
+          processingTime: 0
+        };
       }
-      
-      // Process batches in parallel
-      const batchPromises = batches.map((batch, index) => 
-        this.processBatch(batch, index)
-      );
-      
-      const batchResults = await Promise.allSettled(batchPromises);
-      
-      // Collect results
-      for (const batchResult of batchResults) {
-        if (batchResult.status === 'fulfilled') {
-          results.push(...batchResult.value);
-        } else {
-          console.error('Batch processing failed:', batchResult.reason);
-        }
-      }
-      
-      const totalTime = Date.now() - startTime;
-      console.log(`✅ Parallel processing completed: ${results.length} tasks in ${totalTime}ms`);
-      
-      resolve(results);
     });
+    
+    const totalTime = Date.now() - startTime;
+    const successCount = results.filter(r => r.success).length;
+    console.log(`✅ Parallel processing completed: ${successCount}/${results.length} tasks in ${totalTime}ms`);
+    
+    return results;
   }
   
+  /**
+   * OPTIMIZED: Process batch in FULL PARALLEL using Promise.all
+   * Replaces sequential for loop with concurrent execution
+   */
   private async processBatch(batch: ProcessingTask[], batchIndex: number): Promise<ProcessingResult[]> {
-    const results: ProcessingResult[] = [];
+    console.log(`🔄 Processing batch ${batchIndex} with ${batch.length} tasks in FULL PARALLEL`);
     
-    for (const task of batch) {
+    // Process ALL tasks in batch simultaneously using Promise.all
+    const batchPromises = batch.map(async (task) => {
       try {
         // Check circuit breaker
         if (!this.canProcess(task.type)) {
-          results.push({
+          return {
             id: task.id,
             success: false,
             error: 'Circuit breaker open - service temporarily unavailable',
             processingTime: 0
-          });
-          continue;
+          };
         }
         
         const startTime = Date.now();
@@ -111,14 +116,6 @@ export class ParallelProcessingService extends EventEmitter {
         
         // Update circuit breaker on success
         this.recordSuccess(task.type);
-        
-        results.push({
-          id: task.id,
-          success: true,
-          result,
-          processingTime,
-          confidence: result.confidence
-        });
         
         // Emit progress event
         this.emit('progress', {
@@ -129,21 +126,17 @@ export class ParallelProcessingService extends EventEmitter {
           processingTime
         });
         
+        return {
+          id: task.id,
+          success: true,
+          result,
+          processingTime,
+          confidence: result.confidence
+        };
+        
       } catch (error) {
         // Record failure for circuit breaker
         this.recordFailure(task.type);
-        
-        // Retry logic with exponential backoff
-        if ((task.retryCount || 0) < (task.maxRetries || 3)) {
-          await this.retryWithBackoff(task, error);
-        } else {
-          results.push({
-            id: task.id,
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            processingTime: 0
-          });
-        }
         
         // Emit error event
         this.emit('error', {
@@ -152,10 +145,93 @@ export class ParallelProcessingService extends EventEmitter {
           type: task.type,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
+        
+        return {
+          id: task.id,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          processingTime: 0
+        };
       }
-    }
+    });
     
+    // Execute all tasks in batch concurrently
+    const results = await Promise.all(batchPromises);
     return results;
+  }
+  
+  /**
+   * Process single task with retry logic
+   */
+  private async processTaskWithRetry(task: ProcessingTask, index: number): Promise<ProcessingResult> {
+    try {
+      // Check circuit breaker
+      if (!this.canProcess(task.type)) {
+        return {
+          id: task.id,
+          success: false,
+          error: 'Circuit breaker open - service temporarily unavailable',
+          processingTime: 0
+        };
+      }
+      
+      const startTime = Date.now();
+      const result = await this.processTask(task);
+      const processingTime = Date.now() - startTime;
+      
+      // Update circuit breaker on success
+      this.recordSuccess(task.type);
+      
+      // Emit progress event
+      this.emit('progress', {
+        taskIndex: index,
+        taskId: task.id,
+        type: task.type,
+        status: 'completed',
+        processingTime
+      });
+      
+      return {
+        id: task.id,
+        success: true,
+        result,
+        processingTime,
+        confidence: result.confidence
+      };
+      
+    } catch (error) {
+      // Record failure for circuit breaker
+      this.recordFailure(task.type);
+      
+      // Retry logic with exponential backoff
+      if ((task.retryCount || 0) < (task.maxRetries || 3)) {
+        const retryCount = (task.retryCount || 0) + 1;
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+        
+        console.log(`🔄 Retrying task ${task.id} (attempt ${retryCount}) after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return this.processTaskWithRetry({
+          ...task,
+          retryCount
+        }, index);
+      }
+      
+      // Emit error event
+      this.emit('error', {
+        taskIndex: index,
+        taskId: task.id,
+        type: task.type,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return {
+        id: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: 0
+      };
+    }
   }
   
   private async processTask(task: ProcessingTask): Promise<any> {
@@ -274,21 +350,6 @@ export class ParallelProcessingService extends EventEmitter {
       });
     }
     return this.circuitBreakers.get(serviceType)!;
-  }
-  
-  private async retryWithBackoff(task: ProcessingTask, error: any) {
-    const retryCount = (task.retryCount || 0) + 1;
-    const delay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
-    
-    console.log(`🔄 Retrying task ${task.id} (attempt ${retryCount}) after ${delay}ms`);
-    
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    // Add task back to queue with increased retry count
-    this.taskQueue.push({
-      ...task,
-      retryCount
-    });
   }
   
   // Cleanup method

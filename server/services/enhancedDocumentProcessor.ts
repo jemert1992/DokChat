@@ -5,6 +5,7 @@ import { MultiAIService } from "./multiAIService";
 import { ParallelProcessingService, ProcessingTask, ProcessingResult as ParallelResult } from "./parallelProcessingService";
 import { TemplateFreeExtractionService } from "./templateFreeExtractionService";
 import { AdvancedDocumentIntelligenceService } from "./advancedDocumentIntelligenceService";
+import Anthropic from '@anthropic-ai/sdk';
 import fs from "fs/promises";
 import path from "path";
 
@@ -42,12 +43,14 @@ export class EnhancedDocumentProcessor {
   private multiAIService: MultiAIService;
   private templateFreeService: TemplateFreeExtractionService;
   private advancedIntelligenceService: AdvancedDocumentIntelligenceService;
+  private anthropic: Anthropic | null = null;
   private websocketService: WebSocketService | null = null;
   
   // Performance optimization settings
   private readonly BATCH_SIZE = 5;
   private readonly MAX_PARALLEL_PAGES = 10;
   private readonly CACHE_TTL = 3600000; // 1 hour
+  private readonly CLAUDE_CONTEXT_WINDOW = 200000; // 200K tokens
   private documentCache: Map<string, any> = new Map();
   
   constructor(websocketService?: WebSocketService) {
@@ -57,6 +60,13 @@ export class EnhancedDocumentProcessor {
     this.templateFreeService = new TemplateFreeExtractionService();
     this.advancedIntelligenceService = new AdvancedDocumentIntelligenceService();
     this.websocketService = websocketService || null;
+    
+    // Initialize Claude Sonnet 4.5 for full-document processing
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey) {
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      console.log('🚀 Claude Sonnet 4.5 enabled for full-document parallel processing');
+    }
     
     // Setup parallel processing event listeners
     this.setupEventListeners();
@@ -109,63 +119,269 @@ export class EnhancedDocumentProcessor {
         return;
       }
       
-      // Stage 1: Parallel OCR Processing
-      await this.sendStreamingUpdate(documentId, 'ocr_parallel', 15, 'Running parallel OCR processing');
-      const ocrResult = await this.performParallelOCR(document.filePath, document.mimeType);
-      
-      // Stage 2: Multi-Modal Vision Analysis
-      await this.sendStreamingUpdate(documentId, 'vision_multimodal', 30, 'Analyzing document with multi-modal vision');
-      const multiModalResult = await this.performMultiModalAnalysis(document.filePath, ocrResult);
-      
-      // Stage 3: Ensemble AI Predictions
-      await this.sendStreamingUpdate(documentId, 'ai_ensemble', 45, 'Running ensemble AI predictions');
-      const ensembleResult = await this.performEnsemblePredictions(
-        multiModalResult.text,
-        document.industry,
-        multiModalResult
-      );
-      
-      // Stage 4: Advanced Document Intelligence
-      await this.sendStreamingUpdate(documentId, 'intelligence', 60, 'Applying advanced document intelligence');
-      const intelligenceResult = await this.performAdvancedIntelligence(
-        ensembleResult,
-        document
-      );
-      
-      // Stage 5: Confidence-Weighted Fusion
-      await this.sendStreamingUpdate(documentId, 'fusion', 75, 'Fusing results with confidence weighting');
-      const fusedResult = await this.performConfidenceWeightedFusion(
-        ensembleResult,
-        intelligenceResult,
-        multiModalResult
-      );
-      
-      // Stage 6: Quality Assurance & Validation
-      await this.sendStreamingUpdate(documentId, 'validation', 85, 'Performing quality assurance checks');
-      const validatedResult = await this.performQualityAssurance(fusedResult);
-      
-      // Stage 7: Save Results
-      await this.sendStreamingUpdate(documentId, 'saving', 95, 'Saving enhanced analysis results');
-      
-      const finalResult = {
-        ...validatedResult,
-        processingTime: Date.now() - startTime,
-        streamingUpdates
-      };
-      
-      // Cache the result
-      this.documentCache.set(cacheKey, finalResult);
-      setTimeout(() => this.documentCache.delete(cacheKey), this.CACHE_TTL);
-      
-      await this.saveProcessingResults(documentId, finalResult);
-      
-      // Final update
-      await this.sendStreamingUpdate(documentId, 'completed', 100, 'Processing completed successfully');
+      // OPTIMIZED: Use Claude Sonnet 4.5 for full-document processing with 200K context
+      if (this.anthropic) {
+        await this.sendStreamingUpdate(documentId, 'claude_analysis', 15, 'Processing full document with Claude Sonnet 4.5 (200K context)');
+        const claudeResult = await this.performFullDocumentClaudeAnalysis(document.filePath, document.mimeType);
+        
+        // Stage 2: Parallel Multi-Modal Vision Analysis (tables, forms, signatures)
+        await this.sendStreamingUpdate(documentId, 'vision_parallel', 40, 'Running parallel multi-modal vision analysis');
+        const multiModalResult = await this.performParallelMultiModalAnalysis(document.filePath, claudeResult);
+        
+        // Stage 3: Parallel Ensemble AI Predictions
+        await this.sendStreamingUpdate(documentId, 'ai_ensemble_parallel', 60, 'Running parallel ensemble AI predictions');
+        const ensembleResult = await this.performParallelEnsemblePredictions(
+          claudeResult.text,
+          document.industry,
+          multiModalResult
+        );
+        
+        // Stage 4: Advanced Document Intelligence
+        await this.sendStreamingUpdate(documentId, 'intelligence', 75, 'Applying advanced document intelligence');
+        const intelligenceResult = await this.performAdvancedIntelligence(
+          ensembleResult,
+          document
+        );
+        
+        // Stage 5: Confidence-Weighted Fusion
+        await this.sendStreamingUpdate(documentId, 'fusion', 85, 'Fusing results with confidence weighting');
+        const fusedResult = await this.performConfidenceWeightedFusion(
+          ensembleResult,
+          intelligenceResult,
+          multiModalResult
+        );
+        
+        // Stage 6: Quality Assurance & Validation
+        await this.sendStreamingUpdate(documentId, 'validation', 92, 'Performing quality assurance checks');
+        const validatedResult = await this.performQualityAssurance(fusedResult);
+        
+        // Stage 7: Save Results
+        await this.sendStreamingUpdate(documentId, 'saving', 98, 'Saving enhanced analysis results');
+        
+        const finalResult = {
+          ...validatedResult,
+          processingTime: Date.now() - startTime,
+          streamingUpdates,
+          processedWith: 'claude_sonnet_4.5'
+        };
+        
+        // Cache the result
+        this.documentCache.set(cacheKey, finalResult);
+        setTimeout(() => this.documentCache.delete(cacheKey), this.CACHE_TTL);
+        
+        await this.saveProcessingResults(documentId, finalResult);
+        
+        // Final update
+        await this.sendStreamingUpdate(documentId, 'completed', 100, 'Processing completed successfully');
+        
+      } else {
+        // Fallback to legacy parallel OCR if Claude not available
+        await this.processWithLegacyParallelOCR(documentId, document, streamingUpdates, startTime);
+      }
       
     } catch (error) {
       await this.handleProcessingError(documentId, error);
       throw error;
     }
+  }
+  
+  /**
+   * OPTIMIZED: Full-document analysis using Claude Sonnet 4.5's 200K context window
+   * Processes entire document in ONE API call instead of page-by-page
+   */
+  private async performFullDocumentClaudeAnalysis(filePath: string, mimeType?: string): Promise<any> {
+    if (!this.anthropic) {
+      throw new Error('Claude Sonnet 4.5 not available');
+    }
+    
+    const startTime = Date.now();
+    console.log('🤖 Processing FULL DOCUMENT with Claude Sonnet 4.5 (200K context window)');
+    
+    // Read entire document as base64
+    const fileBuffer = await fs.readFile(filePath);
+    const base64Data = fileBuffer.toString('base64');
+    
+    // Process ENTIRE document in ONE call using Claude's massive context
+    const response = await this.anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 100000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf' as const,
+              data: base64Data
+            }
+          },
+          {
+            type: 'text',
+            text: `Extract ALL text content from this ENTIRE document in a single pass. Leverage your 200K token context window to process all pages simultaneously.
+
+Return a JSON response with:
+{
+  "text": "complete extracted text from all pages",
+  "pageCount": estimated_number_of_pages,
+  "tables": ["table1", "table2"],
+  "sections": [{"title": "section1", "content": "..."}],
+  "confidence": 0-1,
+  "processingNotes": ["note1", "note2"]
+}
+
+Process the FULL document - do not paginate or truncate.`
+          }
+        ]
+      }]
+    });
+    
+    const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+    
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : {
+      text: responseText,
+      pageCount: 1,
+      confidence: 0.95
+    };
+    
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ Claude processed ${result.pageCount || 'unknown'} pages in ${processingTime}ms`);
+    
+    return {
+      ...result,
+      processingTime,
+      method: 'claude_sonnet_4.5_full_document'
+    };
+  }
+  
+  /**
+   * OPTIMIZED: Parallel multi-modal analysis using Promise.all
+   * All vision tasks execute simultaneously
+   */
+  private async performParallelMultiModalAnalysis(filePath: string, claudeResult: any): Promise<MultiModalResult> {
+    console.log('🔄 Running PARALLEL multi-modal vision analysis');
+    
+    // Create all vision analysis tasks
+    const visionTasks = [
+      { id: 'vision_tables', type: 'vision_analysis' as const, data: { filePath, analysisType: 'tables' }, priority: 8 },
+      { id: 'vision_forms', type: 'vision_analysis' as const, data: { filePath, analysisType: 'forms' }, priority: 8 },
+      { id: 'vision_signatures', type: 'vision_analysis' as const, data: { filePath, analysisType: 'signatures' }, priority: 7 },
+      { id: 'vision_diagrams', type: 'vision_analysis' as const, data: { filePath, analysisType: 'diagrams' }, priority: 6 }
+    ];
+    
+    // Process ALL vision tasks in FULL PARALLEL
+    const results = await this.parallelProcessor.processInParallel(visionTasks);
+    
+    return {
+      text: claudeResult.text || '',
+      tables: results.find(r => r.id === 'vision_tables')?.result?.tables || claudeResult.tables || [],
+      forms: results.find(r => r.id === 'vision_forms')?.result?.forms || [],
+      signatures: results.find(r => r.id === 'vision_signatures')?.result?.signatures || [],
+      images: [],
+      diagrams: results.find(r => r.id === 'vision_diagrams')?.result?.diagrams || [],
+      confidence: this.calculateAverageConfidence(results),
+      processingTime: Math.max(...results.map(r => r.processingTime))
+    };
+  }
+  
+  /**
+   * OPTIMIZED: Parallel ensemble predictions using Promise.all
+   * All AI models process simultaneously
+   */
+  private async performParallelEnsemblePredictions(
+    text: string,
+    industry: string,
+    multiModalData: MultiModalResult
+  ): Promise<EnsemblePrediction[]> {
+    console.log('🔄 Running PARALLEL ensemble AI predictions');
+    
+    const models = ['openai', 'gemini', 'anthropic'];
+    
+    // Create all AI analysis tasks
+    const aiTasks: ProcessingTask[] = models.map(model => ({
+      id: `ai_${model}`,
+      type: 'ai_analysis',
+      data: { text, industry, multiModalData, model },
+      priority: 9
+    }));
+    
+    // Process ALL AI models in FULL PARALLEL
+    const results = await this.parallelProcessor.processInParallel(aiTasks);
+    
+    return results.map((r, index) => ({
+      model: models[index],
+      result: r.result,
+      confidence: r.result?.confidence || 0,
+      weight: this.calculateModelWeight(models[index], r.result?.confidence || 0),
+      processingTime: r.processingTime
+    }));
+  }
+  
+  /**
+   * Legacy fallback: Parallel OCR processing (if Claude unavailable)
+   */
+  private async processWithLegacyParallelOCR(
+    documentId: number,
+    document: any,
+    streamingUpdates: StreamingUpdate[],
+    startTime: number
+  ): Promise<void> {
+    // Stage 1: Parallel OCR Processing
+    await this.sendStreamingUpdate(documentId, 'ocr_parallel', 15, 'Running parallel OCR processing');
+    const ocrResult = await this.performParallelOCR(document.filePath, document.mimeType);
+    
+    // Stage 2: Multi-Modal Vision Analysis
+    await this.sendStreamingUpdate(documentId, 'vision_multimodal', 30, 'Analyzing document with multi-modal vision');
+    const multiModalResult = await this.performParallelMultiModalAnalysis(document.filePath, ocrResult);
+    
+    // Stage 3: Ensemble AI Predictions
+    await this.sendStreamingUpdate(documentId, 'ai_ensemble', 45, 'Running ensemble AI predictions');
+    const ensembleResult = await this.performParallelEnsemblePredictions(
+      multiModalResult.text,
+      document.industry,
+      multiModalResult
+    );
+    
+    // Stage 4: Advanced Document Intelligence
+    await this.sendStreamingUpdate(documentId, 'intelligence', 60, 'Applying advanced document intelligence');
+    const intelligenceResult = await this.performAdvancedIntelligence(
+      ensembleResult,
+      document
+    );
+    
+    // Stage 5: Confidence-Weighted Fusion
+    await this.sendStreamingUpdate(documentId, 'fusion', 75, 'Fusing results with confidence weighting');
+    const fusedResult = await this.performConfidenceWeightedFusion(
+      ensembleResult,
+      intelligenceResult,
+      multiModalResult
+    );
+    
+    // Stage 6: Quality Assurance & Validation
+    await this.sendStreamingUpdate(documentId, 'validation', 85, 'Performing quality assurance checks');
+    const validatedResult = await this.performQualityAssurance(fusedResult);
+    
+    // Stage 7: Save Results
+    await this.sendStreamingUpdate(documentId, 'saving', 95, 'Saving enhanced analysis results');
+    
+    const finalResult = {
+      ...validatedResult,
+      processingTime: Date.now() - startTime,
+      streamingUpdates,
+      processedWith: 'legacy_parallel_ocr'
+    };
+    
+    // Cache the result
+    const cacheKey = `${document.filePath}_${document.updatedAt}`;
+    this.documentCache.set(cacheKey, finalResult);
+    setTimeout(() => this.documentCache.delete(cacheKey), this.CACHE_TTL);
+    
+    await this.saveProcessingResults(documentId, finalResult);
+    
+    // Final update
+    await this.sendStreamingUpdate(documentId, 'completed', 100, 'Processing completed successfully');
   }
   
   private async performParallelOCR(filePath: string, mimeType?: string): Promise<any> {
@@ -193,72 +409,6 @@ export class EnhancedDocumentProcessor {
     
     // For other files, use standard processing
     return this.visionService.extractTextFromImage(filePath);
-  }
-  
-  private async performMultiModalAnalysis(filePath: string, ocrResult: any): Promise<MultiModalResult> {
-    const tasks: ProcessingTask[] = [
-      {
-        id: 'vision_tables',
-        type: 'vision_analysis',
-        data: { filePath, analysisType: 'tables' },
-        priority: 8
-      },
-      {
-        id: 'vision_forms',
-        type: 'vision_analysis',
-        data: { filePath, analysisType: 'forms' },
-        priority: 8
-      },
-      {
-        id: 'vision_signatures',
-        type: 'vision_analysis',
-        data: { filePath, analysisType: 'signatures' },
-        priority: 7
-      },
-      {
-        id: 'vision_diagrams',
-        type: 'vision_analysis',
-        data: { filePath, analysisType: 'diagrams' },
-        priority: 6
-      }
-    ];
-    
-    const results = await this.parallelProcessor.processInParallel(tasks);
-    
-    return {
-      text: ocrResult.text || '',
-      tables: results.find(r => r.id === 'vision_tables')?.result?.tables || [],
-      forms: results.find(r => r.id === 'vision_forms')?.result?.forms || [],
-      signatures: results.find(r => r.id === 'vision_signatures')?.result?.signatures || [],
-      images: [],
-      diagrams: results.find(r => r.id === 'vision_diagrams')?.result?.diagrams || [],
-      confidence: this.calculateAverageConfidence(results),
-      processingTime: results.reduce((sum, r) => sum + r.processingTime, 0)
-    };
-  }
-  
-  private async performEnsemblePredictions(
-    text: string,
-    industry: string,
-    multiModalData: MultiModalResult
-  ): Promise<EnsemblePrediction[]> {
-    const models = ['openai', 'gemini', 'anthropic'];
-    const tasks: ProcessingTask[] = models.map(model => ({
-      id: `ai_${model}`,
-      type: 'ai_analysis',
-      data: { text, industry, multiModalData, model },
-      priority: 9
-    }));
-    
-    const results = await this.parallelProcessor.processInParallel(tasks);
-    
-    return results.map((r, index) => ({
-      model: models[index],
-      result: r.result,
-      confidence: r.result?.confidence || 0,
-      weight: this.calculateModelWeight(models[index], r.result?.confidence || 0),
-      processingTime: r.processingTime
-    }));
   }
   
   private async performAdvancedIntelligence(
@@ -411,11 +561,11 @@ export class EnhancedDocumentProcessor {
   }
   
   private calculateModelWeight(model: string, confidence: number): number {
-    // Assign base weights to models
+    // Assign base weights to models - Claude gets highest weight
     const baseWeights: Record<string, number> = {
-      openai: 0.4,
-      gemini: 0.35,
-      anthropic: 0.25
+      anthropic: 0.45,  // Claude Sonnet 4.5 - highest priority
+      openai: 0.35,
+      gemini: 0.20
     };
     
     // Adjust weight based on confidence

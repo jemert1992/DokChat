@@ -183,14 +183,15 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Button 
-                  variant="ghost" 
-                  size="icon" 
+                  variant="outline" 
                   onClick={() => setLocation('/dashboard')}
                   data-testid="button-back"
+                  className="gap-2"
                 >
                   <i className="fas fa-arrow-left"></i>
+                  Back to Dashboard
                 </Button>
-                <div>
+                <div className="border-l border-border pl-4">
                   <h1 className="text-2xl font-bold text-foreground" data-testid="text-analysis-title">
                     Document Analysis
                   </h1>

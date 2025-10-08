@@ -33,7 +33,9 @@ import {
   type InsertDocumentVersion,
   type InsertCollaborationSession,
   type InsertDocumentAnnotation,
-  type InsertNotification
+  type InsertNotification,
+  processingMetrics,
+  processingReports
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -41,6 +43,8 @@ import testAIEndpoints from "./test-ai-endpoints";
 import testMultiLanguageEndpoints from "./test-multilanguage-comprehensive";
 import fs from "fs/promises";
 import sharp from "sharp";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 // Rate limiters for different endpoint types
 const authLimiter = rateLimit({
@@ -573,6 +577,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching template-free analysis:", error);
       res.status(500).json({ message: "Failed to fetch template-free analysis" });
+    }
+  });
+
+  // Get processing metrics and AI-generated reports for a document
+  app.get('/api/documents/:id/processing-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user.id;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // CRITICAL SECURITY: Verify document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (document.userId !== userId) {
+        return res.status(403).json({ message: "Access denied - you do not own this document" });
+      }
+
+      // Get processing metrics
+      const metrics = await db
+        .select()
+        .from(processingMetrics)
+        .where(eq(processingMetrics.documentId, documentId));
+
+      // Get processing reports
+      const reports = await db
+        .select()
+        .from(processingReports)
+        .where(eq(processingReports.documentId, documentId))
+        .orderBy(desc(processingReports.createdAt))
+        .limit(1);
+
+      const report = reports[0] || null;
+
+      res.json({
+        documentId,
+        metrics: metrics || [],
+        report: report || null,
+        hasReport: !!report,
+        totalMetrics: metrics?.length || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching processing report:", error);
+      res.status(500).json({ message: "Failed to fetch processing report" });
     }
   });
 

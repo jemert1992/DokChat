@@ -157,39 +157,47 @@ export class EntityExtractionService {
         }
       };
 
-      for (const [category, pattern] of Object.entries(medicalPatterns)) {
-        let match;
-        while ((match = pattern.regex.exec(extractedText)) !== null) {
-          const entityValue = match[1] || match[2] || match[3] || match[0];
-          if (entityValue && entityValue.trim().length > 2) {
-            entities.push({
-              entityType: pattern.type,
-              entityValue: entityValue.trim(),
-              confidenceScore: this.calculateMedicalConfidence(pattern.type, entityValue),
-              medicalCode: this.extractMedicalCode(pattern.type, entityValue),
-              clinicalContext: this.extractClinicalContext(extractedText, match.index || 0),
-              clinicalSignificance: pattern.significance,
-              locationData: { 
-                startIndex: match.index, 
-                endIndex: (match.index || 0) + match[0].length 
+      // SPEED OPTIMIZATION: Run all extractions in parallel
+      console.log('🏥 Running parallel medical entity extraction');
+      
+      const [regexEntities, aiEnhancedEntities, phiEntities, clinicalEntities] = await Promise.all([
+        // 1. Regex extraction (synchronous, so wrap in Promise)
+        Promise.resolve().then(() => {
+          const regexResults: MedicalEntityResult[] = [];
+          for (const [category, pattern] of Object.entries(medicalPatterns)) {
+            let match;
+            while ((match = pattern.regex.exec(extractedText)) !== null) {
+              const entityValue = match[1] || match[2] || match[3] || match[0];
+              if (entityValue && entityValue.trim().length > 2) {
+                regexResults.push({
+                  entityType: pattern.type,
+                  entityValue: entityValue.trim(),
+                  confidenceScore: this.calculateMedicalConfidence(pattern.type, entityValue),
+                  medicalCode: this.extractMedicalCode(pattern.type, entityValue),
+                  clinicalContext: this.extractClinicalContext(extractedText, match.index || 0),
+                  clinicalSignificance: pattern.significance,
+                  locationData: { 
+                    startIndex: match.index, 
+                    endIndex: (match.index || 0) + match[0].length 
+                  }
+                });
               }
-            });
+            }
           }
-        }
-      }
-
-      // REVOLUTIONARY: AI-powered entity extraction with industry intelligence
-      console.log('🏥 Applying revolutionary medical AI entity extraction');
-      const aiEnhancedEntities = await this.enhanceEntitiesWithAI(entities, extractedText, 'medical');
-      entities.push(...aiEnhancedEntities);
-
-      // Enhanced HIPAA-compliant PHI detection
-      const phiEntities = await this.detectAdvancedPHI(extractedText);
-      entities.push(...phiEntities);
-
-      // Medical terminology processing with clinical context
-      const clinicalEntities = await this.extractClinicalEntities(extractedText);
-      entities.push(...clinicalEntities);
+          return regexResults;
+        }),
+        
+        // 2. AI enhancement
+        this.enhanceEntitiesWithAI([], extractedText, 'medical'),
+        
+        // 3. PHI detection
+        this.detectAdvancedPHI(extractedText),
+        
+        // 4. Clinical extraction
+        this.extractClinicalEntities(extractedText)
+      ]);
+      
+      entities.push(...regexEntities, ...aiEnhancedEntities, ...phiEntities, ...clinicalEntities);
 
     } catch (error) {
       console.error('❌ Error in revolutionary medical entity extraction:', error);
@@ -234,26 +242,33 @@ export class EntityExtractionService {
         }
       };
 
-      for (const [category, pattern] of Object.entries(legalPatterns)) {
-        let match;
-        while ((match = pattern.regex.exec(extractedText)) !== null) {
-          const entityValue = match[1] || match[0];
-          if (entityValue && entityValue.trim().length > 2) {
-            entities.push({
-              entityType: pattern.type,
-              entityValue: entityValue.trim(),
-              confidenceScore: this.calculateLegalConfidence(pattern.type, entityValue),
-              legalContext: this.extractLegalContext(extractedText, match.index || 0),
-              jurisdiction: this.extractJurisdiction(extractedText),
-              caseReferences: this.extractCaseReferences(extractedText),
-              locationData: { 
-                startIndex: match.index, 
-                endIndex: (match.index || 0) + match[0].length 
-              }
-            });
+      // SPEED OPTIMIZATION: Run extractions in parallel
+      const regexResults = await Promise.resolve().then(() => {
+        const results: LegalEntityResult[] = [];
+        for (const [category, pattern] of Object.entries(legalPatterns)) {
+          let match;
+          while ((match = pattern.regex.exec(extractedText)) !== null) {
+            const entityValue = match[1] || match[0];
+            if (entityValue && entityValue.trim().length > 2) {
+              results.push({
+                entityType: pattern.type,
+                entityValue: entityValue.trim(),
+                confidenceScore: this.calculateLegalConfidence(pattern.type, entityValue),
+                legalContext: this.extractLegalContext(extractedText, match.index || 0),
+                jurisdiction: this.extractJurisdiction(extractedText),
+                caseReferences: this.extractCaseReferences(extractedText),
+                locationData: { 
+                  startIndex: match.index, 
+                  endIndex: (match.index || 0) + match[0].length 
+                }
+              });
+            }
           }
         }
-      }
+        return results;
+      });
+      
+      entities.push(...regexResults);
 
     } catch (error) {
       console.error('Error extracting legal entities:', error);
@@ -305,27 +320,34 @@ export class EntityExtractionService {
         }
       };
 
-      for (const [category, pattern] of Object.entries(logisticsPatterns)) {
-        let match;
-        while ((match = pattern.regex.exec(extractedText)) !== null) {
-          const entityValue = match[1] || match[0];
-          if (entityValue && entityValue.trim().length > 1) {
-            entities.push({
-              entityType: pattern.type,
-              entityValue: entityValue.trim(),
-              confidenceScore: this.calculateLogisticsConfidence(pattern.type, entityValue),
-              hsCode: this.extractHSCode(pattern.type, entityValue),
-              countryCode: this.extractCountryCode(entityValue),
-              trackingInfo: this.extractTrackingInfo(pattern.type, entityValue),
-              complianceFlags: this.checkComplianceFlags(pattern.type, entityValue),
-              locationData: { 
-                startIndex: match.index, 
-                endIndex: (match.index || 0) + match[0].length 
-              }
-            });
+      // SPEED OPTIMIZATION: Run extractions in parallel
+      const regexResults = await Promise.resolve().then(() => {
+        const results: LogisticsEntityResult[] = [];
+        for (const [category, pattern] of Object.entries(logisticsPatterns)) {
+          let match;
+          while ((match = pattern.regex.exec(extractedText)) !== null) {
+            const entityValue = match[1] || match[0];
+            if (entityValue && entityValue.trim().length > 1) {
+              results.push({
+                entityType: pattern.type,
+                entityValue: entityValue.trim(),
+                confidenceScore: this.calculateLogisticsConfidence(pattern.type, entityValue),
+                hsCode: this.extractHSCode(pattern.type, entityValue),
+                countryCode: this.extractCountryCode(entityValue),
+                trackingInfo: this.extractTrackingInfo(pattern.type, entityValue),
+                complianceFlags: this.checkComplianceFlags(pattern.type, entityValue),
+                locationData: { 
+                  startIndex: match.index, 
+                  endIndex: (match.index || 0) + match[0].length 
+                }
+              });
+            }
           }
         }
-      }
+        return results;
+      });
+      
+      entities.push(...regexResults);
 
     } catch (error) {
       console.error('Error extracting logistics entities:', error);

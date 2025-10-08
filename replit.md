@@ -101,6 +101,14 @@ The platform adapts through configuration-driven customization for:
     -   **Optimized Routing**: Classification and cache checks run in parallel (Promise.all), non-blocking saves
     -   **Fast Mode Default**: Try parallel model racing first, only fall back to traditional routing on failure
     -   **Target Performance**: Sub-15 second processing for standard documents using hot-started AI models
+-   **Enhanced Processing Status (October 2025)**: Comprehensive real-time processing visibility:
+    -   **6-Stage Progress Tracking**: Upload (10%) → Classification (20%) → Extraction (30-50%) → Analysis (60-75%) → Verification (85-90%) → Finalization (90-100%)
+    -   **Visual Stage Indicators**: Each stage shows checkmark (completed), spinner (active), or outline (pending) with color-coded status
+    -   **Time Estimates**: Real-time elapsed time counter and estimated time remaining based on current progress
+    -   **Stage-Specific Messages**: Detailed descriptions for each processing stage (e.g., "Extracting text with AI models", "Validating extracted data")
+    -   **WebSocket Real-Time Updates**: Live progress updates via WebSocket with fallback to API polling for reliability
+    -   **Progress Percentage Display**: Large, prominent progress percentage with smooth progress bar animation
+    -   **Enhanced UX**: Users see exactly what's happening at each stage with clear visual feedback and time expectations
 
 ## External Dependencies
 

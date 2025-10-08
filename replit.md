@@ -91,6 +91,16 @@ The platform adapts through configuration-driven customization for:
     -   **Adaptive Tool Orchestration**: Sonnet self-plans processing strategy (batch/parallel/sequential) dynamically
     -   **Context Window Maximization**: 180K token batching with intelligent grouping to minimize API calls
     -   **Quality Metrics**: Transparent OCR quality scores, AI confidence, and extraction confidence per page
+-   **Speed Optimizations (October 2025)**: Revolutionary performance improvements for sub-15s processing:
+    -   **Hot Start with Warm LLM Sessions**: Persistent connections to Claude, Gemini, and OpenAI preloaded on app startup
+    -   **Model Preloading**: Test prompts sent to all models on startup to keep containers loaded and ready
+    -   **Heartbeat Mechanism**: Automatic pings every 3 minutes to prevent cold starts
+    -   **Parallel Model Racing**: Fire all available models simultaneously, use the fastest response (Promise.race pattern)
+    -   **Low-Latency Failover**: Aggressive 12-second timeout with automatic fallback to OCR on timeout
+    -   **Zero Blocking Messages**: Removed all "initializing transformer" messages, show simple progress updates
+    -   **Optimized Routing**: Classification and cache checks run in parallel (Promise.all), non-blocking saves
+    -   **Fast Mode Default**: Try parallel model racing first, only fall back to traditional routing on failure
+    -   **Target Performance**: Sub-15 second processing for standard documents using hot-started AI models
 
 ## External Dependencies
 

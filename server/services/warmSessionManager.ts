@@ -140,11 +140,11 @@ export class WarmSessionManager {
         } catch (error) {
           console.warn('Claude heartbeat failed');
         }
-      }, 180000); // 3 minutes
+      }, 60000); // 1 minute (faster heartbeat for better responsiveness)
       this.heartbeatIntervals.push(interval);
     }
     
-    // Gemini heartbeat every 3 minutes
+    // Gemini heartbeat every 1 minute
     if (this.gemini) {
       const interval = setInterval(async () => {
         try {
@@ -155,7 +155,7 @@ export class WarmSessionManager {
         } catch (error) {
           console.warn('Gemini heartbeat failed');
         }
-      }, 180000);
+      }, 60000); // 1 minute (faster heartbeat for better responsiveness)
       this.heartbeatIntervals.push(interval);
     }
   }

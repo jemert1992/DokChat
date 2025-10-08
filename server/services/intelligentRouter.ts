@@ -908,40 +908,71 @@ Respond with ONLY the JSON, no additional text.`
     const startTime = Date.now();
     progressCallback?.(5, 'Initializing intelligent batching with Sonnet 4.5...');
 
-    // Step 1: Extract text from all pages (using Vision/OCR as initial pass)
+    // SPEED OPTIMIZATION: Send PDF directly to Claude instead of Vision extraction
     const fileExt = path.extname(filePath).toLowerCase();
-    progressCallback?.(10, 'Extracting text from all pages...');
+    progressCallback?.(10, 'Extracting text with Claude AI...');
 
     let pages: any[] = [];
-    if (fileExt === '.pdf') {
-      const ocrResult = await this.visionService.extractTextFromPDFLimited(
-        filePath,
-        250,
-        (current, total) => {
-          const progress = 10 + Math.round((current / total) * 30);
-          progressCallback?.(progress, `Extracting page ${current}/${total}...`);
-        }
-      );
+    
+    // Check if PDF has text layer
+    const hasTextLayer = fileExt === '.pdf' ? await this.checkPDFTextLayer(filePath) : false;
+    
+    if (fileExt === '.pdf' && hasTextLayer) {
+      // SPEED BOOST: Send PDF directly to Claude (skip Vision)
+      const fileBuffer = await fs.readFile(filePath);
+      const base64Data = fileBuffer.toString('base64');
       
-      // Convert OCR result to page format (split by page breaks or use blocks)
-      const pageTexts = ocrResult.text.split(/\n--- PAGE \d+ ---\n/).filter(Boolean);
+      progressCallback?.(20, 'Processing PDF with Claude AI...');
+      
+      const stream = await this.anthropic!.messages.stream({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 64000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf' as const,
+                data: base64Data
+              }
+            },
+            {
+              type: 'text',
+              text: 'Extract all text content from this document. Separate each page with "--- PAGE X ---" markers. Preserve formatting and structure. Return the complete text.'
+            }
+          ]
+        }]
+      });
+
+      let extractedText = '';
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+          extractedText += chunk.delta.text;
+        }
+      }
+      
+      // Split by page markers
+      const pageTexts = extractedText.split(/\n?--- PAGE \d+ ---\n?/).filter(Boolean);
       pages = pageTexts.map((pageText: string, index: number) => ({
         pageNumber: index + 1,
         text: pageText.trim(),
-        confidence: ocrResult.confidence || 0.8,
-        source: 'vision'
+        confidence: 0.95,
+        source: 'native'
       }));
       
-      // If no page markers found, treat entire text as single page
       if (pages.length === 0) {
         pages = [{
           pageNumber: 1,
-          text: ocrResult.text,
-          confidence: ocrResult.confidence,
-          source: 'vision'
+          text: extractedText,
+          confidence: 0.95,
+          source: 'native'
         }];
       }
     } else {
+      // Fallback to Vision for images or scanned PDFs
+      progressCallback?.(10, 'Using Vision for scanned document...');
       const ocrResult = await this.visionService.extractTextFromImage(filePath);
       pages = [{
         pageNumber: 1,

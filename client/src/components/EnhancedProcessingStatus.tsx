@@ -16,42 +16,42 @@ const PROCESSING_STAGES: ProcessingStage[] = [
     id: "upload",
     name: "Upload Complete",
     description: "Document received and validated",
-    progress: 10,
+    progress: 0,
     estimatedDuration: 1,
   },
   {
     id: "classification",
     name: "Document Classification",
     description: "Analyzing document type and structure",
-    progress: 20,
+    progress: 10,
     estimatedDuration: 2,
   },
   {
     id: "extraction",
     name: "Text Extraction",
     description: "Extracting text with AI models",
-    progress: 50,
+    progress: 20,
     estimatedDuration: 8,
   },
   {
     id: "analysis",
     name: "AI Analysis",
     description: "Deep semantic analysis and entity extraction",
-    progress: 75,
+    progress: 50,
     estimatedDuration: 5,
   },
   {
     id: "verification",
     name: "Quality Verification",
     description: "Validating extracted data",
-    progress: 90,
+    progress: 75,
     estimatedDuration: 2,
   },
   {
     id: "finalization",
     name: "Finalizing Results",
     description: "Saving and indexing document",
-    progress: 100,
+    progress: 90,
     estimatedDuration: 1,
   },
 ];
@@ -150,9 +150,9 @@ export function EnhancedProcessingStatus({
         {/* Processing Stages */}
         <div className="space-y-3">
           {PROCESSING_STAGES.map((stage, index) => {
-            const isCompleted = progress > stage.progress;
             const isCurrent = currentStage.id === stage.id;
-            const isUpcoming = progress < stage.progress;
+            const isCompleted = !isCurrent && progress >= stage.progress;
+            const isUpcoming = !isCurrent && !isCompleted;
 
             return (
               <div

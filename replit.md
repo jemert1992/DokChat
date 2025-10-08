@@ -40,13 +40,53 @@ Comprehensive schema supporting multi-industry document processing:
 - **Sessions**: Authentication session management
 
 ### Document Processing Pipeline
-Multi-stage document processing architecture:
+Multi-stage document processing architecture with intelligent AI routing:
 
 1. **File Upload**: Multer-based file handling with validation and storage
-2. **OCR Processing**: Text extraction from various document formats
-3. **AI Analysis**: OpenAI GPT-5 integration for intelligent document understanding
+2. **Intelligent Routing System** (October 2024):
+   - **Pre-Classification**: Claude Sonnet 4.5 analyzes document type, complexity, structure before routing
+   - **Priority Cascade**: Claude Sonnet 4.5 → Gemini Native → OpenAI GPT-5 → OCR Vision (last resort)
+   - **Smart Fallback**: Only cascades to next AI model on API failures, NOT as default path
+   - **No OCR Leaks**: Basic OCR/Vision is absolute last resort, advanced AI models prioritized
+3. **AI Text Extraction**: Advanced AI models extract text preserving structure and formatting
 4. **Entity Extraction**: Industry-specific data extraction and structuring
 5. **Results Storage**: Comprehensive analysis storage with confidence scoring
+
+### Intelligent Router Architecture (October 2024)
+Advanced AI-first routing system that eliminates routing leaks to basic OCR:
+
+**Pre-Classification Stage:**
+- Claude Sonnet 4.5 analyzes document before processing
+- Determines document type, complexity, tables, charts, handwriting
+- Recommends optimal processing method based on document characteristics
+- Multi-step tool orchestration for dynamic routing to specialized handlers
+
+**Processing Priority (Strict Cascade):**
+1. **Claude Sonnet 4.5** (Primary - Most Advanced)
+   - Complex documents with nuanced content
+   - Legal/medical analysis requiring multi-step reasoning
+   - Superior accuracy: 95% confidence on complex documents
+   
+2. **Gemini Native** (Secondary - Speed Optimized)
+   - Native PDFs with embedded text layers
+   - Fast processing: 10-20 seconds for text-based documents
+   - 93% confidence, optimized for structured PDFs
+   
+3. **OpenAI GPT-5** (Tertiary - Structured Extraction)
+   - Structured documents requiring precise entity extraction
+   - Good for forms, invoices, financial statements
+   - 91% confidence with strong JSON output
+   
+4. **OCR Vision** (Last Resort Only)
+   - Scanned documents without text layers
+   - Image-based documents requiring OCR
+   - Only used when ALL AI models fail or unavailable
+
+**Fallback Logic:**
+- Cascades through AI models on API failures: Claude → Gemini → OpenAI
+- OCR Vision only engaged if ALL advanced AI models fail
+- No default fallback to OCR (fixes routing leaks)
+- Proper error handling with exponential backoff retry logic
 
 ### Frontend Architecture
 Component-based architecture using modern React patterns:

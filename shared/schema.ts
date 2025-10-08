@@ -168,14 +168,41 @@ export const apiCostTracking = pgTable("api_cost_tracking", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").references(() => documents.id),
   userId: varchar("user_id").references(() => users.id).notNull(),
-  apiService: varchar("api_service", { length: 50 }).notNull(), // 'vision_api', 'gemini', 'claude', etc.
-  operationType: varchar("operation_type", { length: 50 }).notNull(), // 'ocr', 'analysis', 'classification', etc.
-  pageCount: integer("page_count"),
-  tokenCount: integer("token_count"),
-  estimatedCost: real("estimated_cost").notNull(),
-  actualCost: real("actual_cost"),
-  currency: varchar("currency", { length: 3 }).default('USD'),
+  service: varchar("service", { length: 50 }).notNull(), // 'vision_api', 'gemini', 'claude', etc.
+  operation: varchar("operation", { length: 50 }).notNull(), // 'ocr', 'analysis', 'classification', etc.
+  costUsd: real("cost_usd").notNull(),
+  tokensUsed: integer("tokens_used"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Processing Metrics - Detailed page/section level tracking
+export const processingMetrics = pgTable("processing_metrics", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  pageNumber: integer("page_number"),
+  sectionName: varchar("section_name", { length: 255 }),
+  processingMethod: varchar("processing_method", { length: 50 }).notNull(), // 'vision', 'sonnet', 'nlp', 'ocr'
+  confidence: real("confidence").notNull(),
+  textExtracted: integer("text_extracted"),
+  errors: jsonb("errors"), // Array of error objects
+  unresolvedFields: jsonb("unresolved_fields"), // Array of field names that couldn't be extracted
+  processingTime: integer("processing_time"), // milliseconds
   metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Processing Reports - AI-generated summaries
+export const processingReports = pgTable("processing_reports", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  reportType: varchar("report_type", { length: 50 }).notNull(), // 'quality', 'error_summary', 'confidence_breakdown'
+  overallConfidence: real("overall_confidence"),
+  methodBreakdown: jsonb("method_breakdown"), // { vision: 0.95, sonnet: 0.92, nlp: 0.88, ocr: 0.75 }
+  errorSummary: text("error_summary"), // AI-generated summary of all errors
+  unresolvedFieldsSummary: text("unresolved_fields_summary"), // AI-generated summary of unresolved fields
+  recommendations: jsonb("recommendations"), // AI suggestions for improvement
+  pageMetrics: jsonb("page_metrics"), // Per-page confidence breakdown
+  sectionMetrics: jsonb("section_metrics"), // Per-section confidence breakdown
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -315,6 +342,12 @@ export type ChatSession = typeof chatSessions.$inferSelect;
 
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+export type InsertProcessingMetric = typeof processingMetrics.$inferInsert;
+export type ProcessingMetric = typeof processingMetrics.$inferSelect;
+
+export type InsertProcessingReport = typeof processingReports.$inferInsert;
+export type ProcessingReport = typeof processingReports.$inferSelect;
 
 // Medical Industry Types
 export type InsertMedicalDocument = typeof medicalDocuments.$inferInsert;

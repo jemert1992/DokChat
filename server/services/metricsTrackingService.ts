@@ -135,6 +135,50 @@ export class MetricsTrackingService {
   }
 
   /**
+   * Track batch processing efficiency metrics
+   */
+  async trackBatchProcessing(
+    documentId: number,
+    batchData: {
+      strategy: string;
+      apiCallsUsed: number;
+      apiCallsSaved: number;
+      pageCount: number;
+      overallConfidence: number;
+      selfEvaluationScore?: number;
+      processingTime: number;
+      adaptivePlan?: any;
+      fallbacksTriggered?: number;
+    }
+  ): Promise<void> {
+    try {
+      await this.trackMetric({
+        documentId,
+        sectionName: 'batch_processing',
+        processingMethod: 'sonnet',
+        confidence: batchData.overallConfidence,
+        processingTime: batchData.processingTime,
+        metadata: {
+          batchingStrategy: batchData.strategy,
+          apiCallsUsed: batchData.apiCallsUsed,
+          apiCallsSaved: batchData.apiCallsSaved,
+          pageCount: batchData.pageCount,
+          efficiency: `${Math.round((batchData.apiCallsSaved / (batchData.apiCallsUsed + batchData.apiCallsSaved)) * 100)}%`,
+          selfEvaluationScore: batchData.selfEvaluationScore,
+          adaptivePlan: batchData.adaptivePlan,
+          fallbacksTriggered: batchData.fallbacksTriggered || 0,
+        },
+      });
+
+      console.log(
+        `🚀 Batch processing tracked: ${batchData.apiCallsUsed} calls (saved ${batchData.apiCallsSaved}), ${batchData.pageCount} pages`
+      );
+    } catch (error) {
+      console.error("Error tracking batch processing:", error);
+    }
+  }
+
+  /**
    * Detect processing method from various inputs
    */
   private detectProcessingMethod(method?: string): 'vision' | 'sonnet' | 'nlp' | 'ocr' {

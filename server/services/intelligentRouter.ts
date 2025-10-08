@@ -5,6 +5,7 @@ import { VisionService } from './visionService';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { metricsTrackingService } from './metricsTrackingService';
+import { sonnetBatchingService } from './sonnetBatchingService';
 
 export type ProcessingMethod = 'claude_sonnet' | 'gemini_native' | 'openai_gpt5' | 'ocr_vision';
 
@@ -680,6 +681,202 @@ Respond with ONLY the JSON, no additional text.`
         processingTime,
         handwritingDetected: ocrResult.handwritingDetected,
         language: ocrResult.language
+      }
+    };
+  }
+
+  /**
+   * OPTIMIZED: Batched processing with Sonnet 4.5 (adaptive planning + self-evaluation)
+   * Uses long context window (200K tokens) to process multiple pages in one call
+   */
+  async processWithSonnetBatching(
+    filePath: string,
+    industry: string,
+    documentId: number,
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<{
+    text: string;
+    confidence: number;
+    extractedData: any;
+    metadata: any;
+  }> {
+    if (!this.anthropic) {
+      throw new Error('Claude API not available for batching');
+    }
+
+    const startTime = Date.now();
+    progressCallback?.(5, 'Initializing intelligent batching with Sonnet 4.5...');
+
+    // Step 1: Extract text from all pages (using Vision/OCR as initial pass)
+    const fileExt = path.extname(filePath).toLowerCase();
+    progressCallback?.(10, 'Extracting text from all pages...');
+
+    let pages: any[] = [];
+    if (fileExt === '.pdf') {
+      const ocrResult = await this.visionService.extractTextFromPDFLimited(
+        filePath,
+        250,
+        (current, total) => {
+          const progress = 10 + Math.round((current / total) * 30);
+          progressCallback?.(progress, `Extracting page ${current}/${total}...`);
+        }
+      );
+      
+      // Convert OCR result to page format (split by page breaks or use blocks)
+      const pageTexts = ocrResult.text.split(/\n--- PAGE \d+ ---\n/).filter(Boolean);
+      pages = pageTexts.map((pageText: string, index: number) => ({
+        pageNumber: index + 1,
+        text: pageText.trim(),
+        confidence: ocrResult.confidence || 0.8,
+        source: 'vision'
+      }));
+      
+      // If no page markers found, treat entire text as single page
+      if (pages.length === 0) {
+        pages = [{
+          pageNumber: 1,
+          text: ocrResult.text,
+          confidence: ocrResult.confidence,
+          source: 'vision'
+        }];
+      }
+    } else {
+      const ocrResult = await this.visionService.extractTextFromImage(filePath);
+      pages = [{
+        pageNumber: 1,
+        text: ocrResult.text,
+        confidence: ocrResult.confidence,
+        source: 'vision'
+      }];
+    }
+
+    progressCallback?.(40, `Processing ${pages.length} pages with Sonnet batching...`);
+
+    // Step 2: Use Sonnet batching service for intelligent processing
+    const batchResult = await sonnetBatchingService.processDocumentIntelligently(
+      pages,
+      industry,
+      documentId
+    );
+
+    progressCallback?.(70, 'Analyzing results and checking for re-analysis needs...');
+
+    // Step 3: Handle adaptive plan fallback recommendations FIRST
+    let fallbacksProcessed = 0;
+    if (batchResult.processingPlan.fallbackNeeded.length > 0) {
+      const fallbacks = batchResult.processingPlan.fallbackNeeded;
+      progressCallback?.(70, `Processing ${fallbacks.length} adaptive plan fallbacks...`);
+      
+      for (const fallback of fallbacks) {
+        const pageIndex = fallback.pageNumber - 1;
+        if (pageIndex >= 0 && pageIndex < pages.length) {
+          console.log(`🔄 Adaptive plan fallback: Re-processing page ${fallback.pageNumber} with ${fallback.recommendedMethod} (reason: ${fallback.reason})`);
+          
+          // Re-extract with recommended method (Vision or OCR)
+          try {
+            if (fallback.recommendedMethod === 'vision') {
+              const visionResult = await this.visionService.extractTextFromImage(filePath);
+              pages[pageIndex].text = visionResult.text;
+              pages[pageIndex].confidence = visionResult.confidence;
+              pages[pageIndex].source = 'vision';
+              fallbacksProcessed++;
+            } else if (fallback.recommendedMethod === 'ocr') {
+              // Use OCR method for fallback
+              const ocrResult = await this.visionService.extractTextFromImage(filePath);
+              pages[pageIndex].text = ocrResult.text;
+              pages[pageIndex].confidence = ocrResult.confidence;
+              pages[pageIndex].source = 'ocr';
+              fallbacksProcessed++;
+            }
+          } catch (error) {
+            console.error(`Failed to process fallback for page ${fallback.pageNumber}:`, error);
+          }
+        }
+      }
+      
+      // Re-run batching with updated pages if fallbacks were processed
+      if (fallbacksProcessed > 0) {
+        console.log(`🔄 Re-running Sonnet analysis with ${fallbacksProcessed} improved pages...`);
+        const updatedBatchResult = await sonnetBatchingService.processBatchedPages(
+          pages.filter(p => fallbacks.some(f => f.pageNumber === p.pageNumber)),
+          industry,
+          documentId
+        );
+        // Merge updated results back
+        Object.assign(batchResult.extractedData, updatedBatchResult.extractedData || {});
+      }
+    }
+
+    // Step 4: Handle self-evaluation fallback recommendations
+    if (batchResult.selfEvaluation.pageEvaluations.some(p => p.needsReanalysis)) {
+      const reanalysisPages = batchResult.selfEvaluation.pageEvaluations
+        .filter(p => p.needsReanalysis);
+      
+      progressCallback?.(85, `Self-evaluation: Re-analyzing ${reanalysisPages.length} pages...`);
+      
+      for (const pageEval of reanalysisPages) {
+        const pageIndex = pageEval.pageNumber - 1;
+        if (pageIndex >= 0 && pageIndex < pages.length) {
+          // Re-extract with recommended method
+          if (pageEval.recommendedMethod === 'vision' || pageEval.recommendedMethod === 'ocr') {
+            console.log(`🔄 Self-eval fallback: Re-analyzing page ${pageEval.pageNumber} with ${pageEval.recommendedMethod} (reason: ${pageEval.reason})`);
+            try {
+              const reanalysisResult = await this.visionService.extractTextFromImage(filePath);
+              pages[pageIndex].text = reanalysisResult.text;
+              pages[pageIndex].confidence = reanalysisResult.confidence;
+              fallbacksProcessed++;
+            } catch (error) {
+              console.error(`Failed self-eval fallback for page ${pageEval.pageNumber}:`, error);
+            }
+          }
+        }
+      }
+    }
+
+    const processingTime = Date.now() - startTime;
+    progressCallback?.(100, 'Intelligent batching complete!');
+
+    // Combine all page text
+    const combinedText = pages.map(p => p.text).join('\n\n');
+
+    // Calculate API call savings
+    const apiCallsSaved = batchResult.traditionalApiCalls - batchResult.apiCallsUsed;
+    const efficiencyPercent = Math.round((apiCallsSaved / batchResult.traditionalApiCalls) * 100);
+
+    console.log(`✅ Sonnet batching completed: ${batchResult.apiCallsUsed} API calls (vs ${batchResult.traditionalApiCalls} traditional = ${apiCallsSaved} saved, ${efficiencyPercent}% efficiency)`);
+
+    // Track batch processing efficiency
+    await metricsTrackingService.trackBatchProcessing(documentId, {
+      strategy: batchResult.processingPlan.strategy,
+      apiCallsUsed: batchResult.apiCallsUsed,
+      apiCallsSaved,
+      pageCount: pages.length,
+      overallConfidence: batchResult.confidence,
+      selfEvaluationScore: batchResult.selfEvaluation.overallConfidence,
+      processingTime,
+      adaptivePlan: {
+        batches: batchResult.processingPlan.batches.length,
+        parallelizable: batchResult.processingPlan.batches.filter(b => b.parallelizable).length,
+        fallbacks: batchResult.processingPlan.fallbackNeeded.length
+      },
+      fallbacksTriggered: batchResult.selfEvaluation.pageEvaluations.filter(p => p.needsReanalysis).length
+    });
+
+    return {
+      text: combinedText,
+      confidence: batchResult.confidence,
+      extractedData: batchResult.extractedData,
+      metadata: {
+        processingTime,
+        model: 'claude-sonnet-4-batched',
+        apiCallsUsed: batchResult.apiCallsUsed,
+        apiCallsSaved,
+        efficiency: `${efficiencyPercent}% fewer API calls`,
+        processingPlan: batchResult.processingPlan,
+        selfEvaluation: batchResult.selfEvaluation,
+        pageCount: pages.length,
+        entities: batchResult.entities,
+        summaries: batchResult.summaries
       }
     };
   }

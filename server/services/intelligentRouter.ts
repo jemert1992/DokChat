@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import { VisionService } from './visionService';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { metricsTrackingService } from './metricsTrackingService';
 
 export type ProcessingMethod = 'claude_sonnet' | 'gemini_native' | 'openai_gpt5' | 'ocr_vision';
 
@@ -314,65 +315,151 @@ Respond with ONLY the JSON, no additional text.`
   async processDocument(
     filePath: string, 
     method: ProcessingMethod,
-    progressCallback?: (progress: number, message: string) => void
+    progressCallback?: (progress: number, message: string) => void,
+    documentId?: number
   ): Promise<ProcessingResult> {
     console.log(`⚙️ Processing with ${method}...`);
+
+    const startTime = Date.now();
+    let result: ProcessingResult;
+    let errors: any[] = [];
 
     try {
       switch (method) {
         case 'claude_sonnet':
-          return await this.processWithClaudeSonnet(filePath, progressCallback);
+          result = await this.processWithClaudeSonnet(filePath, progressCallback);
+          break;
         
         case 'gemini_native':
-          return await this.processWithGeminiNative(filePath, progressCallback);
+          result = await this.processWithGeminiNative(filePath, progressCallback);
+          break;
         
         case 'openai_gpt5':
-          return await this.processWithOpenAI(filePath, progressCallback);
+          result = await this.processWithOpenAI(filePath, progressCallback);
+          break;
         
         case 'ocr_vision':
-          return await this.processWithOCR(filePath, progressCallback);
+          result = await this.processWithOCR(filePath, progressCallback);
+          break;
         
         default:
           throw new Error(`Unknown processing method: ${method}`);
       }
+
+      // Track successful processing metrics
+      if (documentId) {
+        await metricsTrackingService.trackAIAnalysis(documentId, {
+          confidence: result.confidence,
+          method: result.method,
+          processingTime: Date.now() - startTime,
+          errors: [],
+        });
+      }
+
+      return result;
+
     } catch (error) {
       console.error(`❌ ${method} failed:`, error);
+      errors.push({ method, error: error instanceof Error ? error.message : 'Unknown error' });
       
       // CASCADE FALLBACK: Try next best AI model, NOT OCR
       if (method === 'claude_sonnet' && this.gemini) {
         console.log('🔄 Cascading to Gemini...');
-        return await this.processWithGeminiNative(filePath, progressCallback);
+        result = await this.processWithGeminiNative(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
       
       if (method === 'claude_sonnet' && !this.gemini && this.openai) {
         console.log('🔄 Cascading to OpenAI...');
-        return await this.processWithOpenAI(filePath, progressCallback);
+        result = await this.processWithOpenAI(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       if (method === 'gemini_native' && this.anthropic) {
         console.log('🔄 Cascading to Claude...');
-        return await this.processWithClaudeSonnet(filePath, progressCallback);
+        result = await this.processWithClaudeSonnet(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       if (method === 'gemini_native' && !this.anthropic && this.openai) {
         console.log('🔄 Cascading to OpenAI...');
-        return await this.processWithOpenAI(filePath, progressCallback);
+        result = await this.processWithOpenAI(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       if (method === 'openai_gpt5' && this.anthropic) {
         console.log('🔄 Cascading to Claude...');
-        return await this.processWithClaudeSonnet(filePath, progressCallback);
+        result = await this.processWithClaudeSonnet(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       if (method === 'openai_gpt5' && !this.anthropic && this.gemini) {
         console.log('🔄 Cascading to Gemini...');
-        return await this.processWithGeminiNative(filePath, progressCallback);
+        result = await this.processWithGeminiNative(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       // LAST RESORT: Only use OCR if ALL AI models failed
       if (method !== 'ocr_vision') {
         console.log('⚠️ All AI models failed, falling back to OCR Vision...');
-        return await this.processWithOCR(filePath, progressCallback);
+        result = await this.processWithOCR(filePath, progressCallback);
+        if (documentId) {
+          await metricsTrackingService.trackAIAnalysis(documentId, {
+            confidence: result.confidence,
+            method: result.method,
+            processingTime: Date.now() - startTime,
+            errors,
+          });
+        }
+        return result;
       }
 
       throw error;

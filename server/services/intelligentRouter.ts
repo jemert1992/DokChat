@@ -207,26 +207,140 @@ Respond with ONLY the JSON, no additional text.`
   }
 
   /**
-   * Analyzes document and determines optimal processing method using Claude pre-classification
+   * SPEED OPTIMIZATION: Fast classification mode with intelligent fallback
+   * Saves 3-5 seconds for most documents by using heuristics
+   * Falls back to Claude for complex cases requiring high metadata accuracy
+   */
+  private async fastClassify(filePath: string, mimeType: string): Promise<DocumentClassification> {
+    console.log('⚡ FAST CLASSIFICATION MODE: Using structure-based routing');
+    
+    const fileExt = path.extname(filePath).toLowerCase();
+    const fileName = path.basename(filePath).toLowerCase();
+    const stats = await fs.stat(filePath);
+    const fileSizeKB = stats.size / 1024;
+    
+    let recommendedProcessor: ProcessingMethod;
+    let complexity: 'simple' | 'medium' | 'complex';
+    let reasoning: string;
+    let documentType = 'other';
+    let hasTable = false;
+    let hasChart = false;
+    let hasHandwriting = false;
+    let heuristicConfidence = 50; // Start with low confidence
+    
+    // Determine complexity based on file size
+    if (fileSizeKB > 5000) {
+      complexity = 'complex';
+      hasTable = true; // Large docs likely have tables
+    } else if (fileSizeKB > 1000) {
+      complexity = 'medium';
+      hasTable = fileSizeKB > 2000; // Medium-large docs may have tables
+    } else {
+      complexity = 'simple';
+    }
+    
+    // Document type inference from filename patterns (increases confidence if matched)
+    if (fileName.includes('invoice') || fileName.includes('bill')) {
+      documentType = 'invoice';
+      hasTable = true;
+      heuristicConfidence = 85;
+    } else if (fileName.includes('contract') || fileName.includes('agreement')) {
+      documentType = 'contract';
+      heuristicConfidence = 85;
+    } else if (fileName.includes('form') || fileName.includes('application')) {
+      documentType = 'form';
+      hasTable = true;
+      heuristicConfidence = 80;
+    } else if (fileName.includes('report') || fileName.includes('statement')) {
+      documentType = 'report';
+      hasTable = true;
+      hasChart = fileSizeKB > 500;
+      heuristicConfidence = 80;
+    } else if (fileName.includes('receipt')) {
+      documentType = 'receipt';
+      heuristicConfidence = 90;
+    } else if (fileName.includes('medical') || fileName.includes('patient') || fileName.includes('health')) {
+      documentType = 'medical_record';
+      hasTable = true;
+      heuristicConfidence = 85;
+    } else if (fileName.includes('legal') || fileName.includes('court') || fileName.includes('case')) {
+      documentType = 'legal_document';
+      heuristicConfidence = 85;
+    } else if (fileName.includes('financial') || fileName.includes('bank') || fileName.includes('account')) {
+      documentType = 'financial_statement';
+      hasTable = true;
+      hasChart = true;
+      heuristicConfidence = 85;
+    } else if (fileName.includes('shipping') || fileName.includes('manifest') || fileName.includes('cargo')) {
+      documentType = 'shipping_manifest';
+      hasTable = true;
+      heuristicConfidence = 85;
+    } else if (fileName.includes('property') || fileName.includes('deed') || fileName.includes('title')) {
+      documentType = 'property_deed';
+      heuristicConfidence = 85;
+    }
+    
+    // LOW CONFIDENCE: Fall back to Claude for accurate metadata
+    if (heuristicConfidence < 70 && this.anthropic) {
+      console.log(`⚠️ Low heuristic confidence (${heuristicConfidence}%) - falling back to Claude for accurate metadata`);
+      return await this.preClassifyWithClaude(filePath, mimeType);
+    }
+    
+    // HIGH CONFIDENCE: Use fast classification
+    // PDF routing logic
+    if (fileExt === '.pdf') {
+      const hasTextLayer = await this.checkPDFTextLayer(filePath);
+      
+      if (hasTextLayer) {
+        // Native PDF with text layer → Gemini (fastest)
+        recommendedProcessor = this.gemini ? 'gemini_native' : 'openai_gpt5';
+        reasoning = 'Native PDF with text layer → routed to Gemini for fast processing';
+        console.log(`✅ PDF with text layer → ${recommendedProcessor} (fast mode, ${heuristicConfidence}% confidence)`);
+      } else {
+        // Scanned PDF without text layer → Claude Sonnet (best vision)
+        recommendedProcessor = this.anthropic ? 'claude_sonnet' : 'gemini_native';
+        reasoning = 'Scanned PDF without text layer → routed to Claude Sonnet for vision processing';
+        hasHandwriting = complexity === 'complex'; // Only complex scanned docs likely have handwriting
+        console.log(`✅ Scanned PDF → ${recommendedProcessor} (vision mode, ${heuristicConfidence}% confidence)`);
+      }
+    } 
+    // Image routing logic
+    else if (mimeType.startsWith('image/')) {
+      // Images → Claude Sonnet (best vision capabilities)
+      recommendedProcessor = this.anthropic ? 'claude_sonnet' : 'gemini_native';
+      reasoning = 'Image document → routed to Claude Sonnet for superior vision analysis';
+      hasHandwriting = complexity !== 'simple'; // Medium/complex images may have handwriting
+      console.log(`✅ Image → ${recommendedProcessor} (vision mode, ${heuristicConfidence}% confidence)`);
+    }
+    // Other file types
+    else {
+      recommendedProcessor = this.anthropic ? 'claude_sonnet' : 'ocr_vision';
+      reasoning = 'Non-PDF/image document → routed to Claude Sonnet';
+      console.log(`✅ Other type → ${recommendedProcessor} (${heuristicConfidence}% confidence)`);
+    }
+    
+    return {
+      documentType,
+      complexity,
+      hasTable,
+      hasChart,
+      hasHandwriting,
+      recommendedProcessor,
+      confidence: heuristicConfidence,
+      reasoning
+    };
+  }
+
+  /**
+   * Analyzes document and determines optimal processing method
+   * SPEED OPTIMIZATION: Uses fast classification to save 3-5 seconds per document
    */
   async routeDocument(filePath: string, mimeType: string): Promise<RoutingDecision> {
     console.log(`🧭 Routing document: ${path.basename(filePath)}, mimeType: ${mimeType}`);
     
-    // SPEED OPTIMIZATION: Skip pre-classification for PDFs with text layers
-    const fileExt = path.extname(filePath).toLowerCase();
-    let classification: DocumentClassification;
-    
-    if (fileExt === '.pdf') {
-      const hasTextLayer = await this.checkPDFTextLayer(filePath);
-      if (hasTextLayer) {
-        console.log('⚡ PDF has text layer - skipping pre-classification');
-        classification = await this.basicClassification(filePath, mimeType);
-      } else {
-        classification = await this.preClassifyWithClaude(filePath, mimeType);
-      }
-    } else {
-      classification = await this.preClassifyWithClaude(filePath, mimeType);
-    }
+    // SPEED OPTIMIZATION: Use fast classification mode (saves 3-5s)
+    // Skips expensive Claude pre-classification, uses file structure analysis instead
+    const classification = await this.fastClassify(filePath, mimeType);
 
     // Step 2: Determine routing based on classification and API availability
     const method = this.determineProcessingMethod(classification);

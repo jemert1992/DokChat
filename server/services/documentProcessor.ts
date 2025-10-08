@@ -60,23 +60,25 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
       
-      await storage.updateDocumentStatus(documentId, 'processing', 5, 'Initializing neural processing pipeline...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 5, 'Deploying advanced AI architecture', 'initialization');
+      // SPEED OPTIMIZATION: Start processing immediately (no blocking messages)
+      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Processing document...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Analyzing document', 'processing');
 
-      // Stage 0: Document Classification (determines optimal processing path)
-      console.log(`🔍 Classifying document ${documentId}...`);
-      const classification = await this.classifierService.classifyDocument(document.filePath, document.mimeType);
+      // PARALLEL: Fire classification and cache check simultaneously
+      const [classification, documentHash] = await Promise.all([
+        this.classifierService.classifyDocument(document.filePath, document.mimeType),
+        this.ocrCacheService.generateDocumentHash(document.filePath)
+      ]);
+      
       console.log(`✅ Document classified as: ${classification.documentType} (${classification.complexity} complexity)`);
       
-      // Save classification results
-      await storage.saveDocumentClassification({
+      // Save classification (non-blocking)
+      storage.saveDocumentClassification({
         documentId,
         ...classification,
-      });
+      }).catch(err => console.warn('Classification save failed:', err));
       
-      // Stage 0.5: Check OCR Cache (huge cost savings!)
-      console.log(`🔍 Checking OCR cache for document ${documentId}...`);
-      const documentHash = await this.ocrCacheService.generateDocumentHash(document.filePath);
+      // Check OCR cache
       const cachedOCR = await this.ocrCacheService.getCachedResult(documentHash);
       
       let extractedText: string;
@@ -84,10 +86,9 @@ export class DocumentProcessor {
       
       if (cachedOCR) {
         console.log(`✅ OCR cache HIT! Skipping OCR for document ${documentId}`);
-        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Loading pre-analyzed neural embeddings...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Retrieving cached intelligence matrix', 'cache_hit');
+        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Using cached results...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Loading cached analysis', 'cache_hit');
         
-        // Construct consistent ocrResults from cache (with metadata guard for legacy entries)
         extractedText = cachedOCR.extractedText;
         ocrResults = {
           text: cachedOCR.extractedText,
@@ -100,40 +101,50 @@ export class DocumentProcessor {
       } else {
         console.log(`ℹ️  OCR cache MISS - using intelligent routing for document ${documentId}`);
         
-        // Stage 1: Intelligent Routing - Determines optimal processing method
-        await storage.updateDocumentStatus(documentId, 'processing', 25, 'Analyzing document structure with deep learning...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 25, 'Deploying multimodal AI architecture', 'routing');
+        // SPEED OPTIMIZATION: Try fast parallel mode first (model racing)
+        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Processing with AI', 'extraction');
         
-        const routingDecision = await this.intelligentRouter.routeDocument(document.filePath, document.mimeType);
-        console.log(`🧠 Routing decision: ${routingDecision.method} (${routingDecision.reason})`);
-        
-        await storage.updateDocumentStatus(documentId, 'processing', 30, `Initializing transformer models - ETA ${routingDecision.estimatedTime}s`);
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Activating neural extraction pipeline', 'routing');
-        
-        // Process with selected method
-        const processResult = await this.intelligentRouter.processDocument(
-          document.filePath,
-          routingDecision.method,
-          (progress, message) => {
-            const progressPercent = Math.round(30 + (progress / 100) * 30); // Text extraction is 30-60%
-            this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
-          }
-        );
+        let processResult;
+        try {
+          // FAST MODE: All models race in parallel with 12s timeout
+          processResult = await this.intelligentRouter.processFast(
+            document.filePath,
+            (progress, message) => {
+              const progressPercent = Math.round(30 + (progress / 100) * 30);
+              this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
+            }
+          );
+          console.log(`🏁 Fast mode succeeded with ${processResult.method}`);
+        } catch (fastModeError) {
+          // Fallback: Use traditional routing if fast mode fails
+          console.warn(`⚠️ Fast mode failed, using traditional routing:`, fastModeError);
+          
+          const routingDecision = await this.intelligentRouter.routeDocument(document.filePath, document.mimeType);
+          console.log(`🧠 Routing decision: ${routingDecision.method} (${routingDecision.reason})`);
+          
+          processResult = await this.intelligentRouter.processDocument(
+            document.filePath,
+            routingDecision.method,
+            (progress, message) => {
+              const progressPercent = Math.round(30 + (progress / 100) * 30);
+              this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
+            }
+          );
+        }
         
         extractedText = processResult.text;
         ocrResults = {
           text: processResult.text,
-          confidence: processResult.confidence * 100, // Convert to 0-100 range
+          confidence: processResult.confidence * 100,
           metadata: {
             ...processResult.metadata,
-            processingMethod: processResult.method,
-            routingReason: routingDecision.reason
+            processingMethod: processResult.method
           },
         };
         
-        // Cache the results for future use
-        console.log(`💾 Caching extraction results for document ${documentId}`);
-        await this.ocrCacheService.cacheResult(
+        // Cache results (non-blocking)
+        this.ocrCacheService.cacheResult(
           documentHash,
           ocrResults.text,
           ocrResults.confidence,
@@ -143,7 +154,7 @@ export class DocumentProcessor {
             mimeType: document.mimeType,
             processingMethod: processResult.method
           }
-        );
+        ).catch(err => console.warn('OCR cache failed:', err));
       }
       
       // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED

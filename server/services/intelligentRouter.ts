@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { metricsTrackingService } from './metricsTrackingService';
 import { sonnetBatchingService } from './sonnetBatchingService';
+import { warmSessionManager } from './warmSessionManager';
 
 export type ProcessingMethod = 'claude_sonnet' | 'gemini_native' | 'openai_gpt5' | 'ocr_vision';
 
@@ -46,26 +47,14 @@ export class IntelligentDocumentRouter {
   private openai: OpenAI | null = null;
 
   constructor() {
-    // Initialize Gemini if available
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (geminiKey) {
-      this.gemini = new GoogleGenAI({ apiKey: geminiKey });
-    }
-
+    // Use warm session manager for hot-started clients
+    const clients = warmSessionManager.getClients();
+    this.anthropic = clients.anthropic;
+    this.gemini = clients.gemini;
+    this.openai = clients.openai;
+    
     // Initialize Vision service
     this.visionService = new VisionService();
-
-    // Initialize Anthropic (Claude) if available - TOP PRIORITY
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (anthropicKey) {
-      this.anthropic = new Anthropic({ apiKey: anthropicKey });
-    }
-
-    // Initialize OpenAI if available
-    const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
-    if (openaiKey) {
-      this.openai = new OpenAI({ apiKey: openaiKey });
-    }
   }
 
   /**
@@ -240,6 +229,174 @@ Respond with ONLY the JSON, no additional text.`
       confidence: classification.confidence / 100,
       estimatedTime,
       classification
+    };
+  }
+
+  /**
+   * SPEED OPTIMIZATION: Fast parallel processing with model racing
+   * TACTIC: Fire all models in parallel, use fastest response with 12s timeout
+   */
+  async processFast(
+    filePath: string,
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<ProcessingResult> {
+    console.log('🏎️ FAST MODE: Parallel model racing enabled');
+    
+    const startTime = Date.now();
+    const fileBuffer = await fs.readFile(filePath);
+    const base64Data = fileBuffer.toString('base64');
+    
+    progressCallback?.(10, 'Racing all available models...');
+    
+    const races: Promise<ProcessingResult>[] = [];
+    
+    // RACE 1: Claude Sonnet 4.5 (if warm)
+    if (this.anthropic && warmSessionManager.isWarm('claude')) {
+      races.push(
+        this.processWithClaudeSonnetFast(filePath, base64Data)
+          .then(result => {
+            console.log(`✅ Claude finished in ${Date.now() - startTime}ms`);
+            return result;
+          })
+      );
+    }
+    
+    // RACE 2: Gemini (if warm)
+    if (this.gemini && warmSessionManager.isWarm('gemini')) {
+      races.push(
+        this.processWithGeminiFast(base64Data)
+          .then(result => {
+            console.log(`✅ Gemini finished in ${Date.now() - startTime}ms`);
+            return result;
+          })
+      );
+    }
+    
+    // RACE 3: OpenAI (if warm)
+    if (this.openai && warmSessionManager.isWarm('openai')) {
+      races.push(
+        this.processWithOpenAIFast(base64Data)
+          .then(result => {
+            console.log(`✅ OpenAI finished in ${Date.now() - startTime}ms`);
+            return result;
+          })
+      );
+    }
+    
+    if (races.length === 0) {
+      throw new Error('No warm models available for fast processing');
+    }
+    
+    // TACTIC: Low-latency failover with 12s timeout
+    const timeoutPromise = new Promise<ProcessingResult>((_, reject) => {
+      setTimeout(() => reject(new Error('All models exceeded 12s timeout')), 12000);
+    });
+    
+    try {
+      // Use the fastest response
+      const winner = await Promise.race([...races, timeoutPromise]);
+      progressCallback?.(100, 'Complete!');
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🏁 Fast mode complete in ${totalTime}ms`);
+      
+      return winner;
+    } catch (error) {
+      console.error('❌ Fast mode failed, falling back to OCR');
+      // Fallback to OCR if all models timeout
+      return await this.processWithOCR(filePath, progressCallback);
+    }
+  }
+  
+  /**
+   * Fast Claude processing (no streaming, direct response)
+   */
+  private async processWithClaudeSonnetFast(filePath: string, base64Data: string): Promise<ProcessingResult> {
+    const response = await this.anthropic!.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 100000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf' as const,
+              data: base64Data
+            }
+          },
+          {
+            type: 'text',
+            text: 'Extract all text from this document. Return only the text, no formatting.'
+          }
+        ]
+      }]
+    });
+    
+    return {
+      text: response.content[0].type === 'text' ? response.content[0].text : '',
+      confidence: 0.95,
+      method: 'claude_sonnet',
+      metadata: { model: 'claude-sonnet-4-5' }
+    };
+  }
+  
+  /**
+   * Fast Gemini processing
+   */
+  private async processWithGeminiFast(base64Data: string): Promise<ProcessingResult> {
+    const result = await this.gemini!.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: 'application/pdf'
+          }
+        },
+        'Extract all text from this document. Return only the text.'
+      ]
+    });
+    
+    return {
+      text: result.text || '',
+      confidence: 0.93,
+      method: 'gemini_native',
+      metadata: { model: 'gemini-2.5-flash' }
+    };
+  }
+  
+  /**
+   * Fast OpenAI processing
+   */
+  private async processWithOpenAIFast(base64Data: string): Promise<ProcessingResult> {
+    const response = await this.openai!.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${base64Data}`
+              }
+            },
+            {
+              type: 'text',
+              text: 'Extract all text from this document.'
+            }
+          ]
+        }
+      ]
+    });
+    
+    return {
+      text: response.choices[0]?.message?.content || '',
+      confidence: 0.92,
+      method: 'openai_gpt5',
+      metadata: { model: 'gpt-4' }
     };
   }
 

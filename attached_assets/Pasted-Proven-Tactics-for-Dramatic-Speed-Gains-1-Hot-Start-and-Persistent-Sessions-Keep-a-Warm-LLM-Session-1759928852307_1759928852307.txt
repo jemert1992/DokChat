@@ -1,0 +1,37 @@
+Proven Tactics for Dramatic Speed Gains
+1. Hot Start and Persistent Sessions
+Keep a Warm LLM Session: For Sonnet 4.5, maintain a persistent session/connection with Anthropic’s API (or Bedrock). Avoid spinning it up on each job—heartbeat or dummy calls every few minutes can keep the process hot.
+
+Preload Model Endpoints on App Start: On server startup, fire a test prompt to Sonnet/Gemini/OpenAI so model containers are loaded.
+
+Parallel Ping All Target Models: Instead of choosing a model and waiting for the response, ping all eligible models in parallel, then use the fastest. This is especially fast for small docs.
+
+2. Optimize Intake and Routing
+Move Heuristics to Edge or Frontend: Use fast JS/TS/Python logic up front (industry, filetype, basic layout check) to immediately predict best path—bypass expensive “intelligent” model routing for common/standard docs.
+
+Pre-classify instantly, fire off LLM in parallel: Don’t wait for full router output to kick off first analysis/model call. Route asynchronously.
+
+Eliminate “initializing transformer models” phase for end users: Don’t block UX on waiting for session start; show progress and kick off model call as soon as file is uploaded.
+
+3. Batch All Preprocessing
+OCR All Pages in a Single Pass: If Vision/OCR is needed, use async/parallel batch calls to Google Vision or Claude Vision, then feed entire pre-processed output to Sonnet/Gemini in one batch.
+
+Do Not Sequentially Loop Per Page: Chunk or batch the whole upload; aggregate metadata/files and hit Sonnet once.
+
+4. Pipeline Refactor: Model First, Fallback Only on Failure
+Start LLM First: Immediately fire the best available model (prefer Sonnet 4.5), only fallback to others (including Gemini or legacy) if it fails or is too slow. Show UX “Still loading... retrying with alternate” if necessary.
+
+Low-Latency Failover: Use a timeout (e.g. 10-15s) and switch to the next-best model if Sonnet isn’t back.
+
+5. Strip All Non-Essential Preprocessing from First Run
+Don’t extract high-res thumbnails, do full OCR/vision, or other “heavy” work until the answer is returned. Trigger these as async post-processing steps if needed.
+
+6. Leverage the Largest Supported Context
+Batch as much as possible (all pages, metadata, user intent) into the Sonnet 4.5 context in a single prompt if <= 200K tokens, rather than many small requests.
+
+7. API/Network Tuning
+Use the fastest region/endpoint available for your Anthropic/OpenAI/Gemini account.
+
+Implement robust retries and parallel path execution (use result from whoever responds first).
+
+Compress all network transfers—upload zipped PDFs/images/content.

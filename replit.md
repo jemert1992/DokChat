@@ -77,6 +77,13 @@ The platform adapts through configuration-driven customization for:
     -   **Smart Tool Sequencing**: Sonnet identifies parallel execution opportunities and dependencies to minimize processing time
     -   **Efficiency Gains**: Reduces API calls by 60-80% (e.g., 20-page document: 5 calls vs 40+ traditional)
     -   **Metrics Tracking**: Full visibility into batching strategy, API call savings, and self-evaluation decisions
+-   **Verification, QA & Feedback Loop (October 2025)**: Comprehensive quality assurance system:
+    -   **Auto-QA**: Second-pass validation using Sonnet 4.5 in verification mode to cross-check extracted data
+    -   **Uncertainty Threshold**: Automatic flagging for manual review when uncertainty exceeds 30%
+    -   **Decision Logging**: Complete trail of Sonnet's reasoning stored in database for debugging and pipeline tuning
+    -   **Manual Review Workflow**: UI for human verification with review queue and discrepancy resolution
+    -   **Field-Level Confidence**: Tracks confidence scores for each extracted field with detailed discrepancy reasons
+    -   **Non-Blocking**: Verification runs automatically but doesn't block document processing if it fails
 
 ## External Dependencies
 

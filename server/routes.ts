@@ -35,7 +35,10 @@ import {
   type InsertDocumentAnnotation,
   type InsertNotification,
   processingMetrics,
-  processingReports
+  processingReports,
+  verificationResults,
+  decisionLogs,
+  documents
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -44,7 +47,7 @@ import testMultiLanguageEndpoints from "./test-multilanguage-comprehensive";
 import fs from "fs/promises";
 import sharp from "sharp";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 // Rate limiters for different endpoint types
 const authLimiter = rateLimit({
@@ -3272,6 +3275,161 @@ FORMATTING RULES:
     } catch (error) {
       console.error("Error revoking share:", error);
       res.status(500).json({ message: "Failed to revoke share" });
+    }
+  });
+
+  // Verification and QA routes
+  // Get pending review items
+  app.get('/api/verifications/pending-review', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // Get all verifications that need manual review for user's documents
+      const verifications = await db
+        .select({
+          id: verificationResults.id,
+          documentId: verificationResults.documentId,
+          uncertaintyScore: verificationResults.uncertaintyScore,
+          needsManualReview: verificationResults.needsManualReview,
+          reviewReason: verificationResults.reviewReason,
+          verificationStatus: verificationResults.verificationStatus,
+          createdAt: verificationResults.createdAt,
+        })
+        .from(verificationResults)
+        .innerJoin(documents, eq(documents.id, verificationResults.documentId))
+        .where(
+          and(
+            eq(documents.userId, userId),
+            eq(verificationResults.needsManualReview, true),
+            eq(verificationResults.verificationStatus, 'needs_review')
+          )
+        )
+        .orderBy(verificationResults.createdAt);
+
+      // Get document details for each verification
+      const enrichedVerifications = await Promise.all(
+        verifications.map(async (v) => {
+          const doc = await storage.getDocument(v.documentId);
+          return {
+            ...v,
+            document: doc ? {
+              id: doc.id,
+              originalFilename: doc.originalFilename,
+              industry: doc.industry
+            } : null
+          };
+        })
+      );
+
+      res.json(enrichedVerifications);
+    } catch (error) {
+      console.error('Error fetching pending reviews:', error);
+      res.status(500).json({ message: 'Failed to fetch pending reviews' });
+    }
+  });
+
+  // Mark verification as reviewed
+  app.post('/api/verifications/:id/review', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const verificationId = parseInt(req.params.id);
+      const { reviewNotes } = req.body;
+
+      if (isNaN(verificationId)) {
+        return res.status(400).json({ message: 'Invalid verification ID' });
+      }
+
+      // Get verification and check ownership
+      const [verification] = await db
+        .select()
+        .from(verificationResults)
+        .where(eq(verificationResults.id, verificationId));
+
+      if (!verification) {
+        return res.status(404).json({ message: 'Verification not found' });
+      }
+
+      const document = await storage.getDocument(verification.documentId);
+      if (!document || document.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Update verification status - mark as reviewed and clear manual review flag
+      await db
+        .update(verificationResults)
+        .set({
+          verificationStatus: 'reviewed',
+          needsManualReview: false,
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNotes: reviewNotes || null
+        })
+        .where(eq(verificationResults.id, verificationId));
+
+      res.json({ message: 'Verification marked as reviewed' });
+    } catch (error) {
+      console.error('Error marking verification as reviewed:', error);
+      res.status(500).json({ message: 'Failed to mark as reviewed' });
+    }
+  });
+
+  // Get verification results for a document
+  app.get('/api/verifications/document/:documentId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const documentId = parseInt(req.params.documentId);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: 'Invalid document ID' });
+      }
+
+      // Check document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document || document.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Get all verification results for this document
+      const verifications = await db
+        .select()
+        .from(verificationResults)
+        .where(eq(verificationResults.documentId, documentId))
+        .orderBy(verificationResults.createdAt);
+
+      res.json(verifications);
+    } catch (error) {
+      console.error('Error fetching verification results:', error);
+      res.status(500).json({ message: 'Failed to fetch verification results' });
+    }
+  });
+
+  // Get decision logs for a document
+  app.get('/api/decision-logs/document/:documentId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const documentId = parseInt(req.params.documentId);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: 'Invalid document ID' });
+      }
+
+      // Check document ownership
+      const document = await storage.getDocument(documentId);
+      if (!document || document.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Get all decision logs for this document
+      const logs = await db
+        .select()
+        .from(decisionLogs)
+        .where(eq(decisionLogs.documentId, documentId))
+        .orderBy(decisionLogs.createdAt);
+
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching decision logs:', error);
+      res.status(500).json({ message: 'Failed to fetch decision logs' });
     }
   });
 

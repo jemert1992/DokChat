@@ -84,6 +84,13 @@ The platform adapts through configuration-driven customization for:
     -   **Manual Review Workflow**: UI for human verification with review queue and discrepancy resolution
     -   **Field-Level Confidence**: Tracks confidence scores for each extracted field with detailed discrepancy reasons
     -   **Non-Blocking**: Verification runs automatically but doesn't block document processing if it fails
+-   **Sonnet 4.5 Best Practices (October 2025)**: Full implementation of advanced AI optimization:
+    -   **Model Selection Priority**: AI-first routing - Sonnet/Gemini vision prioritized over OCR even for scanned docs and images
+    -   **Hybrid Retrieval**: BM25 keyword search (40%) + semantic embeddings (60%) for optimal RAG relevance
+    -   **Per-Page Transparency**: Page-level confidence reporting with model attribution (which AI processed each page)
+    -   **Adaptive Tool Orchestration**: Sonnet self-plans processing strategy (batch/parallel/sequential) dynamically
+    -   **Context Window Maximization**: 180K token batching with intelligent grouping to minimize API calls
+    -   **Quality Metrics**: Transparent OCR quality scores, AI confidence, and extraction confidence per page
 
 ## External Dependencies
 

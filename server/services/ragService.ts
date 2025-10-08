@@ -297,7 +297,8 @@ export class RAGService {
   }
 
   /**
-   * Retrieve relevant documents based on query similarity
+   * Retrieve relevant documents using hybrid BM25 + semantic search
+   * BEST PRACTICE: Combines keyword matching with semantic understanding
    */
   async retrieveRelevantContext(
     query: string, 
@@ -310,14 +311,17 @@ export class RAGService {
       await this.initializeDocumentIndex();
     }
 
-    console.log(`🔍 Retrieving relevant context for: "${query.substring(0, 100)}..."`);
+    console.log(`🔍 Hybrid retrieval (BM25 + Semantic) for: "${query.substring(0, 100)}..."`);
 
     try {
-      // Generate query embedding
+      // STEP 1: BM25 Keyword Search (40% weight) - with fallback handling
+      const bm25Results = this.calculateBM25Scores(query, industry, documentType);
+      
+      // STEP 2: Semantic Search (60% weight)
       const queryEmbedding = await this.generateTextEmbedding(query);
       
-      // Calculate similarities with all document chunks
-      const similarities: Array<{
+      // Calculate semantic similarities with all document chunks
+      const semanticResults: Array<{
         documentId: number;
         chunkId: string;
         text: string;
@@ -342,7 +346,7 @@ export class RAGService {
           const similarity = this.calculateCosineSimilarity(queryEmbedding, embedding.embedding);
           
           if (similarity > 0.1) { // Minimum similarity threshold
-            similarities.push({
+            semanticResults.push({
               documentId: docId,
               chunkId: embedding.chunkId,
               text: embedding.text,
@@ -353,9 +357,38 @@ export class RAGService {
         }
       }
 
-      // Sort by similarity and take top results
-      similarities.sort((a, b) => b.similarity - a.similarity);
-      const topSimilarities = similarities.slice(0, maxResults * 2); // Get extra for grouping
+      // STEP 3: Hybrid Reranking with fallback handling
+      let topSimilarities: Array<{ documentId: number; chunkId: string; text: string; similarity: number; metadata: any }>;
+      
+      if (bm25Results.length === 0 && semanticResults.length > 0) {
+        // Fallback: semantic-only (BM25 corpus empty)
+        console.log('⚠️ BM25 returned no results, using semantic-only retrieval');
+        topSimilarities = semanticResults
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, maxResults * 2);
+      } else if (semanticResults.length === 0 && bm25Results.length > 0) {
+        // Fallback: BM25-only (no semantic matches)
+        console.log('⚠️ Semantic search returned no results, using BM25-only retrieval');
+        topSimilarities = bm25Results
+          .map(r => ({
+            documentId: r.documentId,
+            chunkId: r.chunkId,
+            text: r.text,
+            similarity: r.bm25Score / Math.max(...bm25Results.map(b => b.bm25Score), 1),
+            metadata: r.metadata
+          }))
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, maxResults * 2);
+      } else if (bm25Results.length > 0 && semanticResults.length > 0) {
+        // Hybrid: combine both signals
+        const hybridScores = this.hybridRerank(bm25Results, semanticResults);
+        topSimilarities = hybridScores
+          .sort((a, b) => b.hybridScore - a.hybridScore)
+          .slice(0, maxResults * 2);
+      } else {
+        // Empty corpus - return empty results
+        topSimilarities = [];
+      }
 
       // Group by document and get full document info
       const documentGroups = new Map<number, typeof topSimilarities>();
@@ -417,6 +450,188 @@ export class RAGService {
         enhancementStrategy: 'terminology_support'
       };
     }
+  }
+
+  /**
+   * BM25 scoring for keyword-based retrieval
+   * BEST PRACTICE: Complements semantic search with traditional IR
+   */
+  private calculateBM25Scores(
+    query: string,
+    industry: string,
+    documentType?: string
+  ): Array<{ documentId: number; chunkId: string; text: string; bm25Score: number; metadata: any }> {
+    const k1 = 1.5; // Term saturation parameter
+    const b = 0.75; // Length normalization parameter
+    
+    // Tokenize query
+    const queryTerms = this.tokenize(query.toLowerCase());
+    
+    // Collect all documents and calculate avgdl
+    const allChunks: Array<{ documentId: number; chunkId: string; text: string; tokens: string[]; metadata: any }> = [];
+    let totalLength = 0;
+    
+    const docIds = Array.from(this.documentEmbeddings.keys());
+    for (const docId of docIds) {
+      const embeddings = this.documentEmbeddings.get(docId)!;
+      for (const embedding of embeddings) {
+        // Filter by industry/type
+        if (industry !== 'general' && embedding.metadata.industry !== industry) continue;
+        if (documentType && embedding.metadata.documentType !== documentType) continue;
+        
+        const tokens = this.tokenize(embedding.text.toLowerCase());
+        allChunks.push({
+          documentId: docId,
+          chunkId: embedding.chunkId,
+          text: embedding.text,
+          tokens,
+          metadata: embedding.metadata
+        });
+        totalLength += tokens.length;
+      }
+    }
+    
+    const avgdl = allChunks.length > 0 ? totalLength / allChunks.length : 0;
+    
+    // Calculate document frequency (DF) for each query term
+    const df = new Map<string, number>();
+    for (const term of queryTerms) {
+      df.set(term, 0);
+    }
+    
+    for (const chunk of allChunks) {
+      const uniqueTerms = new Set(chunk.tokens);
+      for (const term of queryTerms) {
+        if (uniqueTerms.has(term)) {
+          df.set(term, (df.get(term) || 0) + 1);
+        }
+      }
+    }
+    
+    // Calculate BM25 score for each chunk
+    const results = [];
+    for (const chunk of allChunks) {
+      let score = 0;
+      const docLength = chunk.tokens.length;
+      
+      for (const term of queryTerms) {
+        // Term frequency in this document
+        const tf = chunk.tokens.filter(t => t === term).length;
+        
+        // IDF: log((N - df + 0.5) / (df + 0.5))
+        const idf = Math.log((allChunks.length - (df.get(term) || 0) + 0.5) / ((df.get(term) || 0) + 0.5));
+        
+        // BM25 formula
+        score += idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLength / avgdl))));
+      }
+      
+      if (score > 0) {
+        results.push({
+          documentId: chunk.documentId,
+          chunkId: chunk.chunkId,
+          text: chunk.text,
+          bm25Score: score,
+          metadata: chunk.metadata
+        });
+      }
+    }
+    
+    return results;
+  }
+  
+  /**
+   * Tokenize text into terms for BM25
+   */
+  private tokenize(text: string): string[] {
+    // Simple tokenization: lowercase, remove punctuation, split on whitespace
+    return text
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 2); // Remove very short tokens
+  }
+  
+  /**
+   * Hybrid reranking: combines BM25 (40%) and semantic (60%) scores
+   * BEST PRACTICE: Balances keyword matching with semantic understanding
+   * ROBUST: Handles partial overlaps and missing signals gracefully
+   */
+  private hybridRerank(
+    bm25Results: Array<{ documentId: number; chunkId: string; text: string; bm25Score: number; metadata: any }>,
+    semanticResults: Array<{ documentId: number; chunkId: string; text: string; similarity: number; metadata: any }>
+  ): Array<{ documentId: number; chunkId: string; text: string; similarity: number; hybridScore: number; metadata: any }> {
+    // Handle edge cases
+    if (bm25Results.length === 0) {
+      // Semantic-only: use full weight for semantic
+      return semanticResults.map(s => ({
+        ...s,
+        hybridScore: s.similarity
+      }));
+    }
+    
+    if (semanticResults.length === 0) {
+      // BM25-only: normalize and use full weight
+      const maxBM25 = Math.max(...bm25Results.map(r => r.bm25Score), 1);
+      return bm25Results.map(b => ({
+        documentId: b.documentId,
+        chunkId: b.chunkId,
+        text: b.text,
+        similarity: 0,
+        hybridScore: b.bm25Score / maxBM25,
+        metadata: b.metadata
+      }));
+    }
+    
+    // Normalize BM25 scores to 0-1 range
+    const maxBM25 = Math.max(...bm25Results.map(r => r.bm25Score), 1);
+    const normalizedBM25 = new Map<string, number>();
+    for (const result of bm25Results) {
+      normalizedBM25.set(result.chunkId, result.bm25Score / maxBM25);
+    }
+    
+    // Create semantic lookup for efficiency
+    const semanticMap = new Map(semanticResults.map(s => [s.chunkId, s]));
+    
+    // Combine scores: 40% BM25 + 60% semantic (when both present)
+    const BM25_WEIGHT = 0.4;
+    const SEMANTIC_WEIGHT = 0.6;
+    
+    const hybridResults: Array<{ documentId: number; chunkId: string; text: string; similarity: number; hybridScore: number; metadata: any }> = [];
+    const processedChunks = new Set<string>();
+    
+    // Process all semantic results
+    for (const semantic of semanticResults) {
+      const bm25Score = normalizedBM25.get(semantic.chunkId);
+      const hybridScore = bm25Score !== undefined
+        ? (bm25Score * BM25_WEIGHT) + (semantic.similarity * SEMANTIC_WEIGHT)
+        : semantic.similarity * SEMANTIC_WEIGHT; // Semantic-only for this chunk
+      
+      hybridResults.push({
+        documentId: semantic.documentId,
+        chunkId: semantic.chunkId,
+        text: semantic.text,
+        similarity: semantic.similarity,
+        hybridScore,
+        metadata: semantic.metadata
+      });
+      processedChunks.add(semantic.chunkId);
+    }
+    
+    // Add BM25-only results that didn't have semantic matches
+    for (const bm25 of bm25Results) {
+      if (!processedChunks.has(bm25.chunkId)) {
+        const bm25Score = normalizedBM25.get(bm25.chunkId) || 0;
+        hybridResults.push({
+          documentId: bm25.documentId,
+          chunkId: bm25.chunkId,
+          text: bm25.text,
+          similarity: 0, // No semantic match
+          hybridScore: bm25Score * BM25_WEIGHT, // BM25-only for this chunk
+          metadata: bm25.metadata
+        });
+      }
+    }
+    
+    return hybridResults;
   }
 
   /**

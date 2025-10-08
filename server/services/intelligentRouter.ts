@@ -176,6 +176,7 @@ Respond with ONLY the JSON, no additional text.`
     }
 
     // Determine processor based on file characteristics
+    // BEST PRACTICE: Always prioritize AI models (Sonnet/Gemini) over OCR, even for scanned docs
     let recommendedProcessor: ProcessingMethod;
     
     if (fileExt === '.pdf' && hasTextLayer && this.gemini) {
@@ -183,9 +184,23 @@ Respond with ONLY the JSON, no additional text.`
     } else if (fileExt === '.pdf' && hasTextLayer && this.openai) {
       recommendedProcessor = 'openai_gpt5'; // Alternative for native PDFs
     } else if (fileExt === '.pdf' && !hasTextLayer) {
-      recommendedProcessor = 'ocr_vision'; // Scanned PDFs need OCR
+      // FIX: Try Sonnet/Gemini vision first, OCR is last resort
+      if (this.anthropic) {
+        recommendedProcessor = 'claude_sonnet'; // Sonnet can handle scanned docs with vision
+      } else if (this.gemini) {
+        recommendedProcessor = 'gemini_native'; // Gemini vision for scanned docs
+      } else {
+        recommendedProcessor = 'ocr_vision'; // Last resort only
+      }
     } else if (mimeType.startsWith('image/')) {
-      recommendedProcessor = 'ocr_vision'; // Images need OCR
+      // FIX: Try AI vision models before OCR
+      if (this.anthropic) {
+        recommendedProcessor = 'claude_sonnet'; // Sonnet vision for images
+      } else if (this.gemini) {
+        recommendedProcessor = 'gemini_native'; // Gemini vision for images
+      } else {
+        recommendedProcessor = 'ocr_vision'; // Last resort only
+      }
     } else {
       recommendedProcessor = this.anthropic ? 'claude_sonnet' : 'ocr_vision';
     }

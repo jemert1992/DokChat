@@ -217,9 +217,19 @@ RESPOND IN JSON FORMAT:
     // Extracted entities with confidence scores
   ],
   "summary": "Brief document summary",
-  "confidence": 0.95 // Overall extraction confidence (0-1)
+  "confidence": 0.95, // Overall extraction confidence (0-1)
+  "pageConfidence": [
+    {
+      "pageNumber": 1,
+      "confidence": 0.95,
+      "method": "claude_sonnet_4",
+      "quality": "high",
+      "notes": "Clear text, comprehensive extraction"
+    }
+  ]
 }
 
+IMPORTANT: Include per-page confidence scores with quality assessment for transparency.
 Extract comprehensively from ALL pages in this batch.`;
 
     const response = await anthropic.messages.create({

@@ -314,7 +314,7 @@ Respond with ONLY the JSON, no additional text.`
   private async processWithClaudeSonnetFast(filePath: string, base64Data: string): Promise<ProcessingResult> {
     const response = await this.anthropic!.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 100000,
+      max_tokens: 64000,
       messages: [{
         role: 'user',
         content: [
@@ -661,7 +661,7 @@ Respond with ONLY the JSON, no additional text.`
     // Use streaming for long operations (Anthropic requirement)
     const stream = await this.anthropic.messages.stream({
       model: 'claude-sonnet-4-5',
-      max_tokens: 100000,
+      max_tokens: 64000,
       messages: [{
         role: 'user',
         content: [
@@ -811,7 +811,7 @@ Respond with ONLY the JSON, no additional text.`
           ]
         }
       ],
-      max_tokens: 100000
+      max_tokens: 16000
     });
 
     progressCallback?.(90, 'Finalizing extraction...');

@@ -15,6 +15,7 @@ import DocumentChat from '@/components/DocumentChat';
 import { ProcessingMetricsReport } from '@/components/ProcessingMetricsReport';
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Loader2 } from "lucide-react";
+import { EnhancedProcessingStatus } from "@/components/EnhancedProcessingStatus";
 // import CollaborationPanel from '@/components/collaboration/CollaborationPanel'; // Temporarily disabled
 // import { useCollaboration } from '@/hooks/useCollaboration'; // Temporarily disabled
 
@@ -228,50 +229,36 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
 
           {/* Analysis Results */}
           <div className="p-6">
-            {/* Status and Confidence Header */}
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-3 h-3 ${getStatusColor(document?.status || 'unknown')} rounded-full`}></div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                        {document.status === 'processing' && progressUpdate?.status === 'processing' && (
-                          <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                        )}
-                        {document.status === 'completed' ? 'Analysis Complete' : 
-                         document.status === 'processing' ? 'Processing...' : 
-                         'Analysis Failed'}
-                        {document.status === 'processing' && progressUpdate?.status === 'processing' && (
-                          <span className="text-sm font-normal text-blue-600">
-                            {progressUpdate.progress}%
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {document.status === 'processing' && progressUpdate?.message ? progressUpdate.message :
-                         (document.status === 'completed' ? 'Document processed successfully with high confidence' :
-                          document.status === 'processing' ? document.processingMessage || 'Processing document...' :
-                          document.processingMessage || 'Processing failed')}
-                      </p>
-                      {document.status === 'processing' && progressUpdate?.status === 'processing' && (
-                        <div className="mt-3">
-                          <Progress value={progressUpdate.progress} className="h-2" />
-                        </div>
-                      )}
+            {/* Enhanced Processing Status or Completion Status */}
+            {document.status === 'processing' && progressUpdate?.status === 'processing' ? (
+              <EnhancedProcessingStatus
+                progress={progressUpdate.progress || 0}
+                message={progressUpdate.message}
+                stage={progressUpdate.stage}
+              />
+            ) : document.status === 'completed' ? (
+              <Card className="mb-6">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                          Analysis Complete
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Document processed successfully with high confidence
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  {document.status === 'completed' && (
                     <div className="text-right">
                       <div className="text-3xl font-bold text-green-600 mb-1" data-testid="text-confidence-score">
                         {Math.round(document.aiConfidence || 0)}%
                       </div>
                       <div className="text-sm text-muted-foreground">Confidence Score</div>
                     </div>
-                  )}
-                </div>
-                
-                {document.status === 'completed' && (
+                  </div>
+                  
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                       <div className="text-xl font-semibold text-foreground">OCR Quality</div>
@@ -292,9 +279,25 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                       </div>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="mb-6">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-3 h-3 ${getStatusColor(document?.status || 'unknown')} rounded-full`}></div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        {document.status === 'error' ? 'Analysis Failed' : 'Processing...'}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {document.processingMessage || 'Processing document...'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {document.status === 'completed' && (
               <>

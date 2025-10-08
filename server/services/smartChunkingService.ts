@@ -294,7 +294,7 @@ export class SmartChunkingService {
 
     try {
       const response = await this.anthropic.messages.countTokens({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         messages: [{
           role: 'user',
           content: text

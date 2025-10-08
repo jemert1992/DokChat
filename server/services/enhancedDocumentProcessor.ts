@@ -203,7 +203,7 @@ export class EnhancedDocumentProcessor {
     
     // Process ENTIRE document in ONE call using Claude's massive context
     const response = await this.anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 100000,
       messages: [{
         role: 'user',

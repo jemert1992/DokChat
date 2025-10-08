@@ -85,7 +85,7 @@ export class IntelligentDocumentRouter {
       const base64Data = fileBuffer.toString('base64');
 
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -501,8 +501,9 @@ Respond with ONLY the JSON, no additional text.`
 
     progressCallback?.(30, 'Running deep contextual analysis...');
 
-    const response = await this.anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    // Use streaming for long operations (Anthropic requirement)
+    const stream = await this.anthropic.messages.stream({
+      model: 'claude-sonnet-4-5',
       max_tokens: 100000,
       messages: [{
         role: 'user',
@@ -523,9 +524,24 @@ Respond with ONLY the JSON, no additional text.`
       }]
     });
 
+    let extractedText = '';
+    let lastProgress = 30;
+    
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+        extractedText += chunk.delta.text;
+        
+        // Update progress incrementally
+        const newProgress = Math.min(90, lastProgress + 5);
+        if (newProgress > lastProgress) {
+          progressCallback?.(newProgress, 'Extracting text...');
+          lastProgress = newProgress;
+        }
+      }
+    }
+
     progressCallback?.(90, 'Finalizing extraction...');
 
-    const extractedText = response.content[0].type === 'text' ? response.content[0].text : '';
     const processingTime = Date.now() - startTime;
 
     progressCallback?.(100, 'Complete!');
@@ -536,7 +552,7 @@ Respond with ONLY the JSON, no additional text.`
       method: 'claude_sonnet',
       metadata: {
         processingTime,
-        model: 'claude-3-5-sonnet-20241022'
+        model: 'claude-sonnet-4-5'
       }
     };
   }

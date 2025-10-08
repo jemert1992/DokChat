@@ -1,6 +1,7 @@
 import { OpenAIService } from './openaiService';
 import { summarizeArticle as geminiSummarize } from '../../gemini';
 import { storage } from '../storage';
+import { HybridRAGService, RAGResult, Citation } from './hybridRAGService';
 
 // Use the ChatMessage type from schema instead of defining our own
 import type { ChatMessage as ChatMessageDB } from '@shared/schema';
@@ -12,21 +13,26 @@ export interface ChatMessage extends Omit<ChatMessageDB, 'createdAt'> {
 export interface ChatResponse {
   response: string;
   confidence: number;
-  model: 'openai' | 'gemini';
+  model: 'openai' | 'gemini' | 'claude-rag';
   relevantSections: string[];
+  citations?: Citation[];
+  selfCritique?: string;
 }
 
 export class DocumentChatService {
   private openaiService: OpenAIService;
+  private ragService: HybridRAGService;
 
   constructor() {
     this.openaiService = new OpenAIService();
+    this.ragService = new HybridRAGService();
   }
 
   async chatWithDocument(
     documentId: number, 
     userId: string, 
-    question: string
+    question: string,
+    useRAG: boolean = true
   ): Promise<ChatResponse> {
     try {
       // Get the document and its content
@@ -41,27 +47,20 @@ export class DocumentChatService {
         ...msg,
         timestamp: msg.createdAt || new Date()
       }));
-      
-      // Generate response using both AI models
-      const [openaiResponse, geminiResponse] = await Promise.allSettled([
-        this.generateOpenAIResponse(document, question, chatHistory),
-        this.generateGeminiResponse(document, question, chatHistory)
-      ]);
 
-      // Choose the best response
       let finalResponse: ChatResponse;
-      
-      if (openaiResponse.status === 'fulfilled' && geminiResponse.status === 'fulfilled') {
-        // Compare confidence scores and choose better response
-        finalResponse = openaiResponse.value.confidence >= geminiResponse.value.confidence 
-          ? openaiResponse.value 
-          : geminiResponse.value;
-      } else if (openaiResponse.status === 'fulfilled') {
-        finalResponse = openaiResponse.value;
-      } else if (geminiResponse.status === 'fulfilled') {
-        finalResponse = geminiResponse.value;
+
+      // Try RAG-based retrieval first for long documents
+      if (useRAG && this.shouldUseRAG(document)) {
+        try {
+          finalResponse = await this.generateRAGResponse(document, question);
+          console.log('✅ Using RAG-based response with citations');
+        } catch (ragError) {
+          console.warn('RAG failed, falling back to standard chat:', ragError);
+          finalResponse = await this.generateStandardResponse(document, question, chatHistory);
+        }
       } else {
-        throw new Error('Both AI models failed to generate response');
+        finalResponse = await this.generateStandardResponse(document, question, chatHistory);
       }
 
       // Save the conversation
@@ -86,6 +85,79 @@ export class DocumentChatService {
     } catch (error) {
       console.error('Error in document chat:', error);
       throw new Error(`Chat failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Determine if document should use RAG (for long documents)
+   */
+  private shouldUseRAG(document: any): boolean {
+    const textLength = (document.extractedText || '').length;
+    const MIN_LENGTH_FOR_RAG = 5000; // 5K characters (~1.2K tokens)
+    return textLength >= MIN_LENGTH_FOR_RAG;
+  }
+
+  /**
+   * Generate RAG-based response with citations
+   */
+  private async generateRAGResponse(
+    document: any,
+    question: string
+  ): Promise<ChatResponse> {
+    console.log('🔍 Using Hybrid RAG for document query');
+
+    // Check if document is already indexed
+    const existingChunks = this.ragService.getDocumentChunks(document.id);
+    
+    if (!existingChunks) {
+      // Index the document first
+      console.log('📚 Indexing document for RAG...');
+      await this.ragService.indexDocument(
+        document.id,
+        document.extractedText || '',
+        undefined // TODO: Extract page markers if available
+      );
+    }
+
+    // Query using hybrid RAG
+    const ragResult = await this.ragService.query(question, [document.id], 5);
+
+    return {
+      response: ragResult.answer,
+      confidence: ragResult.confidence,
+      model: 'claude-rag',
+      relevantSections: ragResult.retrievedChunks.map(chunk => chunk.content.substring(0, 200)),
+      citations: ragResult.citations,
+      selfCritique: ragResult.selfCritique
+    };
+  }
+
+  /**
+   * Generate standard response using OpenAI/Gemini
+   */
+  private async generateStandardResponse(
+    document: any,
+    question: string,
+    chatHistory: ChatMessage[]
+  ): Promise<ChatResponse> {
+    // Generate response using both AI models
+    const [openaiResponse, geminiResponse] = await Promise.allSettled([
+      this.generateOpenAIResponse(document, question, chatHistory),
+      this.generateGeminiResponse(document, question, chatHistory)
+    ]);
+
+    // Choose the best response
+    if (openaiResponse.status === 'fulfilled' && geminiResponse.status === 'fulfilled') {
+      // Compare confidence scores and choose better response
+      return openaiResponse.value.confidence >= geminiResponse.value.confidence 
+        ? openaiResponse.value 
+        : geminiResponse.value;
+    } else if (openaiResponse.status === 'fulfilled') {
+      return openaiResponse.value;
+    } else if (geminiResponse.status === 'fulfilled') {
+      return geminiResponse.value;
+    } else {
+      throw new Error('Both AI models failed to generate response');
     }
   }
 

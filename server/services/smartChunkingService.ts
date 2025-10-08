@@ -96,7 +96,7 @@ export class SmartChunkingService {
     const headers: Array<{ text: string; position: number; level: number }> = [];
 
     headerPatterns.forEach((pattern, level) => {
-      const matches = text.matchAll(pattern);
+      const matches = Array.from(text.matchAll(pattern));
       for (const match of matches) {
         if (match.index !== undefined) {
           headers.push({

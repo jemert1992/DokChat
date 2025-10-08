@@ -231,7 +231,7 @@ Provide your response as valid JSON only.`;
     const documents = this.chunkCache.size;
     let totalChunks = 0;
     
-    for (const chunks of this.chunkCache.values()) {
+    for (const chunks of Array.from(this.chunkCache.values())) {
       totalChunks += chunks.length;
     }
 

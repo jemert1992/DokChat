@@ -733,35 +733,6 @@ Return valid JSON format:
     return `${industry}_document`;
   }
 
-  private extractBasicSections(text: string) {
-    // Basic section detection using common patterns
-    const sections = [];
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    let currentSection = { name: 'Header', content: '', importance: 'high' as const };
-    
-    for (const line of lines.slice(0, 20)) { // Analyze first 20 lines
-      if (line.length < 50 && line.includes(':')) {
-        // Likely a section header
-        if (currentSection.content) {
-          sections.push(currentSection);
-        }
-        currentSection = {
-          name: line.replace(':', '').trim(),
-          content: '',
-          importance: this.assessSectionImportance(line) as 'high'
-        };
-      } else {
-        currentSection.content += line + ' ';
-      }
-    }
-    
-    if (currentSection.content) {
-      sections.push(currentSection);
-    }
-    
-    return sections;
-  }
 
   private assessSectionImportance(sectionName: string): 'critical' | 'high' | 'medium' | 'low' {
     const criticalKeywords = ['patient', 'diagnosis', 'payment', 'contract', 'agreement'];

@@ -41,8 +41,10 @@ export function useWebSocket() {
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.hostname;
-      const port = window.location.port || (protocol === "wss:" ? "443" : "5000");
-      const wsUrl = `${protocol}//${host}:${port}/ws`;
+      // On Replit, window.location.port is empty string, so we need to check for that
+      // If port is empty or undefined, don't include it in the URL (use default port)
+      const port = window.location.port;
+      const wsUrl = port ? `${protocol}//${host}:${port}/ws` : `${protocol}//${host}/ws`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

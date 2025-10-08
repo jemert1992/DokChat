@@ -1,0 +1,53 @@
+Comprehensive Code Audit, Clean-Up, Fixes, and Enhancement for Dokchat (OCR SaaS Project)
+
+I need a full, professional-grade audit, clean-up, and improvement pass on my entire Dokchat codebase. This is a document OCR and chat-powered SaaS app built for reliability, speed, and modern UX. Use best industry practices, deep code reasoning, and practical developer insights to achieve the following goals and output actionable changes or direct code edits (with explanations):
+
+1. Comprehensive Code Audit
+Analyze all frontend and backend files (TypeScript, React, Next.js/Node, API handlers, OCR modules).
+
+Identify and document code smells, security vulnerabilities, deprecated libraries, unused variables, and inefficient logic.
+
+Output a prioritized list of critical and non-critical issues with file and line references, and suggest fixes for each.
+
+2. Full Clean-Up and Refactoring
+Remove dead code, commented-out blocks, obsolete dependencies, and redundant logic.
+
+Normalize naming conventions (functions, variables, files) for consistency and readability.
+
+Modularize large files and split monolithic components; suggest or perform code splitting.
+
+Upgrade any outdated packages, and adjust imports/usage as needed.
+
+3. Feature & UX Enhancement
+Audit OCR/document analysis and chat workflows for speed, reliability, and error handling.
+
+Simplify and polish the UI for modern SaaS standards: refactor clunky flows, improve loading states, and ensure mobile and desktop responsiveness.
+
+Flag and fix bugs like upload failures, unexpected token errors, maximum update depth issues, etc.
+
+Improve state management (check Zustand logic if used): identify and fix any anti-patterns or race conditions.
+
+4. Testing & Errors
+Review and improve automated tests (unit, integration, e2e) or suggest realistic test coverage improvements.
+
+Fix or document unresolved runtime/server errors (500s, uncaught exceptions) in detail.
+
+Add clear error boundaries, user-friendly error handling, and fallback UIs where missing.
+
+5. Documentation & Best Practices
+Add or update docstrings, inline comments, and high-level README/API docs.
+
+Surface any hard-to-understand sections; suggest improved comments or architectural diagrams.
+
+List any tech debt, scaling issues, or future refactor opportunities.
+
+6. Output & Suggested Actions
+Directly edit, refactor, or format files as needed (auto-fix obvious issues).
+
+Produce a changelog and commit summary for tracking in git.
+
+If interactive edits are impossible, output step-by-step file-by-file edit instructions with code diffs.
+
+Context: This codebase powers Dokchat, an AI-driven document OCR SaaS with user authentication, document uploads, and advanced chat/analysis. The stack is React/Next.js with TypeScript, Node backend, OCR and AI API integrations, Zustand for state management.
+
+Objectives: Achieve top-quality audit, refactoring, error-fixing, and modern SaaS UX polish. Code should be clean, maintainable, secure, and fast, following the latest best practices for AI apps.

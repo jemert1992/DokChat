@@ -46,37 +46,11 @@ export default function ModernHeader({ user, onCreateNew }: ModernHeaderProps) {
     setLocation('/industry-selection');
   };
 
-  const breadcrumbItems = [
-    { label: 'Recent', active: true },
-    { label: 'Favorite', active: false },
-    { label: 'Spaces', active: false }
-  ];
-
   return (
     <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-8 py-6">
       <div className="max-w-7xl mx-auto">
-        {/* Top Section - Breadcrumbs and User Actions */}
-        <div className="flex items-center justify-between mb-6">
-          {/* Breadcrumbs */}
-          <div className="flex items-center space-x-1">
-            {breadcrumbItems.map((item, index) => (
-              <div key={item.label} className="flex items-center">
-                <button
-                  className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                    item.active 
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium' 
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                  data-testid={`breadcrumb-${item.label.toLowerCase()}`}
-                >
-                  {item.label}
-                </button>
-                {index < breadcrumbItems.length - 1 && (
-                  <i className="fas fa-chevron-right text-gray-300 dark:text-gray-600 text-xs mx-2"></i>
-                )}
-              </div>
-            ))}
-          </div>
+        {/* Top Section - User Actions */}
+        <div className="flex items-center justify-end mb-6">
 
           {/* User Actions and Avatars */}
           <div className="flex items-center space-x-4">

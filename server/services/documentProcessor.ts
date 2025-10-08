@@ -60,11 +60,14 @@ export class DocumentProcessor {
         throw new Error('Document not found');
       }
       
-      // SPEED OPTIMIZATION: Start processing immediately (no blocking messages)
-      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Processing document...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Analyzing document', 'processing');
+      // Stage 1: Upload Complete (10%)
+      await storage.updateDocumentStatus(documentId, 'processing', 10, 'Document uploaded successfully');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 10, 'Document received and validated', 'upload');
 
-      // PARALLEL: Fire classification and cache check simultaneously
+      // Stage 2: Classification (20%)
+      await storage.updateDocumentStatus(documentId, 'processing', 20, 'Analyzing document structure...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 20, 'Analyzing document type and structure', 'classification');
+      
       const [classification, documentHash] = await Promise.all([
         this.classifierService.classifyDocument(document.filePath, document.mimeType),
         this.ocrCacheService.generateDocumentHash(document.filePath)
@@ -86,8 +89,8 @@ export class DocumentProcessor {
       
       if (cachedOCR) {
         console.log(`✅ OCR cache HIT! Skipping OCR for document ${documentId}`);
-        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Using cached results...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Loading cached analysis', 'cache_hit');
+        await storage.updateDocumentStatus(documentId, 'processing', 50, 'Using cached text extraction...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 50, 'Loading cached text extraction', 'extraction');
         
         extractedText = cachedOCR.extractedText;
         ocrResults = {
@@ -101,9 +104,9 @@ export class DocumentProcessor {
       } else {
         console.log(`ℹ️  OCR cache MISS - using intelligent routing for document ${documentId}`);
         
-        // SPEED OPTIMIZATION: Try fast parallel mode first (model racing)
-        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text...');
-        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Processing with AI', 'extraction');
+        // Stage 3: Text Extraction (30-50%)
+        await storage.updateDocumentStatus(documentId, 'processing', 30, 'Extracting text with AI...');
+        this.sendWebSocketUpdate(document.userId, documentId, 'processing', 30, 'Extracting text with AI models', 'extraction');
         
         let processResult;
         try {
@@ -111,7 +114,7 @@ export class DocumentProcessor {
           processResult = await this.intelligentRouter.processFast(
             document.filePath,
             (progress, message) => {
-              const progressPercent = Math.round(30 + (progress / 100) * 30);
+              const progressPercent = Math.round(30 + (progress / 100) * 20); // 30-50%
               this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
             }
           );
@@ -127,7 +130,7 @@ export class DocumentProcessor {
             document.filePath,
             routingDecision.method,
             (progress, message) => {
-              const progressPercent = Math.round(30 + (progress / 100) * 30);
+              const progressPercent = Math.round(30 + (progress / 100) * 20); // 30-50%
               this.sendWebSocketUpdate(document.userId, documentId, 'processing', progressPercent, message, 'extraction');
             }
           );
@@ -157,9 +160,9 @@ export class DocumentProcessor {
         ).catch(err => console.warn('OCR cache failed:', err));
       }
       
-      // Stage 2: Single AI Analysis (Gemini for speed) - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running deep semantic analysis...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Synthesizing contextual intelligence', 'ai_analysis');
+      // Stage 4: AI Analysis (60-75%)
+      await storage.updateDocumentStatus(documentId, 'processing', 60, 'Running AI analysis...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 60, 'Deep semantic analysis and entity extraction', 'analysis');
       
       // Use Gemini for quick mode (faster and more cost-effective)
       const quickAIResult = await this.multiAIService.analyzeDocumentWithSingleModel(
@@ -169,16 +172,15 @@ export class DocumentProcessor {
         ocrResults
       );
       
-      // Stage 3: Basic Entity Extraction - REQUIRED
-      await storage.updateDocumentStatus(documentId, 'processing', 75, 'Performing entity recognition...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 75, 'Extracting semantic entities with NLP', 'entity_extraction');
+      await storage.updateDocumentStatus(documentId, 'processing', 70, 'Extracting entities...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 70, 'Identifying key entities and data points', 'analysis');
       
       // Extract only essential entities
       const entities = this.extractEssentialEntities(quickAIResult);
       
-      // Stage 3.5: Auto-QA Verification (Second-Pass Validation)
-      await storage.updateDocumentStatus(documentId, 'processing', 85, 'Running verification checks...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 85, 'Validating extracted data with Auto-QA', 'verification');
+      // Stage 5: Quality Verification (85-90%)
+      await storage.updateDocumentStatus(documentId, 'processing', 85, 'Verifying data quality...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 85, 'Validating extracted data', 'verification');
       
       let finalExtractedData = {
         analysisMode: 'quick',
@@ -225,9 +227,9 @@ export class DocumentProcessor {
         // Continue with unverified data if verification fails
       }
       
-      // Stage 4: Save Results
-      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Finalizing intelligence synthesis...');
-      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Compiling analysis results', 'saving');
+      // Stage 6: Finalization (90-100%)
+      await storage.updateDocumentStatus(documentId, 'processing', 90, 'Finalizing results...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 90, 'Saving and indexing document', 'finalization');
       
       const processingResult: ProcessingResult = {
         extractedText: ocrResults.text,
@@ -245,6 +247,9 @@ export class DocumentProcessor {
         processingResult.ocrConfidence,
         processingResult.aiConfidence
       );
+
+      await storage.updateDocumentStatus(documentId, 'processing', 95, 'Saving extracted data...');
+      this.sendWebSocketUpdate(document.userId, documentId, 'processing', 95, 'Saving extracted entities', 'finalization');
 
       // Save entities
       for (const entity of processingResult.entities) {
@@ -272,7 +277,7 @@ export class DocumentProcessor {
         documentId, 
         'completed', 
         100, 
-        `Quick analysis completed in ${Math.round(processingTimeMs / 1000)} seconds`,
+        `Analysis completed in ${Math.round(processingTimeMs / 1000)} seconds`,
         'completed',
         'Gemini Flash',
         processingTimeMs,

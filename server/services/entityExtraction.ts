@@ -157,43 +157,36 @@ export class EntityExtractionService {
         }
       };
 
-      // SPEED OPTIMIZATION: Run all extractions in parallel
+      // SPEED OPTIMIZATION: Run regex extraction first, then parallel AI tasks
       console.log('🏥 Running parallel medical entity extraction');
       
-      const [regexEntities, aiEnhancedEntities, phiEntities, clinicalEntities] = await Promise.all([
-        // 1. Regex extraction (synchronous, so wrap in Promise)
-        Promise.resolve().then(() => {
-          const regexResults: MedicalEntityResult[] = [];
-          for (const [category, pattern] of Object.entries(medicalPatterns)) {
-            let match;
-            while ((match = pattern.regex.exec(extractedText)) !== null) {
-              const entityValue = match[1] || match[2] || match[3] || match[0];
-              if (entityValue && entityValue.trim().length > 2) {
-                regexResults.push({
-                  entityType: pattern.type,
-                  entityValue: entityValue.trim(),
-                  confidenceScore: this.calculateMedicalConfidence(pattern.type, entityValue),
-                  medicalCode: this.extractMedicalCode(pattern.type, entityValue),
-                  clinicalContext: this.extractClinicalContext(extractedText, match.index || 0),
-                  clinicalSignificance: pattern.significance,
-                  locationData: { 
-                    startIndex: match.index, 
-                    endIndex: (match.index || 0) + match[0].length 
-                  }
-                });
+      // Step 1: Regex extraction (fast, synchronous)
+      const regexEntities: MedicalEntityResult[] = [];
+      for (const [category, pattern] of Object.entries(medicalPatterns)) {
+        let match;
+        while ((match = pattern.regex.exec(extractedText)) !== null) {
+          const entityValue = match[1] || match[2] || match[3] || match[0];
+          if (entityValue && entityValue.trim().length > 2) {
+            regexEntities.push({
+              entityType: pattern.type,
+              entityValue: entityValue.trim(),
+              confidenceScore: this.calculateMedicalConfidence(pattern.type, entityValue),
+              medicalCode: this.extractMedicalCode(pattern.type, entityValue),
+              clinicalContext: this.extractClinicalContext(extractedText, match.index || 0),
+              clinicalSignificance: pattern.significance,
+              locationData: { 
+                startIndex: match.index, 
+                endIndex: (match.index || 0) + match[0].length 
               }
-            }
+            });
           }
-          return regexResults;
-        }),
-        
-        // 2. AI enhancement
-        this.enhanceEntitiesWithAI([], extractedText, 'medical'),
-        
-        // 3. PHI detection
+        }
+      }
+      
+      // Step 2: Run AI enhancement, PHI detection, and clinical extraction in parallel
+      const [aiEnhancedEntities, phiEntities, clinicalEntities] = await Promise.all([
+        this.enhanceEntitiesWithAI(regexEntities, extractedText, 'medical'),
         this.detectAdvancedPHI(extractedText),
-        
-        // 4. Clinical extraction
         this.extractClinicalEntities(extractedText)
       ]);
       

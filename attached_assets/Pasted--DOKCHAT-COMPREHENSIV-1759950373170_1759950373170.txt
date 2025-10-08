@@ -1,0 +1,73 @@
+═══════════════════════════════════════════════════════════════════════════════
+DOKCHAT COMPREHENSIVE OPTIMIZATION & ENHANCEMENT PLAN
+Step-by-Step Implementation Guide for Replit Agent
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT CONTEXT:
+DokChat is an enterprise document processing system that currently processes documents
+in 50-60 seconds. This plan will reduce processing time to 20-25 seconds (2-3x faster)
+while maintaining accuracy and adding production-grade enhancements.
+
+TARGET METRICS:
+- Processing Speed: 50-60s → 20-25s (2-3x improvement)
+- Cache Hit Rate: 0% → 60%+ for duplicate documents
+- Parallel Efficiency: 30% → 85%+ resource utilization
+- Error Rate: Maintain current <5% or improve
+- Accuracy: Maintain current 93%+ or improve
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 1: SPEED OPTIMIZATIONS (CRITICAL PATH)
+Target: 2-3x faster processing
+═══════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 1.1: Enable Fast Classification Mode
+────────────────────────────────────────────────────────────────────────────────
+FILE: server/services/intelligentRouter.ts
+IMPACT: Saves 3-5 seconds per document
+RISK: Low (fallback available)
+
+TASK:
+Add a new method `fastClassify()` after the `basicClassification()` method (around line 175).
+This method should:
+
+1. Check file extension and size
+2. For PDFs: Check if text layer exists using `checkPDFTextLayer()`
+   - If has text layer → route to 'gemini_native' (fastest)
+   - If no text layer → route to 'claude_sonnet' (best for scanned docs)
+3. For images → route to 'claude_sonnet' (best vision capabilities)
+4. Return DocumentClassification with 70-75% confidence
+5. Skip expensive Claude pre-classification entirely
+
+Then update `routeDocument()` method (line 219) to call `fastClassify()` instead of 
+`preClassifyWithClaude()`.
+
+VALIDATION:
+- Test PDF with text layer → should route to gemini_native in <1s
+- Test scanned PDF → should route to claude_sonnet in <1s
+- Check logs show "Fast classification" message
+- Verify no accuracy loss compared to Claude pre-classification
+
+CODE TEMPLATE:
+```typescript
+private async fastClassify(filePath: string, mimeType: string): Promise<DocumentClassification> {
+  const fileExt = path.extname(filePath).toLowerCase();
+  const stats = await fs.stat(filePath);
+  const fileSizeKB = stats.size / 1024;
+  
+  if (fileExt === '.pdf') {
+    const hasTextLayer = await this.checkPDFTextLayer(filePath);
+    return {
+      documentType: 'other',
+      complexity: fileSizeKB > 5000 ? 'complex' : fileSizeKB > 1000 ? 'medium' : 'simple',
+      hasTable: false,
+      hasChart: false,
+      hasHandwriting: false,
+      recommendedProcessor: hasTextLayer ? 'gemini_native' : 'claude_sonnet',
+      confidence: 75,
+      reasoning: 'Fast routing based on PDF structure analysis'
+    };
+  }
+  
+  // ... similar logic for images and other types
+}

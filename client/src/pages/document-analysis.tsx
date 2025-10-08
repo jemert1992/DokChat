@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import type { Document, DocumentAnalysis, ExtractedEntity } from "@shared/schema";
 import ExtractedDataDisplay from "@/components/ExtractedDataDisplay";
 import DocumentChat from '@/components/DocumentChat';
+import { ProcessingMetricsReport } from '@/components/ProcessingMetricsReport';
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Loader2 } from "lucide-react";
 // import CollaborationPanel from '@/components/collaboration/CollaborationPanel'; // Temporarily disabled
@@ -295,8 +296,14 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
             </Card>
 
             {document.status === 'completed' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Extracted Data */}
+              <>
+                {/* Processing Metrics Report */}
+                <div className="mb-6">
+                  <ProcessingMetricsReport documentId={parseInt(documentId)} />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Extracted Data */}
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
@@ -381,7 +388,8 @@ export default function DocumentAnalysis({ params }: DocumentAnalysisProps) {
                     </CardContent>
                   </Card>
                 )}
-              </div>
+                </div>
+              </>
             )}
 
             {document.status === 'processing' && (

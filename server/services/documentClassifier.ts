@@ -19,12 +19,12 @@ export class DocumentClassifierService {
   private genAI: GoogleGenAI | null = null;
 
   constructor() {
-    const apiKey = process.env.GOOGLE_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      console.warn('⚠️ Google API key not found - document classification will use basic fallback');
+      console.warn('⚠️ Gemini API key not found - document classification will use basic fallback');
     } else {
       this.genAI = new GoogleGenAI({ apiKey });
-      console.log('✅ Document Classifier initialized with Gemini');
+      console.log('✅ Document Classifier initialized with Gemini Flash');
     }
   }
 
@@ -37,6 +37,25 @@ export class DocumentClassifierService {
     mimeType: string
   ): Promise<DocumentClassification> {
     try {
+      // SPEED OPTIMIZATION: Skip AI classification for small, simple PDFs (< 2MB)
+      // These are likely native PDFs with text layers and can go straight to fast processing
+      const stats = await fs.stat(filePath);
+      if (mimeType === 'application/pdf' && stats.size < 2 * 1024 * 1024) {
+        console.log(`⚡ Skipping classification for small PDF (${Math.round(stats.size / 1024)}KB) - using fast track`);
+        return {
+          documentType: 'document',
+          complexity: 'simple',
+          hasTable: false,
+          hasChart: false,
+          hasHandwriting: false,
+          language: 'en',
+          pageCount: Math.ceil(stats.size / 50000), // Rough estimate: ~50KB per page
+          recommendedProcessor: 'vision_api',
+          confidence: 85,
+          description: 'Small PDF document - fast track processing'
+        };
+      }
+
       // If no Gemini API, use basic classification
       if (!this.genAI) {
         return this.basicClassification(filePath, mimeType);

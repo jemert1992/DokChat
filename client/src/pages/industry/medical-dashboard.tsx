@@ -38,6 +38,8 @@ import ChatHistorySidebar from "@/components/chat-history-sidebar";
 import FloatingNav from "@/components/floating-nav";
 import { useAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { FeatureHint } from "@/components/FeatureHint";
 
 export default function MedicalDashboard() {
   const { user } = useAuth();
@@ -46,9 +48,18 @@ export default function MedicalDashboard() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([
     { role: "assistant", content: "I'm your medical document AI assistant. Upload patient records, clinical notes, lab reports, or medical imaging reports and I'll help you extract patient information, analyze diagnoses, review treatment plans, and ensure HIPAA compliance. You can select multiple documents for bulk analysis. What medical insights do you need?" }
   ]);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    const hasCompletedOnboarding = localStorage.getItem('onboarding_completed');
+    if (!hasCompletedOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, []);
 
   // Fetch documents
   const { data: documents } = useQuery<Document[]>({
@@ -675,6 +686,31 @@ export default function MedicalDashboard() {
           currentSessionId={currentSessionId}
           isOpen={isHistoryOpen}
           onClose={() => setIsHistoryOpen(false)}
+        />
+
+        {/* Onboarding Guide */}
+        {showOnboarding && (
+          <OnboardingGuide
+            onComplete={() => setShowOnboarding(false)}
+            onNavigate={(path) => setLocation(path)}
+          />
+        )}
+
+        {/* Feature Hints */}
+        <FeatureHint
+          id="upload-documents"
+          title="Upload Documents"
+          description="Drag & drop or click to upload patient records, clinical notes, lab results, and medical imaging reports. We process them in under 1 minute!"
+          icon={<FileText className="h-4 w-4 text-blue-600" />}
+          position="bottom-right"
+        />
+
+        <FeatureHint
+          id="ai-assistant"
+          title="AI Assistant"
+          description="Ask the AI to extract patient info, analyze diagnoses, review treatment plans, or check HIPAA compliance. Select multiple documents for bulk analysis."
+          icon={<Brain className="h-4 w-4 text-purple-600" />}
+          position="top-right"
         />
       </div>
     </div>

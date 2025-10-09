@@ -361,7 +361,7 @@ Respond with ONLY the JSON, no additional text.`
 
   /**
    * SPEED OPTIMIZATION: Fast parallel processing with model racing
-   * TACTIC: Fire all models in parallel, use fastest response with 12s timeout
+   * TACTIC: Fire all models in parallel, use fastest response with 30s timeout
    */
   async processFast(
     filePath: string,
@@ -414,9 +414,9 @@ Respond with ONLY the JSON, no additional text.`
       throw new Error('No warm models available for fast processing');
     }
     
-    // TACTIC: Low-latency failover with 12s timeout
+    // TACTIC: Low-latency failover with 30s timeout (increased for better success rate)
     const timeoutPromise = new Promise<ProcessingResult>((_, reject) => {
-      setTimeout(() => reject(new Error('All models exceeded 12s timeout')), 12000);
+      setTimeout(() => reject(new Error('All models exceeded 30s timeout')), 30000);
     });
     
     try {

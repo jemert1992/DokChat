@@ -80,16 +80,16 @@ export function EnhancedProcessingStatus({
   }, []);
 
   useEffect(() => {
-    // Calculate estimated time remaining based on progress
-    if (progress > 0 && progress < 100) {
-      const totalEstimatedTime = 20; // Total estimated time in seconds
-      const timePerPercent = totalEstimatedTime / 100;
-      const remaining = Math.ceil((100 - progress) * timePerPercent);
+    // Calculate estimated time remaining based on actual progress rate
+    if (progress > 0 && progress < 100 && elapsedTime > 0) {
+      // Calculate time based on actual progress rate (dynamic, not hardcoded)
+      const progressRate = progress / elapsedTime; // percent per second
+      const remaining = Math.ceil((100 - progress) / progressRate);
       setEstimatedTimeRemaining(remaining);
     } else {
       setEstimatedTimeRemaining(0);
     }
-  }, [progress]);
+  }, [progress, elapsedTime]);
 
   const getCurrentStage = () => {
     for (let i = PROCESSING_STAGES.length - 1; i >= 0; i--) {
@@ -188,11 +188,6 @@ export function EnhancedProcessingStatus({
                     >
                       {stage.name}
                     </span>
-                    {isCurrent && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                        ~{stage.estimatedDuration}s
-                      </span>
-                    )}
                   </div>
                   <p
                     className={`text-xs ${
